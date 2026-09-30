@@ -198,6 +198,15 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  // The app shell is interactive — cookie banner may now slide in (bottom).
+  // Fired after ALL first-run modals (onboarding, tutorial, pet, plans) are
+  // gone, so the welcome flow never competes with consent for attention.
+  useEffect(() => {
+    if (!storageReady || !ageGateDone || needsOnboarding || showTutorial || !planIntroDone) return;
+    const t = setTimeout(() => window.dispatchEvent(new Event("orleia:app-ready")), 400);
+    return () => clearTimeout(t);
+  }, [storageReady, ageGateDone, needsOnboarding, showTutorial, planIntroDone]);
+
   /* Status-bar tint follows the APP theme (not just the OS): when the
      user toggles light/dark inside Orleia, the mobile OS bar follows. */
   useEffect(() => {
@@ -258,9 +267,10 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
 
       {storageReady && !ageGateDone && <AgeGate onConfirmed={() => setAgeGateDone(true)} />}
 
-      {/* One-time full-screen plan intro — after onboarding/age gate, before
-          the app renders. It covers everything; closing reveals the app. */}
-      {storageReady && ageGateDone && !needsOnboarding && !planIntroDone && (
+      {/* One-time full-screen plan intro — AFTER the full first-run flow
+          (onboarding → tutorial → pet). The user must reach the aha moment
+          before seeing plans; nothing is gated, one tap dismisses. */}
+      {storageReady && ageGateDone && !needsOnboarding && !showTutorial && !planIntroDone && (
         <PlanIntroKeyed />
       )}
 

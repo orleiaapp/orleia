@@ -1845,6 +1845,12 @@ export interface ExecutedAction {
   data?: any;
 }
 
+/** A model-proposed action that has NOT run yet — rendered as a confirm chip. */
+export interface ProposedAction {
+  action: ActionType;
+  params: Record<string, any>;
+}
+
 /**
  * Execute one JSON action payload for real. Returns null when the payload
  * cannot be parsed as a valid action; otherwise the structured outcome
@@ -1903,6 +1909,49 @@ export function executeJsonAction(reply: string): ExecutedAction | null {
     message: result.message,
     data: result.data,
   };
+}
+
+/**
+ * Parse one ORLEIA_ACTION JSON payload WITHOUT executing it — used by the
+ * confirm-chips flow: the model proposes, the user confirms with one tap.
+ * Returns enough info to render a chip and to execute later, or null.
+ */
+export function parseActionPayload(reply: string): ProposedAction | null {
+  if (!reply || !reply.trim()) return null;
+  let text = reply.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
+  if (!text.startsWith("{")) return null;
+  text = resolvePlaceholders(text);
+  let parsed: any;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    return null;
+  }
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return null;
+  let actionType: ActionType | null = null;
+  let params: Record<string, any> = {};
+  if (parsed.action && parsed.params && typeof parsed.params === "object") {
+    const a = String(parsed.action);
+    if (!isActionType(a)) return null;
+    actionType = a;
+    params = parsed.params;
+  } else {
+    if (parsed.frequency || parsed.timeOfDay || parsed.category) {
+      actionType = "create_habit";
+    } else if (parsed.title && (parsed.priority !== undefined || parsed.dueDate !== undefined)) {
+      actionType = "create_task";
+    } else if (parsed.title && parsed.mood !== undefined) {
+      actionType = "create_journal";
+    } else if (parsed.title && parsed.content !== undefined) {
+      actionType = "create_note";
+    } else if (parsed.content) {
+      actionType = "create_note";
+    } else {
+      return null;
+    }
+    params = parsed;
+  }
+  return { action: actionType, params };
 }
 
 /**

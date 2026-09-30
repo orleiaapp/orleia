@@ -64,7 +64,23 @@ export default function CookieConsent() {
 
   useEffect(() => {
     try {
-      if (!window.localStorage.getItem(KEY)) setVisible(true);
+      if (!window.localStorage.getItem(KEY)) {
+        // Small bottom banner after onboarding, not a first-screen takeover:
+        // wait for the app to be interactive (or onboarding to finish) so
+        // the welcome/age gate get the user's full attention first.
+        const arm = () => setTimeout(() => setVisible(true), 800);
+        let armed = false;
+        const tryArm = () => {
+          if (armed) return;
+          if (document.querySelector("main")) { armed = true; arm(); }
+        };
+        tryArm();
+        const iv = setInterval(tryArm, 1000);
+        const onReady = () => { clearInterval(iv); if (!armed) { armed = true; arm(); } };
+        window.addEventListener("orleia:app-ready", onReady, { once: true });
+        setTimeout(() => { clearInterval(iv); onReady(); }, 20000);
+        return () => { clearInterval(iv); window.removeEventListener("orleia:app-ready", onReady); };
+      }
     } catch {
       /* storage blocked - stay hidden rather than nag every load */
     }
@@ -95,37 +111,30 @@ export default function CookieConsent() {
       role="dialog"
       aria-live="polite"
       aria-label="Cookie consent"
-      className="fixed bottom-4 left-4 right-4 md:left-auto md:right-6 md:max-w-md z-[100] rounded-2xl border border-border bg-card/95 backdrop-blur p-5 shadow-2xl"
+      className="fixed bottom-3 left-3 right-3 md:left-auto md:right-6 md:max-w-sm z-[95] rounded-2xl border border-border bg-card/95 backdrop-blur p-4 shadow-xl"
     >
       {!customizing ? (
         <>
-          <p className="text-sm font-semibold mb-1.5">We value your privacy</p>
-          <p className="text-xs text-muted-foreground leading-relaxed mb-4">
-            Orleia stores your workspace only on your device. We use no tracking
-            or advertising cookies — the single optional item is an anonymous
-            analytics counter that helps us know which features to improve. You
-            can accept or reject with one click; rejecting changes nothing about
-            how Orleia works. See our{" "}
+          <p className="text-xs font-semibold">We value your privacy</p>
+          <p className="mt-1 text-[11px] text-muted-foreground leading-relaxed">
+            Your workspace stays on your device. No tracking or ads — the one
+            optional item is an anonymous analytics counter. See our{" "}
             <Link href="/cookies" className="underline underline-offset-2 hover:text-foreground">
               Cookie Policy
-            </Link>{" "}
-            and{" "}
-            <Link href="/privacy" className="underline underline-offset-2 hover:text-foreground">
-              Privacy Policy
             </Link>
             .
           </p>
           {/* Equal prominence: same size, same style, side by side. */}
-          <div className="flex gap-2.5">
+          <div className="mt-3 flex gap-2">
             <button
               onClick={() => decide("rejected")}
-              className="flex-1 rounded-xl border border-border px-4 py-2.5 text-sm font-medium hover:bg-secondary transition-colors"
+              className="flex-1 rounded-lg border border-border px-3 py-1.5 text-xs font-medium hover:bg-secondary transition-colors"
             >
               Reject
             </button>
             <button
               onClick={() => decide("accepted")}
-              className="flex-1 rounded-xl border border-border bg-foreground text-background px-4 py-2.5 text-sm font-medium hover:opacity-90 transition-opacity"
+              className="flex-1 rounded-lg border border-border bg-foreground text-background px-3 py-1.5 text-xs font-medium hover:opacity-90 transition-opacity"
             >
               Accept
             </button>

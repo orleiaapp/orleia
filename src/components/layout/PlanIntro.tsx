@@ -20,6 +20,10 @@ const SEEN_KEY = "orleia.planIntroSeen.v1";
 
 export function PlanIntro() {
   const [open, setOpen] = useState(false);
+  // Multi-step: step 1 sells the value (what Noor is, what free includes),
+  // step 2 shows the plans. One decision per screen — plan cards only make
+  // sense once you know what you'd be paying FOR.
+  const [step, setStep] = useState<"value" | "plans">("value");
   const [yearly, setYearly] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
 
@@ -99,7 +103,56 @@ export function PlanIntro() {
       </button>
 
       <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col justify-center px-5 py-12">
-        {/* Headline */}
+        {step === "value" ? (
+        <>
+        {/* Step 1 — the value story. No prices, no cards: what Noor is,
+            what free includes, and one obvious next button. */}
+        <div className="flex items-center gap-3">
+          <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary-500/10">
+            <Sparkles className="h-5 w-5 text-primary-500" />
+          </span>
+          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
+            Meet Noor, your AI
+          </h1>
+        </div>
+
+        <p className="mt-4 max-w-xl text-sm leading-relaxed text-muted-foreground sm:text-base">
+          Noor reads your whole workspace and acts on it — create habits and
+          tasks, plan your day, find anything you&apos;ve written. Ask in your
+          own words; it answers with your real data.
+        </p>
+
+        <ul className="mt-5 space-y-2.5">
+          {[
+            "Every tool in Orleia is free, forever — habits, notes, calendar, journal.",
+            "Noor is included free: 30 messages every day, no card required.",
+            "Everything stays on your device — Noor reads your data locally.",
+          ].map((line) => (
+            <li key={line} className="flex items-start gap-2.5 text-sm leading-relaxed text-muted-foreground">
+              <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
+              {line}
+            </li>
+          ))}
+        </ul>
+
+        <div className="mt-8 flex flex-col gap-2.5">
+          <button
+            onClick={() => setStep("plans")}
+            className="w-full max-w-sm rounded-full bg-foreground px-8 py-3 text-sm font-medium text-background transition-all hover:opacity-90 active:scale-[0.98]"
+          >
+            See what Plus and Pro add
+          </button>
+          <button
+            onClick={dismiss}
+            className="w-fit rounded-xl px-1 text-xs text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline"
+          >
+            Maybe later — take me to Orleia
+          </button>
+        </div>
+        </>
+        ) : (
+        <>
+        {/* Step 2 — the plans. */}
         <div className="flex items-center gap-3">
           <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary-500/10">
             <Sparkles className="h-5 w-5 text-primary-500" />
@@ -110,11 +163,8 @@ export function PlanIntro() {
         </div>
 
         <p className="mt-4 max-w-xl text-sm leading-relaxed text-muted-foreground sm:text-base">
-          Every tool in Orleia is free, forever. The only thing that scales is{" "}
-          <span className="font-medium text-foreground">Noor</span> — your AI that reads your whole
-          workspace and acts on it. On the free plan you get{" "}
-          <span className="font-medium text-foreground">30 messages a day</span>. If Noor becomes
-          part of your routine, a plan removes the ceiling.
+          If Noor becomes part of your routine, a plan removes the ceiling —{" "}
+          <span className="font-medium text-foreground">300 to unlimited messages a day</span>.
         </p>
 
         {/* Interval toggle */}
@@ -182,6 +232,8 @@ export function PlanIntro() {
         >
           Maybe later — take me to Orleia
         </button>
+        </>
+        )}
       </div>
     </div>
   );

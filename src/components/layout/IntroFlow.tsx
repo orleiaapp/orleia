@@ -51,6 +51,41 @@ function WelcomeStep({ onDone }: { onDone: () => void }) {
     </div>
   );
 }
+function NameStep({ onDone }: { onDone: (name: string) => void }) {
+  const [name, setName] = useState("");
+  const submit = () => {
+    const trimmed = name.trim().slice(0, 40);
+    if (trimmed) {
+      storage.updateProfile({ name: trimmed });
+      // Persist immediately so a reload mid-onboarding keeps the name.
+      try { storage.saveData(); } catch { /* ignore */ }
+    }
+    onDone(trimmed);
+  };
+  return (
+    <div className="fixed inset-0 z-[100] flex flex-col overflow-hidden bg-background">
+      <div className="mt-14 flex w-full justify-center md:mt-16"><p className="text-xs tracking-[0.5em] text-muted-foreground/40">ORLEIA</p></div>
+      <motion.h1 initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }} className="mt-10 text-center font-serif text-3xl font-light tracking-tight md:text-4xl">What should we call you?</motion.h1>
+      <p className="mt-3 text-center text-sm text-muted-foreground">Just a name — it stays on your device and greets you every morning.</p>
+      <div className="mt-8 flex w-full flex-1 flex-col items-center px-6">
+        <input
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter") submit(); }}
+          placeholder="Your name"
+          aria-label="Your name"
+          autoFocus
+          maxLength={40}
+          className="w-full max-w-sm rounded-2xl border border-border bg-secondary/40 px-5 py-4 text-center text-lg outline-none transition-colors placeholder:text-muted-foreground/50 focus:border-muted-foreground/40"
+        />
+      </div>
+      <div className="w-full px-6 pb-10 pt-4"><div className="mx-auto w-full max-w-sm flex flex-col gap-2">
+        <button onClick={submit} className="w-full rounded-full bg-foreground px-8 py-3 text-sm font-medium text-background transition-all hover:opacity-90 active:scale-[0.98]">Continue</button>
+        <button onClick={() => onDone("")} className="w-full py-1 text-xs text-muted-foreground/70 transition-colors hover:text-foreground">I&apos;d rather not say</button>
+      </div></div>
+    </div>
+  );
+}
 function AppearanceStep({ onDone }: { onDone: () => void }) {
   const initial = storage.getData().theme;
   const [mode, setMode] = useState(initial.theme || "system");
@@ -88,12 +123,13 @@ function AppearanceStep({ onDone }: { onDone: () => void }) {
 const INTRO_STEP_KEY = "orleia-intro-step";
 
 export function IntroFlow({ onComplete }: { onComplete: () => void }) {
-  const [step, setStep] = useState<"welcome" | "appearance">(() => { if (typeof window === "undefined") return "welcome"; const saved = localStorage.getItem(INTRO_STEP_KEY); if (saved === "appearance") return saved; return "welcome"; });
+  const [step, setStep] = useState<"welcome" | "name" | "appearance">(() => { if (typeof window === "undefined") return "welcome"; const saved = localStorage.getItem(INTRO_STEP_KEY); if (saved === "appearance" || saved === "name") return saved; return "welcome"; });
   useEffect(() => { if (step === "welcome") localStorage.removeItem(INTRO_STEP_KEY); else localStorage.setItem(INTRO_STEP_KEY, step); }, [step]);
   const finish = () => { localStorage.removeItem(INTRO_STEP_KEY); storage.completeOnboarding(); onComplete(); };
   return (
     <AnimatePresence mode="wait">
-      {step === "welcome" && <motion.div key="welcome" exit={{ opacity: 0 }} transition={{ duration: 0.3 }}><WelcomeStep onDone={() => setStep("appearance")} /></motion.div>}
+      {step === "welcome" && <motion.div key="welcome" exit={{ opacity: 0 }} transition={{ duration: 0.3 }}><WelcomeStep onDone={() => setStep("name")} /></motion.div>}
+      {step === "name" && <motion.div key="name" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }}><NameStep onDone={() => setStep("appearance")} /></motion.div>}
       {step === "appearance" && <motion.div key="appearance" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }}><AppearanceStep onDone={finish} /></motion.div>}
     </AnimatePresence>
   );

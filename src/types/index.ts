@@ -357,6 +357,10 @@ export const AI_MODELS: { id: AIModel; name: string; description: string; taglin
 export interface AIMessage {
   id: string;
   role: "user" | "assistant";
+  /** Confirm chip: a proposed action awaiting the user's one-tap decision. */
+  proposal?: { action: string; params: Record<string, unknown> };
+  /** Set once the user confirmed/dismissed this proposal (chip renders inert). */
+  proposalResolved?: "confirmed" | "dismissed";
   /** System-injected banner (e.g. "5 messages left today"). Never sent to the LLM. */
   kind?: "usage-warning";
   content: string;

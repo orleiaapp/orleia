@@ -30,6 +30,7 @@ import {
   detectAction,
   executeAction,
   tryExecuteJsonAction,
+  parseActionPayload,
   processActionReply,
   stripActionRemnants,
   ACTION_MARKER_VARIANTS,
@@ -333,6 +334,11 @@ export interface StreamOpts {
   onThinking?: (delta: string) => void;
   signal?: AbortSignal;
   sources?: AISource[];
+  /** Confirm-chips mode: when set, proposed actions are NOT executed —
+   *  the proposal is handed to the UI as a tappable confirmation and the
+   *  raw block never reaches the visible text. Omit to auto-execute
+   *  (voice, background asks, and the offline engine keep that behavior). */
+  onProposeAction?: (proposal: { action: string; params: Record<string, unknown> }) => void;
 }
 
 export async function chatStream(
@@ -485,6 +491,18 @@ export async function chatStream(
           const rest = actionBuf.slice(i + 1);
           inAction = false;
           actionBuf = "";
+          // Confirm-chips mode: parse without executing, hand the proposal
+          // to the UI, and keep the raw block out of the visible text.
+          if (opts.onProposeAction) {
+            const proposal = parseActionPayload(json);
+            if (proposal) {
+              handledAction = true;
+              try { opts.onProposeAction({ action: proposal.action, params: proposal.params }); } catch { /* UI hook must never break the stream */ }
+            }
+            // Unparseable payloads: drop silently (same as execution path).
+            if (rest) emit(stripActionRemnants(rest));
+            return;
+          }
           const confirmation = tryExecuteJsonAction(json);
           if (confirmation) {
             handledAction = true;

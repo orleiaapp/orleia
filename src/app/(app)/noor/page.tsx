@@ -56,7 +56,7 @@ import { storage } from "@/lib/storage";
 import { buildSituationModel } from "@/lib/graph/situation";
 import { getGraph } from "@/lib/graph/engine";
 import { chat } from "@/lib/ai";
-import { sanitizeStoredReply } from "@/lib/ai-actions";
+import { sanitizeStoredReply, executeAction, type ProposedAction } from "@/lib/ai-actions";
 import { chatStream, NoorCapError } from "@/lib/ai-stream";
 import { getSkills, type NoorSkill } from "@/lib/noor-skills";
 import { noorPresence, subscribeNoorBg, notifyNoorReply } from "@/lib/noor-background";
@@ -94,6 +94,72 @@ function msgLabel(id?: string): string {
     return def ? def.name : "Local";
   }
   return MODEL_META[resolved] || "Core";
+}
+
+const PROPOSAL_LABELS: Record<string, string> = {
+  create_habit: "Create habit",
+  create_task: "Create task",
+  create_note: "Create note",
+  create_journal: "Write journal entry",
+  create_event: "Add calendar event",
+  log_habit: "Log habit",
+  complete_task: "Complete task",
+  update_habit: "Update habit",
+  update_task: "Update task",
+  delete_habit: "Delete habit",
+  delete_task: "Delete task",
+  delete_note: "Delete note",
+};
+
+function proposalTitle(p: { action: string; params: Record<string, unknown> }): string {
+  const label = PROPOSAL_LABELS[p.action] || p.action.replace(/_/g, " ");
+  const raw = p.params?.title ?? p.params?.name ?? p.params?.content ?? p.params?.date;
+  const detail = typeof raw === "string" && raw.trim() ? " \u201c" + raw.trim().slice(0, 40) + "\u201d" : "";
+  return label + detail;
+}
+
+/** One-tap confirmation for an action Noor proposed. Nothing runs until tapped. */
+function ProposalChip({
+  msg,
+  onConfirm,
+  onDismiss,
+}: {
+  msg: AIMessage;
+  onConfirm: () => void;
+  onDismiss: () => void;
+}) {
+  const p = msg.proposal;
+  if (!p) return null;
+  if (msg.proposalResolved) {
+    return (
+      <div className="mt-2 inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-secondary/40 px-3 py-1.5 text-[11px] text-muted-foreground">
+        <span className={msg.proposalResolved === "confirmed" ? "text-emerald-500" : ""}>
+          {msg.proposalResolved === "confirmed" ? "\u2713" : "\u2715"}
+        </span>
+        {msg.proposalResolved === "confirmed" ? "Done" : "Dismissed"} · {proposalTitle(p)}
+      </div>
+    );
+  }
+  return (
+    <div className="mt-3 rounded-2xl border border-border bg-card/80 p-3">
+      <p className="text-[11px] uppercase tracking-wider text-muted-foreground/60">Noor wants to</p>
+      <p className="mt-1 text-sm font-medium">{proposalTitle(p)}</p>
+      <div className="mt-2.5 flex gap-2">
+        <button
+          onClick={onConfirm}
+          className="rounded-full bg-foreground px-4 py-1.5 text-xs font-medium text-background transition-all hover:opacity-90 active:scale-95"
+        >
+          Confirm
+        </button>
+        <button
+          onClick={onDismiss}
+          className="rounded-full border border-border px-4 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+        >
+          Not now
+        </button>
+      </div>
+    </div>
+  );
 }
 
 interface Attachment {
@@ -658,15 +724,21 @@ export default function AssistantPage() {
     const model = selectedModel;
     let sources: AISource[] = [];
     if (isLiveQuery(queryText)) sources = await fetchWebSources(queryText);
-    let response: string;
+    const proposals: ProposedAction[] = [];
+    let response: string; // proposals collected below ride on the finalized message
     try {
       // Stream so tokens appear live in the thread as they are generated.
+      // onProposeAction: model-proposed actions become confirm chips the
+      // user taps — nothing changes the workspace until they do.
       let acc = "";
       response = await chatStream(queryText, msgs, model, {
         sources,
         onToken: (delta) => {
           acc += delta;
           setStreamText(acc);
+        },
+        onProposeAction: (proposal) => {
+          proposals.push(proposal as unknown as ProposedAction);
         },
       });
     } catch (e) {
@@ -707,6 +779,7 @@ export default function AssistantPage() {
       model,
       branch: branchMode || undefined,
       sources: sources.length ? sources : undefined,
+      proposal: proposals.length ? proposals[0] : undefined,
     };
     const updated = [...msgs, aiMsg];
     setMessages(updated);
@@ -747,6 +820,42 @@ export default function AssistantPage() {
     window.addEventListener("orleia:noor-ask", onAsk);
     return () => window.removeEventListener("orleia:noor-ask", onAsk);
   });
+
+  // ---- Confirm chips (proposed actions) ----
+  // Confirm: execute the exact params the model proposed — no re-prompt, no
+  // drift between what was shown and what runs.
+  const confirmProposal = (msg: AIMessage) => {
+    if (!msg.proposal || msg.proposalResolved) return;
+    const result = executeAction({
+      matched: true,
+      type: msg.proposal.action as never,
+      params: msg.proposal.params as Record<string, never>,
+      confidence: 1,
+    });
+    resolveProposalInThread(msg, result.success ? result.message : "I couldn't complete that: " + result.message, "confirmed");
+  };
+
+  const dismissProposal = (msg: AIMessage) => {
+    if (!msg.proposal || msg.proposalResolved) return;
+    resolveProposalInThread(msg, "No problem — I left everything as it was.", "dismissed");
+  };
+
+  const resolveProposalInThread = (msg: AIMessage, note: string, resolved: "confirmed" | "dismissed") => {
+    const noteMsg: AIMessage = {
+      id: generateId(),
+      role: "assistant",
+      content: note,
+      timestamp: new Date().toISOString(),
+      model: msg.model,
+    };
+    setMessages((prev) => {
+      const next = prev.map((m) => (m.id === msg.id ? { ...m, proposalResolved: resolved } : m));
+      next.splice(next.findIndex((m) => m.id === msg.id) + 1, 0, noteMsg);
+      if (conversationId) storage.replaceConversationMessages(conversationId, next);
+      return next;
+    });
+    refresh();
+  };
 
   const changeModel = (model: AIModel) => {
     setSelectedModel(model);
@@ -1791,6 +1900,7 @@ try {
                     </div>
                     <div className="text-[15px] leading-relaxed text-foreground/90">
                       <Markdown content={msg.content} />
+                      {msg.proposal && <ProposalChip msg={msg} onConfirm={() => confirmProposal(msg)} onDismiss={() => dismissProposal(msg)} />}
                       {msg.image && (
                         <div className="mt-2">
                           <div className="max-w-[min(100%,340px)] overflow-hidden rounded-2xl border border-border">

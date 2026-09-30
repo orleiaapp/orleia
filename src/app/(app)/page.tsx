@@ -28,6 +28,7 @@ function useIsLandingDomain() {
 export default function DashboardPage() {
   const isLanding = useIsLandingDomain();
   const [data, setData] = useState(storage.getData());
+  const profile = data.profile;
   const [greeting, setGreeting] = useState("Good morning");
   const [catalogOpen, setCatalogOpen] = useState(false);
   const [widgets, setWidgets] = useState<WidgetId[]>(      () => (storage.getData().dashboardWidgets as WidgetId[]) || ["productivity", "stats", "pet"]
@@ -72,7 +73,7 @@ export default function DashboardPage() {
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold mb-1">{greeting}!</h1>
+            <h1 className="text-3xl font-bold mb-1">{greeting}{profile?.name ? `, ${profile.name}` : ""}!</h1>
             <p className="text-sm text-muted-foreground">
               {formatDate(new Date(), "EEEE, MMMM d")}
             </p>
