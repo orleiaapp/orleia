@@ -252,6 +252,15 @@ html[data-reduced-motion="true"] *::after {
     box-shadow: none !important;
     border-color: transparent;
   }
+  /* Noor typing pill: no accent outline around the composer textarea.
+     Text inputs always match :focus-visible, so the generic accent
+     focus rule paints a violet outline over outline-none — kill it,
+     same treatment as the notes editor above. */
+  .noor-chat-font:focus,
+  .noor-chat-font:focus-visible {
+    outline: none !important;
+    box-shadow: none !important;
+  }
   /* Apple-Notes-style bottom toolbar rides above the keyboard: the page
      publishes the keyboard overlap to --orleia-notes-kb and the toolbar
      lifts by exactly that amount. Default 0 = no keyboard. */
@@ -1536,6 +1545,17 @@ html.ios-touch .orleia-search-glass {
     inset 0 -14px 15px -8px rgb(230 230 230 / 0.10);
 }
 
+/* Noor composer pill: rim-free. The generic search-glass recipe paints
+   hairline rims (0.5px outline + side edges) that read as a border around
+   the typing pill — keep only the depth shading, no outline. */
+html.ios-touch .noor-composer-pill {
+  box-shadow:
+    0 8px 8px rgb(0 0 0 / 0.04),
+    inset 0 5px 5px -4px rgb(26 26 26 / 0.55),
+    inset 0 -5px 5px -4px rgb(26 26 26 / 0.45),
+    inset 0 -14px 15px -8px rgb(230 230 230 / 0.10);
+}
+
 /* ---- LIGHT MODE variants ----
    The recipes above are Apple's DARK glass (black base). In light mode
    they rendered as ugly dark blobs with inverted shading. Light glass:
@@ -1562,6 +1582,14 @@ html.ios-touch:not(.dark) .orleia-search-glass {
     0 0 0 0.5px rgb(120 120 120 / 0.32),
     -1px 0 1px -0.5px rgb(120 120 120 / 0.28),
     1px 0 1px -0.5px rgb(120 120 120 / 0.28),
+    inset 0 5px 5px -4px rgb(255 255 255 / 0.95),
+    inset 0 -5px 5px -4px rgb(80 80 90 / 0.14),
+    inset 0 -14px 15px -8px rgb(255 255 255 / 0.50);
+}
+
+html.ios-touch:not(.dark) .noor-composer-pill {
+  box-shadow:
+    0 8px 8px rgb(31 41 55 / 0.05),
     inset 0 5px 5px -4px rgb(255 255 255 / 0.95),
     inset 0 -5px 5px -4px rgb(80 80 90 / 0.14),
     inset 0 -14px 15px -8px rgb(255 255 255 / 0.50);
