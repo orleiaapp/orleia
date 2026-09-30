@@ -29,16 +29,15 @@ export default function DashboardPage() {
   const isLanding = useIsLandingDomain();
   const [data, setData] = useState(storage.getData());
   const profile = data.profile;
-  const [greeting, setGreeting] = useState("Good morning");
+  // Casual greeting, randomized per visit: "Hi Maciej!" / "Hey there!"
+  const [greeting, setGreeting] = useState("Hi");
   const [catalogOpen, setCatalogOpen] = useState(false);
   const [widgets, setWidgets] = useState<WidgetId[]>(      () => (storage.getData().dashboardWidgets as WidgetId[]) || ["productivity", "stats", "pet"]
   );
 
   useEffect(() => {
-    const hour = new Date().getHours();
-    if (hour < 12) setGreeting("Good morning");
-    else if (hour < 17) setGreeting("Good afternoon");
-    else setGreeting("Good evening");
+    const casual = ["Hi", "Hello", "Hey"];
+    setGreeting(casual[Math.floor(Math.random() * casual.length)]);
   }, []);
 
   useEffect(() => {
@@ -73,7 +72,7 @@ export default function DashboardPage() {
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold mb-1">{greeting}{profile?.name ? `, ${profile.name}` : ""}!</h1>
+            <h1 className="text-3xl font-bold mb-1">{greeting}{profile?.name ? `, ${profile.name}` : " there"}!</h1>
             <p className="text-sm text-muted-foreground">
               {formatDate(new Date(), "EEEE, MMMM d")}
             </p>

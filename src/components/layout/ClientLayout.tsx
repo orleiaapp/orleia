@@ -11,7 +11,6 @@ import { SplashScreen, isFreshLoad, markSplashSeen } from "./SplashScreen";
 import { TutorialFlow } from "./TutorialFlow";
 import { PetReactions } from "./PetReactions";
 import { IntroFlow } from "./IntroFlow";
-import { AgeGate } from "./AgeGate";
 import { motion, MotionConfig } from "framer-motion";
 import { storage } from "@/lib/storage";
 import { useShortcuts } from "@/lib/useShortcuts";
@@ -50,6 +49,9 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
   // a cover for hydration + init, never a delay after them.
   const [showSplash, setShowSplash] = useState(false);
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
+  // The 13+ declaration now lives INSIDE the intro flow (welcome → age →
+  // name → look), so nothing gates before the welcome screen. Kept as a
+  // resolved-true default for existing users who already confirmed.
   const [ageGateDone, setAgeGateDone] = useState(true);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [showTutorial, setShowTutorial] = useState(false);
@@ -157,8 +159,8 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
       setPlanIntroDone(true);
     }
     storage.init()
-      .then(() => { setStorageReady(true); setNeedsOnboarding(!storage.isOnboardingCompleted()); setAgeGateDone(storage.isAgeConfirmed()); })
-      .catch(() => { setStorageReady(true); setNeedsOnboarding(true); setAgeGateDone(storage.isAgeConfirmed()); });
+      .then(() => { setStorageReady(true); setNeedsOnboarding(!storage.isOnboardingCompleted()); })
+      .catch(() => { setStorageReady(true); setNeedsOnboarding(true); });
   }, []);
 
   useEffect(() => {
@@ -265,7 +267,8 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
         <SplashScreen onComplete={handleSplashComplete} ready={storageReady} />
       )}
 
-      {storageReady && !ageGateDone && <AgeGate onConfirmed={() => setAgeGateDone(true)} />}
+      {/* The 13+ gate renders inside IntroFlow (after the welcome), so a
+          fresh visitor sees ONLY the multilingual welcome first. */}
 
       {/* One-time full-screen plan intro — AFTER the full first-run flow
           (onboarding → tutorial → pet). The user must reach the aha moment
@@ -274,7 +277,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
         <PlanIntroKeyed />
       )}
 
-      {storageReady && needsOnboarding && ageGateDone && (
+      {storageReady && needsOnboarding && (
         <IntroFlow onComplete={handleOnboardingComplete} />
       )}
 
