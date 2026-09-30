@@ -26,6 +26,12 @@ const ALLOWED_HOSTS = [
   "localhost:3457",
   "127.0.0.1:3000",
   "127.0.0.1:3999",
+  // Dev preview host: Next.js multi-tenant dev setup serves the app
+  // from the app.localhost subdomain (not bare localhost).
+  "app.localhost:3000",
+  "app.localhost:3001",
+  "app.localhost:3999",
+  "app.localhost:3457",
 ];
 
 function isAllowedHost(host: string): boolean {
