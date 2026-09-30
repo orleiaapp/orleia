@@ -2063,7 +2063,7 @@ try {
               className={cn(
                 isMobile
                   ? "orleia-search-glass pl-2 pr-1.5 py-1.5 " + (composerMultiline || attachments.length > 0 ? "rounded-[24px]" : "rounded-[26px]")
-                  : "border border-border bg-secondary/40 pl-4 pr-2 py-2 transition-all focus-within:border-primary-500/40 focus-within:ring-2 focus-within:ring-primary-500/10 " + (composerMultiline || attachments.length > 0 ? "rounded-[20px]" : "rounded-full")
+                  : "border border-border bg-secondary/40 pl-4 pr-2 py-2 " + (composerMultiline || attachments.length > 0 ? "rounded-[20px]" : "rounded-full")
               )}
             >
               {/* Inline model picker (mobile): the current model as a chip.

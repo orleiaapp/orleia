@@ -459,12 +459,7 @@ export default function HabitsPage() {
               ))}
             </div>
 
-          <motion.div
-            initial={enter ? { opacity: 0, y: 12 } : false}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.35, ease: "easeOut" }}
-            className="card"
-          >
+          <div className="card">
             <h3 className="text-sm font-semibold mb-4">{t("analytics.activeDays")}</h3>
             {(() => {
               const WD = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"] as const;
@@ -480,7 +475,7 @@ export default function HabitsPage() {
                       <div key={i} className="flex-1 flex flex-col items-center gap-1.5">
                         <span className="text-[10px] text-muted-foreground">{c}</span>
                         <div
-                          className={cn("w-full rounded-t-md transition-all duration-500", i === best && c > 0 ? "bg-primary-500" : "bg-muted-foreground/25")}
+                          className={cn("w-full rounded-t-md", i === best && c > 0 ? "bg-primary-500" : "bg-muted-foreground/25")}
                           style={{ height: `${Math.max((c / max) * 100, 4)}%` }}
                         />
                         <span className={cn("text-[10px]", i === best && c > 0 ? "text-foreground font-semibold" : "text-muted-foreground")}>{wdLabels[i]}</span>
@@ -493,14 +488,9 @@ export default function HabitsPage() {
                 </>
               );
             })()}
-          </motion.div>
+          </div>
 
-          <motion.div
-            initial={enter ? { opacity: 0, y: 12 } : false}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.08, duration: 0.35, ease: "easeOut" }}
-            className="card divide-y divide-border"
-          >
+          <div className="card divide-y divide-border">
             <h3 className="text-sm font-semibold py-3.5">{t("habits.title")}</h3>
             {habits.length === 0 && <p className="py-6 text-sm text-muted-foreground">{t("analytics.noHabitData")}</p>}
             {habits.map((h) => {
@@ -528,7 +518,7 @@ export default function HabitsPage() {
                 </div>
               );
             })}
-          </motion.div>
+          </div>
 
         </div>
       )}
