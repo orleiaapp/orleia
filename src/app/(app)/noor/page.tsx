@@ -74,6 +74,10 @@ import { createPortal } from "react-dom";
 import { shareText } from "@/lib/share";
 import ImageLoader from "@/components/ui/image-loading";
 import { MiniCamera, type CapturedPhoto } from "@/components/noor/MiniCamera";
+import { PawPrint } from "lucide-react";
+import { roster as petRoster, petPersonaPrefix, ensurePetConversation } from "@/lib/pet-agent";
+import { jobByRole } from "@/lib/pet-jobs";
+import { petById, petSvg } from "@/lib/pets";
 
 const MODEL_META: Record<string, string> = {
   "fast-1": "Fast",
@@ -237,6 +241,9 @@ export default function AssistantPage() {
 
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [messages, setMessages] = useState<AIMessage[]>([]);
+  // Chat-with-pet: when set, replies speak as the hired pet (persona) —
+  // same pipeline, same daily cap, same confirm-chip actions.
+  const [petAgentId, setPetAgentId] = useState<string | null>(null);
   // Server-truth "N messages left" warning: fired once per day at 5 remaining.
   const usageWarnedDate = useRef<string | null>(null);
   useEffect(() => {
@@ -586,10 +593,39 @@ export default function AssistantPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Deep link: /noor?pet=<agentId> opens (or creates) the pet's chat thread
+  // (Pets page "Chat" button + future pet notification taps).
+  useEffect(() => {
+    const pet = new URLSearchParams(window.location.search).get("pet");
+    if (!pet) return;
+    const agent = petRoster().find((a) => a.id === pet);
+    if (agent) openPetChat(agent.id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const startNewChat = () => {
+    setPetAgentId(null);
     const conv = storage.createConversation();
     setConversationId(conv.id);
     setMessages([]);
+    refresh();
+    setTimeout(() => inputRef.current?.focus(), 50);
+  };
+
+  // Chat with a hired pet: one persistent per-agent thread ("Chat with
+  // {name}"), created on first open. Noor conversations are untouched.
+  const openPetChat = (agentId: string) => {
+    const agent = petRoster().find((a) => a.id === agentId);
+    if (!agent) return;
+    const convId = ensurePetConversation(agent);
+    setPetAgentId(agentId);
+    setConversationId(convId);
+    const conv = storage.getData().aiConversations.find((c) => c.id === convId);
+    setMessages(
+      (conv?.messages || []).map((m) =>
+        m.role === "assistant" ? { ...m, content: sanitizeStoredReply(m.content) } : m
+      )
+    );
     refresh();
     setTimeout(() => inputRef.current?.focus(), 50);
   };
@@ -604,6 +640,7 @@ export default function AssistantPage() {
       );
       setConversationId(id);
       setMessages(cleaned);
+      setPetAgentId(conv.petAgentId || null);
       if (cleaned.some((m, i) => m.content !== conv.messages[i].content)) {
         storage.replaceConversationMessages(id, cleaned);
       }
@@ -625,6 +662,7 @@ export default function AssistantPage() {
       setStreamText("");
       setConversationId(null);
       setMessages([]);
+      setPetAgentId(null);
     }
     refresh();
   };
@@ -1227,6 +1265,14 @@ export default function AssistantPage() {
       setAttachments([]);
     }
 
+    // Pet chat: speak as the hired pet — persona prefix on the FINAL query
+    // (after attachment enrichment). Everything else (cap, actions, chips,
+    // sources) flows through the normal Noor path untouched.
+    if (petAgentId) {
+      const petAgentForTurn = petRoster().find((a) => a.id === petAgentId);
+      if (petAgentForTurn) llmQuery = petPersonaPrefix(petAgentForTurn) + "\n\n---\nUser: " + llmQuery;
+    }
+
     let sources: AISource[] = [];
     if (isLiveQuery(queryText)) sources = await fetchWebSources(queryText);
     const sendOpts = { sources };
@@ -1275,10 +1321,15 @@ export default function AssistantPage() {
     }
 
     let response: string;
+    let petProposalFirst: ProposedAction | undefined;
 
 try {
         let acc = "";        let agentContext = "";
         const usedModel = selectedModel;
+        // Pet chat runs confirm-first: the onProposeAction hook makes the
+        // stream interceptor parse-only, so pet actions land as confirm
+        // chips instead of auto-executing (same contract as runReply).
+        const petProposals: ProposedAction[] = [];
         response = await chatStream(
           llmQuery,
           updatedMessages,
@@ -1291,9 +1342,17 @@ try {
               acc += delta;
               setStreamText(acc);
             },
+            ...(petAgentId
+              ? {
+                  onProposeAction: (proposal: unknown) => {
+                    petProposals.push(proposal as unknown as ProposedAction);
+                  },
+                }
+              : {}),
           },
           agentContext
         );
+        petProposalFirst = petProposals.length ? petProposals[0] : undefined;
       } catch (e) {
         setLoading(false);
         setStreamText("");
@@ -1338,6 +1397,7 @@ try {
       model: selectedModel,
       actions: opts?.actions || undefined,
       sources: sources.length ? sources : undefined,
+      proposal: petProposalFirst,
     };
 
     // Deleted while Noor was thinking: discard the reply instead of
@@ -1452,6 +1512,12 @@ try {
     !loading &&
     !generatingImage &&
         !searching;
+
+  // Chat-with-pet context (derived; roster() reads the local store like
+  // every other render-time storage read on this page).
+  const petAgent = petAgentId ? petRoster().find((a) => a.id === petAgentId) || null : null;
+  const petJob = petAgent ? jobByRole(petAgent.role) : null;
+  const petCosmetic = petAgent ? petById(petAgent.petId) : null;
 
   const loadingText = researchState.active
     ? researchState.stageDetail
@@ -2152,8 +2218,52 @@ try {
           <div className={cn("w-full", isEmptyChat ? "mx-auto lg:max-w-2xl" : "mx-auto lg:max-w-4xl")}>
             {/* Mobile: chats access lives in the floating glass circle
                 (second row, under the hamburger) rendered at page root. */}
+            {/* Pet chat empty state: pet face + one-tap job prompts. */}
+            {isEmptyChat && petAgent && !loading && (
+              <div className="mb-2 flex flex-wrap items-center gap-1.5">
+                {petCosmetic && (
+                  <span
+                    className="h-6 w-6 shrink-0"
+                    dangerouslySetInnerHTML={{ __html: petSvg(petCosmetic, "h-full w-full") }}
+                  />
+                )}
+                <span className="mr-1 text-xs font-semibold text-foreground">
+                  {t("assistant.chattingWith", "Chatting with")} {petAgent.name}
+                </span>
+                <span className="mr-1 rounded-full bg-muted px-2 py-0.5 text-[10px] uppercase tracking-wide text-muted-foreground">
+                  {petJob?.icon} {t(`petjob.${petAgent.role}.name`, petJob?.name || petAgent.role)}
+                </span>
+                {(petAgent.role === "wrangler"
+                  ? [
+                      t("petagent.chip.sweep", "Sweep my overdue tasks"),
+                      t("petagent.chip.duetoday", "What should I do today?"),
+                    ]
+                  : [
+                      t("petagent.chip.howhelp", "What can you do for me?"),
+                    ]
+                ).map((label) => (
+                  <button
+                    key={label}
+                    onClick={() => sendMessage(label)}
+                    className="inline-flex items-center gap-1.5 rounded-full border border-border/70 bg-secondary/60 px-3 py-1.5 text-xs font-medium text-muted-foreground transition-all duration-200 hover:border-primary-500/40 hover:text-foreground hover:bg-secondary active:scale-95"
+                  >
+                    <PawPrint className="h-3 w-3 text-primary-500" />
+                    {label}
+                  </button>
+                ))}
+              </div>
+            )}
             {!isEmptyChat && !input.trim() && !loading && !generatingImage && !searching && (
-              <div className="mb-2 flex justify-start">
+              <div className="mb-2 flex flex-wrap justify-start gap-1.5">
+                {petAgent && (
+                  <button
+                    onClick={() => router.push("/pets")}
+                    className="inline-flex items-center gap-1.5 rounded-full border border-border/70 bg-secondary/60 px-3 py-1.5 text-xs font-medium text-muted-foreground transition-all duration-200 hover:border-primary-500/40 hover:text-foreground hover:bg-secondary active:scale-95"
+                  >
+                    <PawPrint className="h-3 w-3 text-primary-500" />
+                    {petAgent.name}
+                  </button>
+                )}
                 <button
                   onClick={requestDailyBrief}
                   title={t("assistant.dailyBriefHint")}
@@ -2375,6 +2485,34 @@ try {
                       <Paperclip className="h-4 w-4 text-primary-500" />
                       {t("assistant.attachFile")}
                     </button>
+                    {petRoster().length > 0 && (
+                      <>
+                        <div className="my-1 h-px bg-border/70" />
+                        {petRoster().map((a) => {
+                          const pp = petById(a.petId);
+                          return (
+                            <button
+                              key={a.id}
+                              onClick={() => { openPetChat(a.id); setPlusOpen(false); }}
+                              className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-[13px] transition-colors hover:bg-secondary"
+                            >
+                              {pp && (
+                                <span
+                                  className="h-5 w-5 shrink-0"
+                                  dangerouslySetInnerHTML={{ __html: petSvg(pp, "h-full w-full") }}
+                                />
+                              )}
+                              <span className="flex-1 truncate">
+                                {t("assistant.talkToPet", "Talk to {pet}").replace("{pet}", a.name)}
+                              </span>
+                              <span className="text-[10px] text-muted-foreground">
+                                {jobByRole(a.role)?.icon}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </>
+                    )}
                     <button
                       onClick={() => { router.push("/settings?cat=skills"); setPlusOpen(false); }}
                       className="flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-[13px] transition-colors hover:bg-secondary"
@@ -2503,7 +2641,13 @@ try {
                   }
                   if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); }
                 }}
-                placeholder={selectedModel === "fast-1" ? t("assistant.quickQuestion") : t("assistant.messageNoor")}
+                placeholder={
+                  petAgent
+                    ? t("assistant.messagePet", "Message " + petAgent.name)
+                    : selectedModel === "fast-1"
+                      ? t("assistant.quickQuestion")
+                      : t("assistant.messageNoor")
+                }
                 className="noor-chat-font flex-1 bg-transparent resize-none outline-none focus-visible:ring-0 focus-visible:ring-offset-0 text-[15px] py-2 max-h-40 leading-relaxed"
                 rows={1}
               />

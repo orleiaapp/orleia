@@ -10,8 +10,9 @@
 // ============================================================
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { PawPrint, Plus, Check, X, Clock, ShieldCheck, Sparkles, Lock, ChevronRight } from "lucide-react";
+import { PawPrint, Plus, Check, X, Clock, ShieldCheck, Sparkles, Lock, ChevronRight, MessageSquare } from "lucide-react";
 import { storage } from "@/lib/storage";
 import { useHydrated } from "@/lib/use-hydrated";
 import { useI18n } from "@/lib/i18n";
@@ -30,6 +31,7 @@ import type { PetAgent, PetReceipt } from "@/types";
 
 export default function PetsPage() {
   const { t } = useI18n();
+  const router = useRouter();
   const hydrated = useHydrated();
   const [agents, setAgents] = useState<PetAgent[]>([]);
   const [logs, setLogs] = useState<PetReceipt[]>([]);
@@ -163,6 +165,14 @@ export default function PetsPage() {
                         {t(`petjob.${agent.role}.name`, job?.name || agent.role)}
                       </p>
                     </div>
+                    <button
+                      onClick={() => router.push(`/noor?pet=${agent.id}`)}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-sidebar-hover hover:text-foreground"
+                      title={t("pets.chatHint", "Chat with your agent — it can do its job on your word")}
+                    >
+                      <MessageSquare className="h-3.5 w-3.5" />
+                      {t("pets.chat", "Chat")}
+                    </button>
                     <button
                       onClick={() => onRelease(agent.id)}
                       className="rounded-lg p-1.5 text-muted-foreground/60 transition-colors hover:bg-sidebar-hover hover:text-foreground"

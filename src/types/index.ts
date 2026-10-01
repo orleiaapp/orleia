@@ -382,6 +382,8 @@ export interface AIConversation {
   title: string;
   messages: AIMessage[];
   pinned?: boolean;
+  /** Set on threads bound to a hired pet agent (chat-with-pet mode). */
+  petAgentId?: string;
   createdAt: string;
   updatedAt: string;
 }

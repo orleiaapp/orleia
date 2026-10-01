@@ -290,3 +290,47 @@ export function snoozeRole(role: PetAgentRole): void {
   state.snoozedUntil[role] = getToday();
   storage.saveData();
 }
+
+// ---------------- Chat-with-pet (Noor integration) ----------------
+
+/**
+ * Persona prefix for pet chat. Spoken in Noor's voice but framed as the
+ * pet: first person, short sentences, playful + accountable. Ends with a
+ * reminder of what this pet is FOR (its job) so replies stay useful.
+ */
+export function petPersonaPrefix(agent: PetAgent): string {
+  const job = jobByRole(agent.role);
+  const jobLine = job
+    ? `Your job: ${job.name} — ${job.tagline}. `
+    : "";
+  return (
+    `You are speaking as "${agent.name}", the user's hired pet agent (role: ${agent.role}). ` +
+    `Stay in character as the pet: first person, warm, playful, short sentences. ` +
+    jobLine +
+    `You run inside Orleia alongside Noor (the operator), confirm-first.\n\n` +
+    `CONFIRM-FIRST RULE: When the user asks you to do something (or confirms a job you proposed), ` +
+    `do NOT narrate doing it yourself - REQUEST the action by emitting ONE line exactly in this format:\n` +
+    `ORLEIA_ACTION {"action":"<action_type>","params":{...}}\n` +
+    `followed by one short in-character sentence. Useful action types for you: complete_task, update_task, create_task, create_note, log_habit, create_event, search_data. ` +
+    `The system turns your line into a confirm chip for the user - nothing happens without their tap, and the system confirms the result. ` +
+    `Never claim a task is done unless the user already confirmed and the system showed the result.`
+  );
+}
+
+/**
+ * One persistent thread per hired agent: "Chat with {name}". Existing
+ * Noor conversations are never touched; a released pet's thread simply
+ * stops receiving the persona prefix (harmless orphan thread).
+ */
+export function ensurePetConversation(agent: PetAgent): string {
+  const d = storage.getData();
+  const existing = d.aiConversations.find((c) => c.petAgentId === agent.id);
+  if (existing) return existing.id;
+  const job = jobByRole(agent.role);
+  const conv = storage.createConversation();
+  conv.petAgentId = agent.id;
+  conv.title = `Chat with ${agent.name}`;
+  storage.saveData();
+  void job;
+  return conv.id;
+}
