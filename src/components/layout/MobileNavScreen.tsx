@@ -21,6 +21,7 @@ import {
   Grid3x3,
   Presentation,
   Flower2,
+  PawPrint,
   FolderOpen,
   CalendarDays,
 } from "lucide-react";
@@ -97,6 +98,7 @@ export function MobileNavScreen({ open, onClose }: { open: boolean; onClose: () 
     { href: "/journal", label: t("nav.journal"), icon: Flower2 },
     { href: "/tasks", label: t("nav.tasks"), icon: ListTodo },
     { href: "/noor", label: t("nav.noor"), icon: NoorMark },
+    { href: "/pets", label: t("nav.pets"), icon: PawPrint },
   ];
 
   const officeItems = [

@@ -536,7 +536,48 @@ export interface Board {
   updatedAt: string;
 }
 
+// ============================================================
+// Pet Agent Types — hired pet agents (paid feature). Noor stays the
+// operator; pets are role-based agents the user hires into a job
+// catalog. v1 is confirm-first: agents propose, the user taps.
+// ============================================================
+
+export type PetAgentRole = "wrangler" | "planner" | "scout" | "auditor";
+
+export interface PetAgent {
+  id: string;
+  /** The cosmetic pet (lib/pets.ts PETS id) wearing this role. */
+  petId: string;
+  role: PetAgentRole;
+  /** Display name: petName || pet.name. */
+  name: string;
+  autonomy: "suggest";
+  /** Trust points: +1 accepted proposal, -1 dismissed (floor 0). */
+  trust: number;
+  hiredAt: string;
+}
+
+export interface PetReceipt {
+  id: string;
+  agentId: string;
+  role: PetAgentRole;
+  kind: "hired" | "released" | "proposed" | "accepted" | "dismissed";
+  summary: string;
+  createdAt: string;
+}
+
+export interface PetAgentState {
+  roster: PetAgent[];
+  /** Newest first, capped (oldest trimmed). */
+  receipts: PetReceipt[];
+  /** Proposal dedupe: key -> date shown. */
+  seenProposals: Record<string, string>;
+  /** Role -> date the user said "Later" (no re-proposal that day). */
+  snoozedUntil: Record<string, string>;
+}
+
 export interface AppData {
+  petAgents?: PetAgentState;
   theme: ThemeConfig;
   habits: Habit[];
   habitCategories: HabitCategory[];

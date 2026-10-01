@@ -8,15 +8,26 @@
 //   • You log a good mood  → the pet shares the joy.
 //   • You log a rough mood → the pet sends a quiet, warm hug.
 //   • Late at night        → the pet is asleep and stays quiet.
-// Pure local-first cosmetic: zero writes, zero network.
+//   • A hired agent proposes work → proposal card (confirm chip).
+// Pure local-first: reactions cost nothing; proposals are
+// confirm-first (pet-agent.ts never writes without a tap).
 // ============================================================
 
 import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { Check, Clock, X } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { storage } from "@/lib/storage";
 import { petById, petSvg } from "@/lib/pets";
 import { getMoodScore, getToday } from "@/lib/utils";
+import {
+  evaluateAll,
+  executeProposal,
+  recordDismissal,
+  snoozeRole,
+  petNameFor,
+  type PetProposal,
+} from "@/lib/pet-agent";
 
 type Reaction = { key: string; emoji: string; id: number };
 
@@ -27,9 +38,12 @@ export function PetReactions() {
   const { t } = useI18n();
   const [reaction, setReaction] = useState<Reaction | null>(null);
   const [petKey, setPetKey] = useState("");
+  const [proposal, setProposal] = useState<PetProposal | null>(null);
+  const [working, setWorking] = useState(false);
   const prev = useRef<{ done: number; mood: number | null }>({ done: -1, mood: null });
   const lastCheer = useRef(0);
   const hidTimer = useRef<number | null>(null);
+  const evalTimer = useRef<number | null>(null);
 
   useEffect(() => {
     const snapshot = () => {
@@ -53,6 +67,22 @@ export function PetReactions() {
       setReaction({ key, emoji, id: Date.now() });
       if (hidTimer.current) window.clearTimeout(hidTimer.current);
       hidTimer.current = window.setTimeout(() => setReaction(null), HIDE_AFTER_MS);
+    };
+
+    /** Run agent evaluators (no-op while the roster is empty). */
+    const runEvaluators = () => {
+      if (document.hidden) return;
+      evaluateAll().then((props) => {
+        if (props.length) setProposal((cur) => cur || props[0]);
+      }).catch(() => {});
+    };
+    const scheduleEvaluators = () => {
+      if (evalTimer.current) window.clearTimeout(evalTimer.current);
+      evalTimer.current = window.setTimeout(runEvaluators, 1500);
+    };
+
+    const onVisible = () => {
+      if (!document.hidden) scheduleEvaluators();
     };
 
     const unsub = storage.subscribe(() => {
@@ -83,36 +113,125 @@ export function PetReactions() {
       }
 
       prev.current = { done, mood: moodScore };
+
+      // Data changed → hired agents may have something to say (debounced).
+      scheduleEvaluators();
     });
+
+    document.addEventListener("visibilitychange", onVisible);
+    // Open-time check too (storage.subscribe only fires on writes).
+    scheduleEvaluators();
+
     return () => {
       unsub();
+      document.removeEventListener("visibilitychange", onVisible);
       if (hidTimer.current) window.clearTimeout(hidTimer.current);
+      if (evalTimer.current) window.clearTimeout(evalTimer.current);
     };
   }, []);
 
   const pet = petById(petKey);
-  if (!pet || !reaction) return null;
-  const name = (storage.getData().profile?.petName || "").trim() || pet.name;
+  if (!pet || (!reaction && !proposal)) return null;
+  const name = petNameFor(petKey);
+
+  /** t() has no param interpolation — do it here. */
+  const interpolate = (s: string) =>
+    s.replace("{name}", String(proposal?.params?.name ?? name)).replace(/\{count\}/g, String(proposal?.params?.count ?? ""));
+
+  const hideProposal = () => setProposal(null);
+
+  const onConfirm = () => {
+    if (!proposal || working) return;
+    setWorking(true);
+    try {
+      executeProposal(proposal);
+    } finally {
+      setWorking(false);
+      hideProposal();
+    }
+  };
+
+  const onSnooze = () => {
+    if (proposal) snoozeRole(proposal.role);
+    hideProposal();
+  };
+
+  const onDismiss = () => {
+    if (proposal) recordDismissal(proposal);
+    hideProposal();
+  };
 
   return (
     <div className="pointer-events-none fixed bottom-4 right-4 z-[70] print:hidden" aria-live="polite">
       <AnimatePresence>
-        <motion.div
-          key={reaction.id}
-          initial={{ opacity: 0, y: 14, scale: 0.9 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          exit={{ opacity: 0, y: 8, scale: 0.95 }}
-          transition={{ duration: 0.25, ease: "easeOut" }}
-          className="card flex items-center gap-2.5 py-2 pl-2.5 pr-3.5 shadow-lg"
-        >
-          <span
-            className="h-8 w-8 shrink-0"
-            dangerouslySetInnerHTML={{ __html: petSvg(pet, "h-full w-full") }}
-          />
-          <span className="text-xs font-medium text-foreground">
-            {reaction.emoji} {t(reaction.key).replace("{name}", name)}
-          </span>
-        </motion.div>
+        {proposal && (
+          <motion.div
+            key={`prop-${proposal.key}`}
+            initial={{ opacity: 0, y: 14, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 8, scale: 0.95 }}
+            transition={{ duration: 0.25, ease: "easeOut" }}
+            className="card pointer-events-auto mb-2 w-[min(20rem,calc(100vw-2rem))] p-3.5 shadow-lg"
+          >
+            <div className="flex items-start gap-2.5">
+              <span
+                className="h-9 w-9 shrink-0"
+                dangerouslySetInnerHTML={{ __html: petSvg(pet, "h-full w-full") }}
+              />
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold leading-snug text-foreground">
+                  {proposal.emoji}{" "}
+                  {interpolate(proposal.titleKey ? t(proposal.titleKey, proposal.title) : proposal.title)}
+                </p>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  {interpolate(proposal.bodyKey ? t(proposal.bodyKey, proposal.body) : proposal.body)}
+                </p>
+              </div>
+            </div>
+            <div className="mt-3 flex items-center gap-2">
+              <button
+                onClick={onConfirm}
+                disabled={working}
+                className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-primary-500 px-3 py-1.5 text-xs font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-60"
+              >
+                <Check className="h-3.5 w-3.5" />
+                {t("petagent.confirm", "Do it")}
+              </button>
+              <button
+                onClick={onSnooze}
+                className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-sidebar-hover"
+              >
+                <Clock className="h-3.5 w-3.5" />
+                {t("petagent.later", "Later")}
+              </button>
+              <button
+                onClick={onDismiss}
+                aria-label={t("petagent.dismiss", "Dismiss")}
+                className="inline-flex items-center justify-center rounded-lg p-1.5 text-muted-foreground/60 transition-colors hover:bg-sidebar-hover hover:text-muted-foreground"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          </motion.div>
+        )}
+        {reaction && !proposal && (
+          <motion.div
+            key={reaction.id}
+            initial={{ opacity: 0, y: 14, scale: 0.9 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 8, scale: 0.95 }}
+            transition={{ duration: 0.25, ease: "easeOut" }}
+            className="card flex items-center gap-2.5 py-2 pl-2.5 pr-3.5 shadow-lg"
+          >
+            <span
+              className="h-8 w-8 shrink-0"
+              dangerouslySetInnerHTML={{ __html: petSvg(pet, "h-full w-full") }}
+            />
+            <span className="text-xs font-medium text-foreground">
+              {reaction.emoji} {t(reaction.key).replace("{name}", name)}
+            </span>
+          </motion.div>
+        )}
       </AnimatePresence>
     </div>
   );
