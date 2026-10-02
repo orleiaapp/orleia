@@ -1,4 +1,4 @@
-import type { DeckSlide, AIMessage } from "@/types";
+import type { DeckSlide, AIMessage, AIModel } from "@/types";
 import { chat } from "./ai";
 
 export interface GeneratedOutline {
@@ -106,14 +106,14 @@ function coerceOutline(parsed: unknown): GeneratedOutline | null {
   };
 }
 
-const VALID_MODELS = ["fast-1", "core-1", "agent-1"];
+const VALID_MODELS = ["novella-low", "novella-medium", "novella-high", "novella-hyper", "novella-max", "novella-ultra", "fast-1", "core-1", "agent-1"];
 
 export async function generateDeckOutline(
   prompt: string,
   modelId: string,
   history: Array<{ role: "user" | "assistant"; content: string }> = []
 ): Promise<GeneratedOutline> {
-  const model = VALID_MODELS.includes(modelId) ? (modelId as "fast-1" | "core-1" | "agent-1") : "core-1";
+  const model = VALID_MODELS.includes(modelId) ? (modelId as AIModel) : "novella-medium";
   const query = `Create a presentation outline for: ${prompt}`;
   const toAIMessage = (m: { role: "user" | "assistant"; content: string }, i: number): AIMessage => ({
     id: "gen-" + i,

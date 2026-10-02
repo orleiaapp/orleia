@@ -17,7 +17,7 @@ import {
   stripActionRemnants,
   ACTION_MARKER_RE,
 } from "./ai-actions";
-import { MODEL_PROFILES, ModelProfile } from "./ai-models";
+import { MODEL_PROFILES, ModelProfile, DEFAULT_MODEL } from "./ai-models";
 import { executeNavigate } from "./ai-actions";
 import { buildMemoryContext, saveMemory, extractFactsFromMessages } from "./noor-memory";
 import { buildSearchBlock, isLiveQuery } from "./web-search";
@@ -1593,7 +1593,7 @@ export function withAttachmentContext(m: AIMessage): string {
 export async function chat(
   query: string,
   conversationHistory: AIMessage[] = [],
-  modelId: AIModel = "core-1",
+  modelId: AIModel = DEFAULT_MODEL,
   opts?: ChatOpts
 ): Promise<string> {
   const model = MODEL_PROFILES[modelId];

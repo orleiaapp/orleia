@@ -309,7 +309,11 @@ export interface WeeklySummary {
 // Cloud tiers are the fixed ids below; "local-*" ids (Local AI, powered by
 // the user's own Ollama install) are validated at the usage sites. The
 // (string & {}) trick keeps literal autocomplete while allowing local ids.
-export type AIModel = "fast-1" | "core-1" | "agent-1" | (string & {});
+// Novella 5.0: ONE model, six effort presets (novella-low ... novella-ultra).
+// "local-*" ids (Local AI, powered by the user's own Ollama install) are
+// validated at the usage sites. The (string & {}) trick keeps literal
+// autocomplete while allowing local ids and legacy aliases.
+export type AIModel = "novella-low" | "novella-medium" | "novella-high" | "novella-hyper" | "novella-max" | "novella-ultra" | (string & {});
 
 export type AISource = {
   id?: string;
@@ -330,28 +334,36 @@ export type BriefAction = {
 };
 
 export const MODEL_ALIASES: Record<string, AIModel> = {
-  // Legacy (Ethos/Logos/Verse era) -> new tiers, so old stored
-  // conversations and settings keep resolving.
-  ethos: "agent-1",
-  logos: "core-1",
-  verse: "fast-1",
-  "ethos-4.7": "agent-1",
-  "logos-4.5": "core-1",
-  "verse-4": "fast-1",
-  fast: "fast-1",
-  core: "core-1",
-  agent: "agent-1",
-  "fast-1": "fast-1",
-  "core-1": "core-1",
-  "agent-1": "agent-1",
+  // Legacy (Ethos/Logos/Verse + Fast/Core/Agent era) -> Novella effort
+  // presets, so old stored conversations and settings keep resolving.
+  ethos: "novella-max",
+  logos: "novella-medium",
+  verse: "novella-low",
+  "ethos-4.7": "novella-max",
+  "logos-4.5": "novella-medium",
+  "verse-4": "novella-low",
+  // Old three-tier ids all land on the default effort; the tiers no
+  // longer exist as separate models.
+  "fast-1": "novella-low",
+  "core-1": "novella-medium",
+  "agent-1": "novella-max",
+  fast: "novella-low",
+  core: "novella-medium",
+  agent: "novella-max",
   // Legacy aliases for migration
 };
 
+/**
+ * The user-facing model list: ONE model (Novella 5.0), expressed as
+ * effort presets. Pickers iterate this; ids are novella-* effort ids.
+ */
 export const AI_MODELS: { id: AIModel; name: string; description: string; tagline: string; contextWindow: number; responseStyle: string }[] = [
-  { id: "fast-1", name: "Fast", description: "Instant answers, zero wait", tagline: "Quick, concise, to the point", contextWindow: 12, responseStyle: "concise" },
-  { id: "core-1", name: "Core", description: "Best for everyday work", tagline: "Balanced, practical, actionable", contextWindow: 24, responseStyle: "balanced" },
-  // "agent-1" remains a valid AIModel (saved preferences alias to it) but is
-  // deliberately not offered in pickers - Agent mode is parked for now.
+  { id: "novella-low", name: "Low", description: "Quick replies, minimal thinking", tagline: "Novella 5.0 · Low effort", contextWindow: 24, responseStyle: "concise" },
+  { id: "novella-medium", name: "Medium", description: "Everyday balance of speed and depth", tagline: "Novella 5.0 · Medium effort", contextWindow: 24, responseStyle: "balanced" },
+  { id: "novella-high", name: "High", description: "Structured, grounded in your data", tagline: "Novella 5.0 · High effort", contextWindow: 24, responseStyle: "balanced" },
+  { id: "novella-hyper", name: "Hyper", description: "Fast AND thorough, zero fluff", tagline: "Novella 5.0 · Hyper effort", contextWindow: 24, responseStyle: "balanced" },
+  { id: "novella-max", name: "Max", description: "Deep reasoning and recommendations", tagline: "Novella 5.0 · Max effort", contextWindow: 24, responseStyle: "balanced" },
+  { id: "novella-ultra", name: "Ultra", description: "Maximum depth for the hardest jobs", tagline: "Novella 5.0 · Ultra effort", contextWindow: 24, responseStyle: "balanced" },
 ];
 
 export interface AIMessage {
@@ -557,13 +569,27 @@ export interface PetAgent {
   /** Trust points: +1 accepted proposal, -1 dismissed (floor 0). */
   trust: number;
   hiredAt: string;
+  /** 24/7 employee flag: works timed rounds while the app is open, not just on data changes. */
+  alwaysOn?: boolean;
+  /** ISO timestamp of the agent's last completed work round ("last active" UI). */
+  lastActiveAt?: string;
+  /** Recent work-log entries (newest first, capped) - proof of employment. */
+  workLog?: PetAgentWorkLogEntry[];
+}
+
+/** One proof-of-work entry from a 24/7 agent round (pet-agent.ts). */
+export interface PetAgentWorkLogEntry {
+  at: string;
+  summary: string;
+  /** Count of items touched (tasks moved, jobs run, ...). 0 = checked, nothing to do. */
+  items: number;
 }
 
 export interface PetReceipt {
   id: string;
   agentId: string;
   role: PetAgentRole;
-  kind: "hired" | "released" | "proposed" | "accepted" | "dismissed";
+  kind: "hired" | "released" | "proposed" | "accepted" | "dismissed" | "worked";
   summary: string;
   createdAt: string;
 }

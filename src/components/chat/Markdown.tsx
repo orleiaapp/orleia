@@ -23,7 +23,10 @@ export function Markdown({ content }: { content: string }) {
           h4: (props) => <h4 className="text-sm font-semibold mt-2 mb-1 first:mt-0" {...dom(props)} />,
           p: (props) => <p className="my-1.5 leading-relaxed first:mt-0 last:mb-0" {...dom(props)} />,
           strong: (props) => <strong className="font-semibold text-foreground" {...dom(props)} />,
-          em: (props) => <em className="italic" {...dom(props)} />,
+          // The user hates slanted text: italics render as upright but
+          // tinted, never as *em* slant. Blockquotes stay clean of italics.
+          em: (props) => <em className="not-italic text-muted-foreground" {...dom(props)} />,
+          i: (props) => <i className="not-italic text-muted-foreground" {...dom(props)} />,
           del: (props) => <del className="line-through text-muted-foreground" {...dom(props)} />,
           ul: (props) => <ul className="list-disc pl-5 my-1.5 space-y-1 marker:text-foreground/40" {...dom(props)} />,
           ol: (props) => <ol className="list-decimal pl-5 my-1.5 space-y-1 marker:text-foreground/40" {...dom(props)} />,
@@ -40,7 +43,7 @@ export function Markdown({ content }: { content: string }) {
           ),
           hr: (props) => <hr className="my-3 border-border/60" {...dom(props)} />,
           blockquote: (props) => (
-            <blockquote className="border-l-2 border-primary-500/40 pl-3 my-2 text-muted-foreground italic" {...dom(props)} />
+            <blockquote className="border-l-2 border-primary-500/40 pl-3 my-2 text-muted-foreground" {...dom(props)} />
           ),
           table: (props) => (
             <div className="overflow-x-auto my-2.5 rounded-xl border border-border">

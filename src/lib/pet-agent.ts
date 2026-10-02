@@ -29,6 +29,29 @@ import { petById } from "./pets";
 const MAX_RECEIPTS = 60;
 const WRANGLER_COOLDOWN_MS = 30 * 60 * 1000; // don't re-propose within 30 min
 const SWEEP_LIMIT = 12; // sanity cap per sweep proposal
+//
+// 24/7 EMPLOYEE MODEL
+// -------------------
+// Agents are hired staff, not chat toys. While the app is open they work
+// in timed rounds (ROUND_INTERVAL_MS) regardless of whether the user
+// touched anything: the Wrangler checks for overdue tasks, the Planner
+// re-checks today's plan, the Scout keeps its job queue moving. Rounds
+// run during quiet hours too - employees work nights - but silent
+// no-op rounds never notify. Work is logged on the agent (workLog +
+// lastActiveAt) so the UI can show proof of employment.
+//
+const ROUND_INTERVAL_MS = 15 * 60 * 1000;
+const MAX_WORK_LOG = 12;
+
+/**
+ * Night shift: between 23:00 and 05:00 agents keep WORKING but stay
+ * SILENT - no proposal cards, no toasts. Proposals raised during the
+ * night simply wait for morning (the seen-today dedupe still applies).
+ */
+export function isQuietHours(): boolean {
+  const hour = new Date().getHours();
+  return hour >= 23 || hour < 5;
+}
 
 function nowIso(): string {
   return new Date().toISOString();
@@ -163,6 +186,31 @@ export function clearSnooze(role: PetAgentRole): void {
   if (state.snoozedUntil[role] !== undefined) {
     delete state.snoozedUntil[role];
     storage.saveData();
+  }
+}
+
+// ---------------- Work log (proof of employment) ----------------
+
+/**
+ * Record a completed work round: stamps lastActiveAt, appends to the
+ * agent's workLog, and (unless silent) fires a "worked" receipt so the
+ * activity feed shows the pet actually did its job.
+ */
+export function recordWork(
+  agentId: string,
+  summary: string,
+  items: number,
+  opts?: { silent?: boolean }
+): void {
+  const state = ensureState();
+  const agent = state.roster.find((a) => a.id === agentId);
+  if (!agent) return;
+  const now = nowIso();
+  agent.lastActiveAt = now;
+  agent.workLog = [{ at: now, summary, items }, ...(agent.workLog || [])].slice(0, MAX_WORK_LOG);
+  storage.saveData();
+  if (!opts?.silent) {
+    pushReceipt(receipt("worked", agent, summary));
   }
 }
 
@@ -324,11 +372,10 @@ export function subscribePetProposals(fn: (p: PetProposal) => void): () => void 
  *  - quiet hours 23:00–05:00: agents sleep, like the cosmetic pet
  */
 export async function evaluateAll(): Promise<PetProposal[]> {
-  const hour = new Date().getHours();
-  if (hour >= 23 || hour < 5) return []; // sleeping — never propose at night
   const state = ensureState();
   const today = getToday();
   const out: PetProposal[] = [];
+  let stamped = false;
   const lastRun = (petAgentRuntime.lastRunByAgent ||= {});
   const now = Date.now();
 
@@ -340,13 +387,29 @@ export async function evaluateAll(): Promise<PetProposal[]> {
     // Mark seen before evaluating so a throw can't spam-loop.
     lastRun[agent.id] = now;
     const proposal = safeEval(ev, agent, { today });
+    // Every round counts as a shift, even when there's nothing to do.
+    agent.lastActiveAt = nowIso();
+    stamped = true;
     if (!proposal) continue;
     if (state.seenProposals[seenKey]) continue; // already shown today
     if (state.snoozedUntil[agent.role] === today) continue; // snoozed today
     state.seenProposals[seenKey] = today;
-    out.push(proposal);
+    // Found work: log it ("worked" receipt is dropped during quiet hours
+    // via recordWork's silent flag, but the work log still records it).
+    const items = agent.role === "wrangler" ? Number(proposal.params?.count || 0) : proposal.body.split("\n").filter(Boolean).length;
+    recordWork(
+      agent.id,
+      agent.role === "wrangler"
+        ? `Flagged ${items} overdue task${items === 1 ? "" : "s"}`
+        : `Prepared today's huddle (${items} item${items === 1 ? "" : "s"})`,
+      items,
+      { silent: isQuietHours() }
+    );
+    // Night shift: agents still work (the round is logged as seen) but
+    // proposals stay silent until morning instead of pinging at 3am.
+    if (!isQuietHours()) out.push(proposal);
   }
-  if (out.length) storage.saveData();
+  if (out.length || stamped) storage.saveData();
   return out;
 }
 

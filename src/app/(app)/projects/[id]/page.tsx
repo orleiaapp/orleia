@@ -32,7 +32,8 @@ import { NoorCapError } from "@/lib/noor-cap";
 import { cn, generateId, getToday } from "@/lib/utils";
 import { isBlockedUpload, blockedUploadReason } from "@/lib/upload-guard";
 import { useI18n } from "@/lib/i18n";
-import { Project, Task, TaskPriority, TaskStatus, AIMessage, Deck } from "@/types";
+import { Project, Task, TaskPriority, TaskStatus, AIMessage, Deck, AI_MODELS } from "@/types";
+import type { AIModel } from "@/types";
 import { SlideThumb } from "@/components/deck/SlideCanvas";
 import { DECK_THEMES } from "@/lib/deck-themes";
 import { ThinkingOrb } from "thinking-orbs";
@@ -71,7 +72,7 @@ export default function ProjectWorkspace() {
   const [noorInput, setNoorInput] = useState("");
   // noorMessages and files come from project persistent storage
   const [noorLoading, setNoorLoading] = useState(false);
-  const [noorModel, setNoorModel] = useState<"fast-1" | "core-1">("core-1");
+  const [noorModel, setNoorModel] = useState<AIModel>("novella-medium");
 
   const noorEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -707,18 +708,18 @@ export default function ProjectWorkspace() {
           >
             {/* Model Selector */}
             <div className="flex items-center gap-2 mb-4">
-              {(["fast-1", "core-1"] as const).map((model) => (
+              {AI_MODELS.map((model) => (
                 <button
-                  key={model}
-                  onClick={() => setNoorModel(model)}
+                  key={model.id}
+                  onClick={() => setNoorModel(model.id)}
                   className={cn(
                     "px-3 py-1.5 text-xs font-medium rounded-lg border transition-all",
-                    noorModel === model
+                    noorModel === model.id
                       ? "border-foreground/20 bg-foreground/5"
                       : "border-border/50 text-muted-foreground/60 hover:border-border"
                   )}
                 >
-                  {model === "fast-1" ? "Fast" : model === "core-1" ? "Core" : "Agent"}
+                  {model.name}
                 </button>
               ))}
             </div>

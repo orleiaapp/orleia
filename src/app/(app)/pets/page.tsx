@@ -16,6 +16,7 @@ import { PawPrint, Plus, Check, X, Clock, ShieldCheck, Sparkles, Lock, ChevronRi
 import { storage } from "@/lib/storage";
 import { useHydrated } from "@/lib/use-hydrated";
 import { useI18n } from "@/lib/i18n";
+import { cn, formatRelative } from "@/lib/utils";
 import { PETS, petById, petSvg } from "@/lib/pets";
 import { PET_JOBS, type JobDef } from "@/lib/pet-jobs";
 import {
@@ -26,6 +27,7 @@ import {
   slotStatus,
   runRoleNow,
   ensurePetConversation,
+  isQuietHours,
   type HireResult,
   type SlotStatus,
 } from "@/lib/pet-agent";
@@ -207,6 +209,7 @@ export default function PetsPage() {
         ) : (
           <div className="grid gap-3 sm:grid-cols-2">
             {agents.map((agent) => {
+            const quiet = isQuietHours();
               const job = PET_JOBS.find((j) => j.role === agent.role);
               const pet = petById(agent.petId);
               return (
@@ -275,6 +278,23 @@ export default function PetsPage() {
                         </div>
                       );
                     })()}
+                  {/* 24/7 employee status line: last shift + quiet-hours badge. */}
+                  <div className="mt-2 flex items-center gap-1.5 text-[11px]">
+                    <span className={cn(
+                      "h-1.5 w-1.5 shrink-0 rounded-full",
+                      quiet ? "bg-indigo-400" : "bg-emerald-500 animate-pulse"
+                    )} />
+                    <span className="text-muted-foreground">
+                      {agent.lastActiveAt
+                        ? t("petagent.lastActive", "Last active") + " " + formatRelative(agent.lastActiveAt)
+                        : t("petagent.lastActiveNever", "Starting first shift…")}
+                    </span>
+                    {quiet && (
+                      <span className="ml-auto rounded-full bg-indigo-500/10 px-1.5 py-0.5 text-[10px] font-medium text-indigo-500">
+                        {t("petagent.quietHours", "Night shift")}
+                      </span>
+                    )}
+                  </div>
                   <div className="mt-3 flex items-center gap-2">
                     <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
                       <div

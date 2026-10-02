@@ -31,8 +31,8 @@ import { storage } from "./storage";
 import { generateId } from "./utils";
 import { NoorCapError } from "./noor-cap";
 import { runAgentLoop } from "./agent-loop";
-import { MODEL_PROFILES } from "./ai-models";
-import { roster, workingReceipt } from "./pet-agent";
+import { MODEL_PROFILES, DEFAULT_MODEL } from "./ai-models";
+import { roster, workingReceipt, recordWork } from "./pet-agent";
 
 const MAX_PENDING = 3;
 
@@ -127,7 +127,7 @@ export interface ScoutRunOpts {
 }
 
 function safeModel(stored?: string): AIModel {
-  return stored && stored in MODEL_PROFILES ? (stored as AIModel) : "core-1";
+  return stored && stored in MODEL_PROFILES ? (stored as AIModel) : DEFAULT_MODEL;
 }
 
 function scoutContext(): string {
@@ -211,6 +211,10 @@ export async function runPendingScoutJob(opts: ScoutRunOpts = {}): Promise<Scout
 
   updateScoutJob(job.id, { status: "running" });
   opts.onStatus?.(`🔭 ${agent.name} is on the job…`);
+  // 24/7 log: the agent's last-active stamp moves the moment it picks
+  // up an assigned job (night work counts as work, employees don't sleep).
+  // Silent: the delivery itself fires the user-facing receipt later.
+  recordWork(agent.id, `Picked up job: ${job.topic.slice(0, 60)}`, 0, { silent: true });
 
   const model = safeModel(storage.getData().selectedModel);
   const history = (storage.getData().aiConversations.find((c) => c.id === job.convId)?.messages ?? []) as never[];

@@ -11,9 +11,8 @@ export const maxDuration = 60;
 // Only the models Orleia actually uses may be requested - prevents the
 // endpoint from being used to probe/abuse arbitrary NVIDIA functions.
 const ALLOWED_MODELS = new Set([
-  "nvidia/nemotron-3-ultra-550b-a55b",  // Ethos 4.7 (deep, ~10s)
-  "nvidia/nemotron-3-super-120b-a12b",  // Logos 4.5 (fast, ~5s)
-  "nvidia/nemotron-3.5-lightning-30b-a3b", // Verse 4 (fast mode, ~0.8s TTFT)
+  "nvidia/nemotron-3-super-120b-a12b",     // Novella 5.0 (primary)
+  "nvidia/nemotron-3.5-lightning-30b-a3b", // Novella 5.0 cold-start fallback
 ]);
 
 const MAX_MESSAGES = 80;

@@ -11,7 +11,7 @@
 // ============================================================
 
 import { chatStream, NoorCapError } from "@/lib/ai-stream";
-import { MODEL_PROFILES } from "@/lib/ai-models";
+import { MODEL_PROFILES, DEFAULT_MODEL } from "@/lib/ai-models";
 import type { AIMessage, AIModel } from "@/types";
 import { storage } from "@/lib/storage";
 
@@ -40,7 +40,7 @@ export function subscribeNoorBg(fn: (e: NoorBgEvent) => void): () => void {
 }
 
 function safeModel(stored?: string): AIModel {
-  return stored && stored in MODEL_PROFILES ? (stored as AIModel) : "core-1";
+  return stored && stored in MODEL_PROFILES ? (stored as AIModel) : DEFAULT_MODEL;
 }
 
 function stripMd(s: string): string {

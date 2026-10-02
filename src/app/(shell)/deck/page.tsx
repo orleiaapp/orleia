@@ -108,7 +108,7 @@ export default function DeckPage() {
   const [genPrompt, setGenPrompt] = useState("");
   const [genLoading, setGenLoading] = useState(false);
   const [genError, setGenError] = useState("");
-  const [genModel, setGenModel] = useState<string>(data.selectedModel || "core-1");
+  const [genModel, setGenModel] = useState<string>(data.selectedModel || "novella-medium");
 
   // Import state
   const [importOpen, setImportOpen] = useState(false);
@@ -468,8 +468,8 @@ export default function DeckPage() {
                 Tip: include your real numbers. Noor builds assertion-style headlines around them instead of generic filler.
               </p>
               <div className="flex items-center gap-2 mt-3">
-                <span className="text-xs text-muted-foreground">Model:</span>
-                {(["fast-1", "core-1"] as const).map((m) => (
+                <span className="text-xs text-muted-foreground">Effort:</span>
+                {(["novella-low", "novella-medium", "novella-high"] as const).map((m) => (
                   <button
                     key={m}
                     onClick={() => setGenModel(m)}
@@ -478,7 +478,7 @@ export default function DeckPage() {
                       genModel === m ? "border border-foreground/40 text-foreground" : "border border-transparent text-muted-foreground hover:text-foreground"
                     )}
                   >
-                    {m === "fast-1" ? "Fast" : m === "core-1" ? "Core" : "Agent"}
+                    {m === "novella-low" ? "Low" : m === "novella-medium" ? "Medium" : "High"}
                   </button>
                 ))}
               </div>

@@ -7,7 +7,7 @@
 //   • You complete a task  → the pet cheers you on (rate-limited).
 //   • You log a good mood  → the pet shares the joy.
 //   • You log a rough mood → the pet sends a quiet, warm hug.
-//   • Late at night        → the pet is asleep and stays quiet.
+//   • Late at night        → agents keep working the night shift, silently.
 //   • A hired agent proposes work → proposal card (confirm chip).
 // Pure local-first: reactions cost nothing; proposals are
 // confirm-first (pet-agent.ts never writes without a tap).
@@ -36,6 +36,9 @@ type Reaction = { key: string; emoji: string; id: number };
 
 const CHEER_COOLDOWN_MS = 20_000;
 const HIDE_AFTER_MS = 2600;
+// 24/7 employee cadence: every hired agent works a round at least this
+// often while the app is open, even if nothing in the workspace changed.
+const ROUND_INTERVAL_MS = 15 * 60 * 1000;
 
 export function PetReactions() {
   const { t } = useI18n();
@@ -49,6 +52,7 @@ export function PetReactions() {
   const lastCheer = useRef(0);
   const hidTimer = useRef<number | null>(null);
   const evalTimer = useRef<number | null>(null);
+  const lastEval = useRef(0);
 
   useEffect(() => {
     const snapshot = () => {
@@ -77,6 +81,7 @@ export function PetReactions() {
     /** Run agent evaluators (no-op while the roster is empty). */
     const runEvaluators = () => {
       if (document.hidden) return;
+      lastEval.current = Date.now();
       evaluateAll().then((props) => {
         if (props.length) setProposal((cur) => cur || props[0]);
       }).catch(() => {});
@@ -161,11 +166,20 @@ export function PetReactions() {
     // Open-time check too (storage.subscribe only fires on writes).
     scheduleEvaluators();
 
+    // 24/7 rounds: hired agents check in on a fixed cadence while the
+    // app is open - even when nothing changed - like employees on shift
+    // rather than chatbots poked by activity. Quiet hours still apply
+    // (night work is silent) inside evaluateAll/recordWork.
+    const roundTimer = window.setInterval(() => {
+      if (!document.hidden && Date.now() - lastEval.current > ROUND_INTERVAL_MS) runEvaluators();
+    }, 60_000);
+
     return () => {
       unsub();
       unsubProposals();
       stopRunner();
       window.clearInterval(pollDone);
+      window.clearInterval(roundTimer);
       document.removeEventListener("visibilitychange", onVisible);
       if (hidTimer.current) window.clearTimeout(hidTimer.current);
       if (evalTimer.current) window.clearTimeout(evalTimer.current);

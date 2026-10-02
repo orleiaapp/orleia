@@ -14,9 +14,9 @@
 // ultra so nothing breaks before Stripe keys exist.
 //
 // Catalog: three live roles (Wrangler, Planner, Scout) plus the
-// Auditor on the roadmap. Live roles all DO something Noor's chat
-// doesn't: they run on triggers (open, daily, on assignment), not
-// on prompts.
+// Auditor on the roadmap. Live roles are ALWAYS-ON employees: they
+// work timed rounds 24/7 while Orleia is open (night shift included,
+// silently) and log their shifts — they don't wait for a prompt.
 // ============================================================
 
 import type { PetAgentRole } from "@/types";
@@ -44,10 +44,10 @@ export const PET_JOBS: JobDef[] = [
     color: "#22c55e",
     hireable: true,
     name: "Wrangler",
-    tagline: "Watches your tasks. Noor can't.",
+    tagline: "Watches your tasks. Works 24/7.",
     description:
-      "Checks your tasks every time you open Orleia — no asking, no messages spent. Finds what slipped past its due date and proposes a one-tap 'move to today' sweep.",
-    skills: ["Watches 24/7", "Fires on open", "Zero messages"],
+      "On shift around the clock — checks your tasks in rounds while Orleia is open, no asking, no messages spent. Finds what slipped past its due date and proposes a one-tap 'move to today' sweep.",
+    skills: ["Works 24/7", "Timed rounds", "Zero messages"],
   },
   {
     role: "planner",
@@ -57,8 +57,8 @@ export const PET_JOBS: JobDef[] = [
     name: "Planner",
     tagline: "Your morning, before you ask for it",
     description:
-      "Every morning, greets you with a huddle: what's due today, what's on the calendar, which habits are still unchecked — and where to start. No prompt needed.",
-    skills: ["Morning huddle", "Daily, automatic", "Zero messages"],
+      "On shift every morning: greets you with a huddle of what's due today, what's on the calendar, which habits are still unchecked — and where to start. Re-checks through the day without being asked.",
+    skills: ["Morning huddle", "Checks in daily", "Zero messages"],
   },
   {
     role: "scout",
@@ -68,8 +68,8 @@ export const PET_JOBS: JobDef[] = [
     name: "Scout",
     tagline: "Give it a job. It works the web.",
     description:
-      "Hand Scout a research job and it runs multi-turn on the web — searching, reading pages, writing it up. Delivers a findings note to your notes and a receipt. Doesn't touch your daily Noor messages.",
-    skills: ["Multi-step web jobs", "Findings notes", "No message cost"],
+      "Hand Scout a research job and it runs multi-turn on the web — searching, reading pages, writing it up. Works jobs in rounds, even at night. Delivers a findings note to your notes and a receipt. Doesn't touch your daily Noor messages.",
+    skills: ["Multi-step web jobs", "Works nights", "No message cost"],
   },
   {
     role: "auditor",

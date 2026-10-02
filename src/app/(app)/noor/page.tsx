@@ -86,25 +86,31 @@ import {
   ensureScoutRunner,
 } from "@/lib/scout-jobs";
 
+// Novella 5.0: one model, six effort presets. Labels map effort ids
+// (novella-low ... novella-ultra); legacy ids fall through the aliases.
 const MODEL_META: Record<string, string> = {
-  "fast-1": "Fast",
-  "core-1": "Core",
+  "novella-low": "Novella 5.0 · Low",
+  "novella-medium": "Novella 5.0 · Medium",
+  "novella-high": "Novella 5.0 · High",
+  "novella-hyper": "Novella 5.0 · Hyper",
+  "novella-max": "Novella 5.0 · Max",
+  "novella-ultra": "Novella 5.0 · Ultra",
 };
 
 // Resolve any stored model id (including legacy ids from old conversations).
 // Local AI ids ("local-*") pass through unchanged — they are valid models.
 function resolveModelId(id: string): string {
   if (id.startsWith("local-")) return id;
-  return MODEL_ALIASES[id] || (MODEL_META[id] ? id : "core-1");
+  return MODEL_ALIASES[id] || (MODEL_META[id] ? id : "novella-medium");
 }
 
 function msgLabel(id?: string): string {
-  const resolved = resolveModelId(id || "core-1");
+  const resolved = resolveModelId(id || "novella-medium");
   if (resolved.startsWith("local-")) {
     const def = LOCAL_MODELS.find((m) => m.id === resolved);
     return def ? def.name : "Local";
   }
-  return MODEL_META[resolved] || "Core";
+  return MODEL_META[resolved] || "Novella 5.0";
 }
 
 const PROPOSAL_LABELS: Record<string, string> = {
@@ -224,7 +230,7 @@ function sourceIcon(kind: AISource["kind"]) {
   }
 }
 
-const SAFE_MODEL: AIModel = "core-1";
+const SAFE_MODEL: AIModel = "novella-medium";
 
 // Text files shorter than this are sent to the model verbatim; longer ones
 // are digested into an overview first (see /api/overview) so Noor understands
@@ -305,6 +311,8 @@ export default function AssistantPage() {
   };
   const [loading, setLoading] = useState(false);
   const [selectedModel, setSelectedModel] = useState<AIModel>(getSafeModel(data.selectedModel));
+  // Novella 5.0 effort submenu (model picker).
+  const [effortOpen, setEffortOpen] = useState(false);
   const [showModelPicker, setShowModelPicker] = useState(false);
   // Local AI (Ollama): sub-list expansion + live install probe.
   const [localOpen, setLocalOpen] = useState(false);
@@ -1610,7 +1618,7 @@ try {
     ? t("assistant.generatingImage")
     : searching
     ? t("assistant.searchingWeb")
-    : selectedModel === "fast-1"
+    : selectedModel === "novella-low"
     ? t("assistant.processing")
     : t("assistant.responding");
 
@@ -1795,27 +1803,44 @@ try {
                     className="absolute top-full right-0 mt-2 w-72 max-w-[calc(100vw-3rem)] sm:w-80 bg-background border border-border rounded-2xl shadow-2xl p-2 z-50"
                   >
                     <p className="text-[9px] font-mono tracking-wider text-muted-foreground/40 px-3 py-1.5 uppercase">{t("assistant.models")}</p>
-                    {AI_MODELS.map((m) => {
-                      const isActive = selectedModel === m.id;
-                      return (
-                        <button
-                          key={m.id}
-                          onClick={() => changeModel(m.id)}
-                          className={cn(
-                            "w-full flex items-start gap-3 px-3 py-3 rounded-xl text-left transition-all duration-200",
-                            isActive ? "bg-primary-500/10 ring-1 ring-primary-500/20" : "hover:bg-secondary"
-                          )}
-                        >
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2">
-                              <span className="text-sm font-medium">{m.name}</span>
-                              {isActive && <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-primary-500/20 text-primary-500">{t("assistant.active")}</span>}
+                    {/* Novella 5.0 — one model, six effort levels */}
+                    <button
+                      onClick={() => setEffortOpen(!effortOpen)}
+                      className="w-full flex items-center gap-3 px-3 py-3 rounded-xl text-left transition-all duration-200 hover:bg-secondary"
+                    >
+                      <Sparkles className="h-4 w-4 text-primary-500" />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium">Novella 5.0</span>
+                          {selectedModel.startsWith("novella-") && <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-primary-500/20 text-primary-500">{t("assistant.active")}</span>}
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-0.5">One brain. Pick how hard it thinks.</p>
+                      </div>
+                      <ChevronDown className={cn("h-3.5 w-3.5 text-muted-foreground transition-transform duration-200", effortOpen && "rotate-180")} />
+                    </button>
+                    {effortOpen && (
+                      <div className="mt-1 space-y-0.5">
+                        {AI_MODELS.map((m) => (
+                          <button
+                            key={m.id}
+                            onClick={() => changeModel(m.id)}
+                            className={cn(
+                              "w-full flex items-start gap-2.5 px-3 py-2.5 rounded-xl text-left transition-all duration-200",
+                              selectedModel === m.id ? "bg-primary-500/10 ring-1 ring-primary-500/20" : "hover:bg-secondary"
+                            )}
+                          >
+                            <Zap className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm font-medium">{m.name}</span>
+                                {selectedModel === m.id && <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-primary-500/20 text-primary-500">{t("assistant.active")}</span>}
+                              </div>
+                              <p className="text-xs text-muted-foreground mt-0.5">{m.description}</p>
                             </div>
-                            <p className="text-xs text-muted-foreground mt-0.5">{m.description}</p>
-                          </div>
-                        </button>
-                      );
-                    })}
+                          </button>
+                        ))}
+                      </div>
+                    )}
                     <div className="my-1.5 h-px bg-border/60" />
                     {/* ---- Local AI (Ollama) — runs on this computer, no cap ---- */}
                     <button
@@ -2432,24 +2457,44 @@ try {
                   {showModelPicker && (
                     <div className="absolute bottom-full left-0 mb-2 w-72 max-w-[calc(100vw-2rem)] rounded-2xl border border-border bg-background shadow-2xl p-2 z-50">
                       <p className="text-[9px] font-mono tracking-wider text-muted-foreground/40 px-3 py-1.5 uppercase">{t("assistant.models")}</p>
-                      {AI_MODELS.map((m) => (
-                        <button
-                          key={m.id}
-                          onClick={() => changeModel(m.id)}
-                          className={cn(
-                            "w-full flex items-start gap-3 px-3 py-3 rounded-xl text-left transition-all duration-200",
-                            selectedModel === m.id ? "bg-primary-500/10 ring-1 ring-primary-500/20" : "hover:bg-secondary"
-                          )}
-                        >
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2">
-                              <span className="text-sm font-medium">{m.name}</span>
-                              {selectedModel === m.id && <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-primary-500/20 text-primary-500">{t("assistant.active")}</span>}
-                            </div>
-                            <p className="text-xs text-muted-foreground mt-0.5">{m.description}</p>
+                      {/* Novella 5.0 — one model, six effort levels */}
+                      <button
+                        onClick={() => setEffortOpen(!effortOpen)}
+                        className="w-full flex items-center gap-3 px-3 py-3 rounded-xl text-left transition-all duration-200 hover:bg-secondary"
+                      >
+                        <Sparkles className="h-4 w-4 text-primary-500" />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-medium">Novella 5.0</span>
+                            {selectedModel.startsWith("novella-") && <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-primary-500/20 text-primary-500">{t("assistant.active")}</span>}
                           </div>
-                        </button>
-                      ))}
+                          <p className="text-xs text-muted-foreground mt-0.5">One brain. Pick how hard it thinks.</p>
+                        </div>
+                        <ChevronDown className={cn("h-3.5 w-3.5 text-muted-foreground transition-transform duration-200", effortOpen && "rotate-180")} />
+                      </button>
+                      {effortOpen && (
+                        <div className="mt-1 space-y-0.5">
+                          {AI_MODELS.map((m) => (
+                            <button
+                              key={m.id}
+                              onClick={() => changeModel(m.id)}
+                              className={cn(
+                                "w-full flex items-start gap-2.5 px-3 py-2.5 rounded-xl text-left transition-all duration-200",
+                                selectedModel === m.id ? "bg-primary-500/10 ring-1 ring-primary-500/20" : "hover:bg-secondary"
+                              )}
+                            >
+                              <Zap className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-sm font-medium">{m.name}</span>
+                                  {selectedModel === m.id && <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-primary-500/20 text-primary-500">{t("assistant.active")}</span>}
+                                </div>
+                                <p className="text-xs text-muted-foreground mt-0.5">{m.description}</p>
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      )}
                       <div className="my-1.5 h-px bg-border/60" />
                       <button
                         onClick={() => { const next = !localOpen; setLocalOpen(next); if (next && !ollama) void probeOllama().then(setOllama); }}
@@ -2778,7 +2823,7 @@ try {
                 placeholder={
                   petAgent
                     ? t("assistant.messagePet", "Message " + petAgent.name)
-                    : selectedModel === "fast-1"
+                    : selectedModel === "novella-low"
                       ? t("assistant.quickQuestion")
                       : t("assistant.messageNoor")
                 }

@@ -4,13 +4,11 @@ import { AIMessage, AIModel, AISource } from "@/types";
 import { chat, buildStatsBlock, buildProfileBlock, buildNoorBlock, ChatOpts, withAttachmentContext } from "./ai";
 import { getToday } from "./utils";
 
+// Novella 5.0 is one model: if the endpoint is cold, the smaller Nemotron
+// sibling answers instead of leaving the user hanging.
 const FALLBACK_MODELS: Record<string, string[]> = {
-  // Fast's fallback list is ordered for speed: if lightning is cold, the
-  // warm super model answers quicker than waiting lightning out.
-  "nvidia/nemotron-3-ultra-550b-a55b": ["nvidia/nemotron-3-super-120b-a12b"],
-  "nvidia/nemotron-3-super-120b-a12b": ["nvidia/nemotron-3.5-lightning-30b-a3b", "nvidia/nemotron-3-ultra-550b-a55b"],
-  "nvidia/nemotron-3.5-lightning-30b-a3b": ["nvidia/nemotron-3-super-120b-a12b"],
-};;
+  "nvidia/nemotron-3-super-120b-a12b": ["nvidia/nemotron-3.5-lightning-30b-a3b"],
+};
 import { buildSearchBlock, isLiveQuery } from "./web-search";
 import { getSituationPayload } from "@/lib/graph/engine";
 import { getDeviceId } from "./device-id";
@@ -21,7 +19,7 @@ import { buildSkillsBlock } from "./noor-skills";
 // Re-export the shared cap error so existing imports keep working.
 export { NoorCapError } from "./noor-cap";
 import { NoorCapError } from "./noor-cap";
-import { MODEL_PROFILES } from "./ai-models";
+import { MODEL_PROFILES, DEFAULT_MODEL } from "./ai-models";
 import { isLocalModel, localModelById, probeOllama, streamOllama, isModelInstalled, ollamaSetupHint } from "./local-ai";
 import { buildNoorSystemPrompt } from "./noor-system";
 import { countFactInstruction } from "./count-guard";
@@ -153,10 +151,9 @@ async function streamLLM(
     const fallbacks = FALLBACK_MODELS[model.nvidiaModelId] || [];
     const modelsToTry = [model.nvidiaModelId, ...fallbacks];
     
-    // Fast mode lives up to its name: a hard per-attempt budget. A slow or
-    // hung endpoint must never hold the request hostage (users saw 40s+
-    // waits when the primary was cold). Core/Agent get a roomier budget.
-    const attemptTimeoutMs = modelId === "fast-1" ? 8000 : 25000;
+    // Hard per-attempt budget: a slow or hung endpoint must never hold the
+    // request hostage. TTFB only - once streaming, the stall guard takes over.
+    const attemptTimeoutMs = 25000;
     // Time-to-first-byte guard (replaces the old whole-stream timeout, which
     // killed healthy long streams - Agent's deep model legitimately streams
     // past 25s - and dumped users into the offline fallback mid-answer).
@@ -344,17 +341,15 @@ export interface StreamOpts {
 export async function chatStream(
   query: string,
   conversationHistory: AIMessage[] = [],
-  modelId: AIModel = "core-1",
+  modelId: AIModel = DEFAULT_MODEL,
   opts: StreamOpts,
   /** Agent-only extra context (device environment + screen description). */
   agentContext = ""
 ): Promise<string> {
   // Local models have no cloud profile — skip the profile gate for them.
-  const model = isLocalModel(modelId)
-    ? null
-    : MODEL_PROFILES[modelId as "fast-1" | "core-1" | "agent-1"];
+  const model = isLocalModel(modelId) ? null : MODEL_PROFILES[modelId as AIModel];
   if (!model && !isLocalModel(modelId)) {
-    const msg = "Invalid model selected. Please choose Fast, Core, or Agent.";
+    const msg = "Invalid model selected. Please pick a Novella 5.0 effort level (or Local AI).";
     opts.onToken(msg);
     return msg;
   }
@@ -365,7 +360,7 @@ export async function chatStream(
   const action = isLiveQuery(query)
     ? { matched: false, type: null, params: {}, confidence: 0 }
     : detectAction(query);
-  if (action.matched && action.confidence >= 0.7 && modelId !== "agent-1") {
+  if (action.matched && action.confidence >= 0.7 && !modelId.startsWith("novella-max") && !modelId.startsWith("novella-ultra")) {
     const result = executeAction(action);
     opts.onToken(result.message);
     return result.message;
