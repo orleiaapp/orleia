@@ -75,9 +75,16 @@ import { shareText } from "@/lib/share";
 import ImageLoader from "@/components/ui/image-loading";
 import { MiniCamera, type CapturedPhoto } from "@/components/noor/MiniCamera";
 import { PawPrint } from "lucide-react";
-import { roster as petRoster, petPersonaPrefix, ensurePetConversation } from "@/lib/pet-agent";
+import { roster as petRoster, petPersonaPrefix, ensurePetConversation, roleHasJob, runRoleNow } from "@/lib/pet-agent";
 import { jobByRole } from "@/lib/pet-jobs";
 import { petById, petSvg } from "@/lib/pets";
+import {
+  assignScoutJob,
+  pendingScoutJob,
+  activeScoutJobs,
+  kickScoutRunner,
+  ensureScoutRunner,
+} from "@/lib/scout-jobs";
 
 const MODEL_META: Record<string, string> = {
   "fast-1": "Fast",
@@ -244,6 +251,11 @@ export default function AssistantPage() {
   // Chat-with-pet: when set, replies speak as the hired pet (persona) —
   // same pipeline, same daily cap, same confirm-chip actions.
   const [petAgentId, setPetAgentId] = useState<string | null>(null);
+  // Pending text queued as a Scout job once the empty thread exists
+  // (typed from the empty state's "assign a job" input).
+  const [pendingScoutTopic, setPendingScoutTopic] = useState("");
+  // Scout dispatch: pending job for THIS pet's thread ("🔭 working…” chip).
+  const [activeScout, setActiveScout] = useState(false);
   // Server-truth "N messages left" warning: fired once per day at 5 remaining.
   const usageWarnedDate = useRef<string | null>(null);
   useEffect(() => {
@@ -599,17 +611,53 @@ export default function AssistantPage() {
     const pet = new URLSearchParams(window.location.search).get("pet");
     if (!pet) return;
     const agent = petRoster().find((a) => a.id === pet);
-    if (agent) openPetChat(agent.id);
+    if (!agent) return;
+    openPetChat(agent.id);
+    // Empty thread + a pending-topic query → treat as a Scout job dispatch
+    // (/noor?pet=X&topic=…): one tap from the pets page runs a real job.
+    const topic = new URLSearchParams(window.location.search).get("topic");
+    if (topic && agent.role === "scout") {
+      const res = assignScoutJob(agent.id, topic, ensurePetConversation(agent));
+      if (res.ok) {
+        setPendingScoutTopic("");
+        setActiveScout(true);
+        kickScoutRunner();
+      }
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const startNewChat = () => {
     setPetAgentId(null);
+    setPendingScoutTopic("");
+    setActiveScout(false);
     const conv = storage.createConversation();
     setConversationId(conv.id);
     setMessages([]);
     refresh();
     setTimeout(() => inputRef.current?.focus(), 50);
+  };
+
+  // Empty-state "assign a job" flow: thread is created on submit.
+  const submitScoutTopic = (agentId: string) => {
+    const agent = petRoster().find((a) => a.id === agentId);
+    if (!agent) return;
+    const topic = pendingScoutTopic.trim();
+    if (!topic) return;
+    setPendingScoutTopic("");
+    const convId = ensurePetConversation(agent);
+    const res = assignScoutJob(agent.id, topic, convId);
+    if (!res.ok) return;
+    setConversationId(convId);
+    const conv = storage.getData().aiConversations.find((c) => c.id === convId);
+    setMessages(
+      (conv?.messages || []).map((m) =>
+        m.role === "assistant" ? { ...m, content: sanitizeStoredReply(m.content) } : m
+      )
+    );
+    refresh();
+    setActiveScout(true);
+    kickScoutRunner();
   };
 
   // Chat with a hired pet: one persistent per-agent thread ("Chat with
@@ -628,6 +676,7 @@ export default function AssistantPage() {
     );
     refresh();
     setTimeout(() => inputRef.current?.focus(), 50);
+    setActiveScout(Boolean(pendingScoutJob(agentId) || activeScoutJobs().some((j) => j.agentId === agentId && j.status === "running")));
   };
 
   const loadConversation = (id: string) => {
@@ -1273,6 +1322,26 @@ export default function AssistantPage() {
       if (petAgentForTurn) llmQuery = petPersonaPrefix(petAgentForTurn) + "\n\n---\nUser: " + llmQuery;
     }
 
+    // SCOUT JOB DISPATCH: "assign: <topic>" in a scout's thread enqueues a
+    // real background web job (agent loop) instead of a chat reply. The
+    // user's message is stored verbatim; delivery arrives in this thread.
+    if (petAgentId && queryText.toLowerCase().startsWith("assign:")) {
+      const scoutAgent = petRoster().find((a) => a.id === petAgentId);
+      const topic = queryText.slice(7).trim();
+      if (scoutAgent?.role === "scout" && topic) {
+        const res = assignScoutJob(scoutAgent.id, topic, currentConvId);
+        if (res.ok) {
+          storage.addMessage(currentConvId, userMsg);
+          setMessages((prev) => [...prev, userMsg]);
+          refresh();
+          setActiveScout(true);
+          kickScoutRunner();
+          setLoading(false);
+          return;
+        }
+      }
+    }
+
     let sources: AISource[] = [];
     if (isLiveQuery(queryText)) sources = await fetchWebSources(queryText);
     const sendOpts = { sources };
@@ -1518,6 +1587,22 @@ try {
   const petAgent = petAgentId ? petRoster().find((a) => a.id === petAgentId) || null : null;
   const petJob = petAgent ? jobByRole(petAgent.role) : null;
   const petCosmetic = petAgent ? petById(petAgent.petId) : null;
+  const petHasJob = petAgent ? roleHasJob(petAgent.role) : false;
+  const runPetJobNow = () => {
+    if (!petAgent) return;
+    if (petAgent.role === "scout") {
+      const job = pendingScoutJob(petAgent.id);
+      if (job) {
+        setActiveScout(true);
+        kickScoutRunner();
+      } else {
+        setInput("assign: ");
+        setTimeout(() => inputRef.current?.focus(), 50);
+      }
+    } else {
+      runRoleNow(petAgent.id);
+    }
+  };
 
   const loadingText = researchState.active
     ? researchState.stageDetail
@@ -2233,24 +2318,53 @@ try {
                 <span className="mr-1 rounded-full bg-muted px-2 py-0.5 text-[10px] uppercase tracking-wide text-muted-foreground">
                   {petJob?.icon} {t(`petjob.${petAgent.role}.name`, petJob?.name || petAgent.role)}
                 </span>
-                {(petAgent.role === "wrangler"
-                  ? [
-                      t("petagent.chip.sweep", "Sweep my overdue tasks"),
-                      t("petagent.chip.duetoday", "What should I do today?"),
-                    ]
-                  : [
-                      t("petagent.chip.howhelp", "What can you do for me?"),
-                    ]
-                ).map((label) => (
-                  <button
-                    key={label}
-                    onClick={() => sendMessage(label)}
-                    className="inline-flex items-center gap-1.5 rounded-full border border-border/70 bg-secondary/60 px-3 py-1.5 text-xs font-medium text-muted-foreground transition-all duration-200 hover:border-primary-500/40 hover:text-foreground hover:bg-secondary active:scale-95"
-                  >
-                    <PawPrint className="h-3 w-3 text-primary-500" />
-                    {label}
-                  </button>
-                ))}
+                {petAgent.role === "scout" ? (
+                  <div className="flex w-full items-center gap-1.5">
+                    <input
+                      value={pendingScoutTopic}
+                      onChange={(e) => setPendingScoutTopic(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && pendingScoutTopic.trim()) submitScoutTopic(petAgent.id);
+                      }}
+                      placeholder={t("petagent.scout.placeholder", "Assign a research job — e.g. “Compare 3 flagship phones, prices in EUR”")}
+                      className="min-w-0 flex-1 rounded-full border border-border/70 bg-secondary/60 px-4 py-2 text-xs text-foreground placeholder:text-muted-foreground/60 focus:border-primary-500/50 focus:outline-none"
+                    />
+                    <button
+                      onClick={() => submitScoutTopic(petAgent.id)}
+                      disabled={!pendingScoutTopic.trim()}
+                      className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-primary-500 px-3.5 py-2 text-xs font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+                    >
+                      {t("petagent.scout.assign", "Assign job")}
+                    </button>
+                  </div>
+                ) : (
+                  (petAgent.role === "wrangler"
+                    ? [
+                        t("petagent.chip.sweep", "Sweep my overdue tasks"),
+                        t("petagent.chip.duetoday", "What should I do today?"),
+                      ]
+                    : [
+                        t("petagent.chip.huddle", "What's on for today?"),
+                        t("petagent.chip.howhelp", "What can you do for me?"),
+                      ]
+                  ).map((label) => (
+                    <button
+                      key={label}
+                      onClick={() => sendMessage(label)}
+                      className="inline-flex items-center gap-1.5 rounded-full border border-border/70 bg-secondary/60 px-3 py-1.5 text-xs font-medium text-muted-foreground transition-all duration-200 hover:border-primary-500/40 hover:text-foreground hover:bg-secondary active:scale-95"
+                    >
+                      <PawPrint className="h-3 w-3 text-primary-500" />
+                      {label}
+                    </button>
+                  ))
+                )}
+              </div>
+            )}
+            {/* Scout is literally working: visible, honest status chip. */}
+            {activeScout && (
+              <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-primary-500/30 bg-primary-500/5 px-3 py-1.5 text-xs font-medium text-primary-600">
+                <span className="h-2 w-2 animate-pulse rounded-full bg-primary-500" />
+                {t("petagent.scout.working", "🔭 Scout is on the job — findings will land here")}
               </div>
             )}
             {!isEmptyChat && !input.trim() && !loading && !generatingImage && !searching && (
@@ -2262,6 +2376,18 @@ try {
                   >
                     <PawPrint className="h-3 w-3 text-primary-500" />
                     {petAgent.name}
+                  </button>
+                )}
+                {petHasJob && (
+                  <button
+                    onClick={runPetJobNow}
+                    title={t("petagent.runNowHint", "Trigger this pet's job right now")}
+                    className="inline-flex items-center gap-1.5 rounded-full border border-border/70 bg-secondary/60 px-3 py-1.5 text-xs font-medium text-muted-foreground transition-all duration-200 hover:border-primary-500/40 hover:text-foreground hover:bg-secondary active:scale-95"
+                  >
+                    <PawPrint className="h-3 w-3 text-primary-500" />
+                    {petAgent?.role === "scout"
+                      ? t("petagent.runJob", "New job")
+                      : t("petagent.runNow", "Run now")}
                   </button>
                 )}
                 <button
@@ -2505,8 +2631,16 @@ try {
                               <span className="flex-1 truncate">
                                 {t("assistant.talkToPet", "Talk to {pet}").replace("{pet}", a.name)}
                               </span>
-                              <span className="text-[10px] text-muted-foreground">
-                                {jobByRole(a.role)?.icon}
+                              <span
+                                className={
+                                  a.role === "scout" && activeScoutJobs().some((j) => j.agentId === a.id && (j.status === "pending" || j.status === "running"))
+                                    ? "shrink-0 rounded-full bg-primary-500/15 px-1.5 py-0.5 text-[9px] font-semibold text-primary-600"
+                                    : "shrink-0 text-[10px] text-muted-foreground"
+                                }
+                              >
+                                {a.role === "scout" && activeScoutJobs().some((j) => j.agentId === a.id && (j.status === "pending" || j.status === "running"))
+                                  ? t("petagent.scout.workingShort", "working")
+                                  : jobByRole(a.role)?.icon}
                               </span>
                             </button>
                           );

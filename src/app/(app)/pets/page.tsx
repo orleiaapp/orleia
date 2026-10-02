@@ -12,7 +12,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { PawPrint, Plus, Check, X, Clock, ShieldCheck, Sparkles, Lock, ChevronRight, MessageSquare } from "lucide-react";
+import { PawPrint, Plus, Check, X, Clock, ShieldCheck, Sparkles, Lock, ChevronRight, MessageSquare, Send, Play } from "lucide-react";
 import { storage } from "@/lib/storage";
 import { useHydrated } from "@/lib/use-hydrated";
 import { useI18n } from "@/lib/i18n";
@@ -24,9 +24,17 @@ import {
   roster,
   receipts,
   slotStatus,
+  runRoleNow,
+  ensurePetConversation,
   type HireResult,
   type SlotStatus,
 } from "@/lib/pet-agent";
+import {
+  assignScoutJob,
+  scoutJobs,
+  kickScoutRunner,
+  ensureScoutRunner,
+} from "@/lib/scout-jobs";
 import type { PetAgent, PetReceipt } from "@/types";
 
 export default function PetsPage() {
@@ -40,6 +48,10 @@ export default function PetsPage() {
   const [pickPet, setPickPet] = useState<string>("");
   const [notice, setNotice] = useState<string>("");
   const [busy, setBusy] = useState(false);
+  // Assign-a-job (Scout): dialog state + a tick to refresh live job chips.
+  const [assignFor, setAssignFor] = useState<PetAgent | null>(null);
+  const [jobTopic, setJobTopic] = useState("");
+  const [, setJobsTick] = useState(0);
 
   const refresh = () => {
     setAgents([...roster()]);
@@ -50,6 +62,13 @@ export default function PetsPage() {
     if (!hydrated) return;
     refresh();
     slotStatus().then(setSlots).catch(() => {});
+    // Job runner + live status ticks (queued → working → done).
+    const stopRunner = ensureScoutRunner();
+    const tick = window.setInterval(() => setJobsTick((n) => n + 1), 3000);
+    return () => {
+      stopRunner();
+      window.clearInterval(tick);
+    };
   }, [hydrated]);
 
   const petId = (storage.getData() as any).profile?.pet || "";
@@ -89,6 +108,44 @@ export default function PetsPage() {
     releaseAgent(agentId);
     refresh();
     slotStatus().then(setSlots).catch(() => {});
+  };
+
+  // Scout: open the assign-job dialog. Other roles: fire their evaluator
+  // right now (proposal pops via PetReactions, wherever the user is).
+  const runNow = (a: PetAgent) => {
+    if (a.role === "scout") {
+      setJobTopic("");
+      setAssignFor(a);
+      return;
+    }
+    const ok = runRoleNow(a.id);
+    if (!ok) {
+      setNotice(
+        t("pets.nothingToRun", "Nothing to run right now — {pet} speaks up automatically when there's something.").replace("{pet}", a.name)
+      );
+    }
+  };
+
+  const submitAssign = () => {
+    if (!assignFor) return;
+    const topic = jobTopic.trim();
+    if (!topic) return;
+    const res = assignScoutJob(assignFor.id, topic, ensurePetConversation(assignFor));
+    if (!res.ok) {
+      setNotice(
+        res.reason === "limit"
+          ? t("pets.jobLimit", "Scout already has a job queued — let it finish first.")
+          : t("pets.jobEmpty", "Describe the job first.")
+      );
+      return;
+    }
+    setAssignFor(null);
+    setJobTopic("");
+    refresh();
+    setNotice(
+      t("pets.jobAssigned", "Job assigned — findings will land in {pet}'s thread and your notes.").replace("{pet}", assignFor.name)
+    );
+    kickScoutRunner();
   };
 
   if (!hydrated) return <div className="min-h-screen" />;
@@ -166,6 +223,18 @@ export default function PetsPage() {
                       </p>
                     </div>
                     <button
+                      onClick={() => runNow(agent)}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-sidebar-hover hover:text-foreground"
+                      title={
+                        agent.role === "scout"
+                          ? t("pets.assignHint", "Assign Scout a web research job")
+                          : t("pets.runNowHint", "Run this agent's job right now")
+                      }
+                    >
+                      {agent.role === "scout" ? <Send className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
+                      {agent.role === "scout" ? t("pets.assign", "Job") : t("pets.runNow", "Run")}
+                    </button>
+                    <button
                       onClick={() => router.push(`/noor?pet=${agent.id}`)}
                       className="inline-flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-sidebar-hover hover:text-foreground"
                       title={t("pets.chatHint", "Chat with your agent — it can do its job on your word")}
@@ -182,6 +251,30 @@ export default function PetsPage() {
                       <X className="h-4 w-4" />
                     </button>
                   </div>
+                  {/* Scout live job status (queued → working). */}
+                  {agent.role === "scout" &&
+                    (() => {
+                      const job = scoutJobs(agent.id).find((j) => j.status === "pending" || j.status === "running");
+                      if (!job) return null;
+                      const running = job.status === "running";
+                      return (
+                        <div className="mt-3 flex items-center gap-2 rounded-lg border border-primary-500/25 bg-primary-500/5 px-2.5 py-1.5 text-[11px]">
+                          <span className="shrink-0">{running ? "🔭" : "⏳"}</span>
+                          <span className="min-w-0 flex-1 truncate text-muted-foreground">
+                            {running ? t("pets.jobWorking", "Working on:") : t("pets.jobQueued", "Queued:")}{" "}
+                            <span className="font-medium text-foreground">“{job.topic}”</span>
+                          </span>
+                          {running && (
+                            <button
+                              onClick={() => router.push(`/noor?pet=${agent.id}`)}
+                              className="shrink-0 font-semibold text-primary-600"
+                            >
+                              {t("pets.watchJob", "Watch")}
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })()}
                   <div className="mt-3 flex items-center gap-2">
                     <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
                       <div
@@ -291,6 +384,62 @@ export default function PetsPage() {
           </div>
         </section>
       )}
+
+      {/* Assign-a-job dialog (Scout): hand the pet a real web job. */}
+      <AnimatePresence>
+        {assignFor && (
+          <motion.div
+            className="fixed inset-0 z-[80] flex items-end justify-center bg-black/40 p-4 sm:items-center"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setAssignFor(null)}
+          >
+            <motion.div
+              className="card w-full max-w-md p-5"
+              initial={{ y: 24, opacity: 0, scale: 0.98 }}
+              animate={{ y: 0, opacity: 1, scale: 1 }}
+              exit={{ y: 16, opacity: 0, scale: 0.98 }}
+              transition={{ duration: 0.2, ease: "easeOut" }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <p className="text-sm font-semibold text-foreground">{t("pets.assignTitle", "Assign a job")}</p>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                {t(
+                  "pets.assignSubtitle",
+                  "{pet} will search the web, read pages, and deliver a findings note — no Noor messages spent."
+                ).replace("{pet}", assignFor.name)}
+              </p>
+              <textarea
+                value={jobTopic}
+                onChange={(e) => setJobTopic(e.target.value)}
+                rows={3}
+                autoFocus
+                placeholder={t(
+                  "pets.assignPlaceholder",
+                  "e.g. “Find the 3 best-rated budget electric bikes in the EU under €1,500, with prices”"
+                )}
+                className="mt-3 w-full resize-none rounded-xl border border-border bg-background px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/60 focus:border-primary-500/50 focus:outline-none"
+              />
+              <div className="mt-3 flex gap-2">
+                <button
+                  onClick={submitAssign}
+                  disabled={!jobTopic.trim()}
+                  className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-primary-500 px-4 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+                >
+                  <Send className="h-4 w-4" /> {t("pets.assignSend", "Send to work")}
+                </button>
+                <button
+                  onClick={() => setAssignFor(null)}
+                  className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-sidebar-hover"
+                >
+                  {t("common.cancel", "Cancel")}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Hire dialog: pick which pet wears the badge */}
       <AnimatePresence>

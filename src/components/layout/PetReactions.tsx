@@ -26,8 +26,11 @@ import {
   recordDismissal,
   snoozeRole,
   petNameFor,
+  subscribePetProposals,
+  roster,
   type PetProposal,
 } from "@/lib/pet-agent";
+import { ensureScoutRunner, scoutJobs } from "@/lib/scout-jobs";
 
 type Reaction = { key: string; emoji: string; id: number };
 
@@ -39,6 +42,8 @@ export function PetReactions() {
   const [reaction, setReaction] = useState<Reaction | null>(null);
   const [petKey, setPetKey] = useState("");
   const [proposal, setProposal] = useState<PetProposal | null>(null);
+  // Scout job finished while the user was elsewhere → celebration toast.
+  const [scoutDone, setScoutDone] = useState<{ name: string; title: string; petId?: string } | null>(null);
   const [working, setWorking] = useState(false);
   const prev = useRef<{ done: number; mood: number | null }>({ done: -1, mood: null });
   const lastCheer = useRef(0);
@@ -85,6 +90,34 @@ export function PetReactions() {
       if (!document.hidden) scheduleEvaluators();
     };
 
+    // Scout runner: picks up assigned jobs as soon as they land.
+    const stopRunner = ensureScoutRunner();
+
+    // Scout delivery toast: poll for jobs that just finished (storage
+    // writes in the pet's thread don't touch task data, so the general
+    // subscription below won't fire for them).
+    let lastDoneId = "";
+    for (const j of scoutJobs()) {
+      if (j.status === "done" && j.finishedAt && Date.now() - new Date(j.finishedAt).getTime() < 30_000) {
+        lastDoneId = j.id;
+        break;
+      }
+    }
+    const pollDone = window.setInterval(() => {
+      const j = scoutJobs().find(
+        (x) => x.status === "done" && x.finishedAt && Date.now() - new Date(x.finishedAt).getTime() < 30_000 && x.id !== lastDoneId
+      );
+      if (!j) return;
+      lastDoneId = j.id;
+      const agent = roster().find((x) => x.id === j.agentId);
+      setScoutDone({
+        name: agent?.name || petNameFor(j.agentId),
+        title: (j.resultTitle || "Findings").slice(0, 42),
+        petId: agent?.petId,
+      });
+      window.setTimeout(() => setScoutDone(null), 5000);
+    }, 2000);
+
     const unsub = storage.subscribe(() => {
       const s = snapshot();
       setPetKey(s.pet);
@@ -118,20 +151,33 @@ export function PetReactions() {
       scheduleEvaluators();
     });
 
+    // User-initiated runs ("Run now") bypass evaluateAll's dedupe and
+    // arrive here as a fresh proposal event.
+    const unsubProposals = subscribePetProposals((p) => {
+      setProposal((cur) => cur || p);
+    });
+
     document.addEventListener("visibilitychange", onVisible);
     // Open-time check too (storage.subscribe only fires on writes).
     scheduleEvaluators();
 
     return () => {
       unsub();
+      unsubProposals();
+      stopRunner();
+      window.clearInterval(pollDone);
       document.removeEventListener("visibilitychange", onVisible);
       if (hidTimer.current) window.clearTimeout(hidTimer.current);
       if (evalTimer.current) window.clearTimeout(evalTimer.current);
     };
   }, []);
 
-  const pet = petById(petKey);
-  if (!pet || (!reaction && !proposal)) return null;
+  // Proposal cards / toasts wear the AGENT's pet (proposal.agentId →
+  // roster.petId); the cosmetic companion is only the fallback.
+  const agentPet = petById(roster().find((a) => a.id === proposal?.agentId)?.petId || "");
+  const toastPet = petById(scoutDone?.petId || "");
+  const pet = petById(petKey) || agentPet || toastPet;
+  if (!pet || (!reaction && !proposal && !scoutDone)) return null;
   const name = petNameFor(petKey);
 
   /** t() has no param interpolation — do it here. */
@@ -214,7 +260,27 @@ export function PetReactions() {
             </div>
           </motion.div>
         )}
-        {reaction && !proposal && (
+        {scoutDone && !proposal && (
+          <motion.div
+            key="scout-done"
+            initial={{ opacity: 0, y: 14, scale: 0.9 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 8, scale: 0.95 }}
+            transition={{ duration: 0.25, ease: "easeOut" }}
+            className="card flex items-center gap-2.5 py-2 pl-2.5 pr-3.5 shadow-lg"
+          >
+            <span
+              className="h-8 w-8 shrink-0"
+              dangerouslySetInnerHTML={{ __html: petSvg(petById(scoutDone.petId || "") || pet, "h-full w-full") }}
+            />
+            <span className="text-xs font-medium text-foreground">
+              🎉 {t("petagent.scout.doneToast", "{name} delivered “{title}”")
+                .replace("{name}", scoutDone.name)
+                .replace("{title}", scoutDone.title)}
+            </span>
+          </motion.div>
+        )}
+        {reaction && !proposal && !scoutDone && (
           <motion.div
             key={reaction.id}
             initial={{ opacity: 0, y: 14, scale: 0.9 }}

@@ -568,6 +568,21 @@ export interface PetReceipt {
   createdAt: string;
 }
 
+/** A background web job assigned to a Scout agent (scout-jobs.ts). */
+export interface ScoutJob {
+  id: string;
+  agentId: string;
+  topic: string;
+  status: "pending" | "running" | "done" | "failed";
+  /** Thread that receives the delivery (kept in sync with petAgentId). */
+  convId: string;
+  createdAt: string;
+  finishedAt?: string;
+  /** Short result headline for receipts/notes. */
+  resultTitle?: string;
+  error?: string;
+}
+
 export interface PetAgentState {
   roster: PetAgent[];
   /** Newest first, capped (oldest trimmed). */
@@ -576,6 +591,8 @@ export interface PetAgentState {
   seenProposals: Record<string, string>;
   /** Role -> date the user said "Later" (no re-proposal that day). */
   snoozedUntil: Record<string, string>;
+  /** Scout job queue (pending/running + recent history). */
+  scoutJobs: ScoutJob[];
 }
 
 export interface AppData {

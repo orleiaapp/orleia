@@ -13,9 +13,10 @@
 // upgrade. Billing-not-configured (dev / pre-launch) behaves like
 // ultra so nothing breaks before Stripe keys exist.
 //
-// v1 catalog: Wrangler only is hireable; Planner/Scout/Auditor are
-// "soon" (S2/S3 in the plan) — visible so the catalog feels alive
-// and the roadmap is honest.
+// Catalog: three live roles (Wrangler, Planner, Scout) plus the
+// Auditor on the roadmap. Live roles all DO something Noor's chat
+// doesn't: they run on triggers (open, daily, on assignment), not
+// on prompts.
 // ============================================================
 
 import type { PetAgentRole } from "@/types";
@@ -43,34 +44,32 @@ export const PET_JOBS: JobDef[] = [
     color: "#22c55e",
     hireable: true,
     name: "Wrangler",
-    tagline: "Keeps your tasks from wandering off",
+    tagline: "Watches your tasks. Noor can't.",
     description:
-      "Watches for tasks that slipped past their due date and rounds them up. Proposes a clean 'move to today' sweep — you confirm with one tap.",
-    skills: ["Overdue sweeps", "Reschedule proposals", "One-tap confirm"],
+      "Checks your tasks every time you open Orleia — no asking, no messages spent. Finds what slipped past its due date and proposes a one-tap 'move to today' sweep.",
+    skills: ["Watches 24/7", "Fires on open", "Zero messages"],
   },
   {
     role: "planner",
     icon: "🌅",
     color: "#3b82f6",
-    hireable: false,
-    soon: true,
+    hireable: true,
     name: "Planner",
-    tagline: "Builds your morning, every morning",
+    tagline: "Your morning, before you ask for it",
     description:
-      "Reads today's tasks, habits and events, then proposes a morning huddle — what to start with and what matters. Ships in stage 2.",
-    skills: ["Morning huddle", "Day proposals"],
+      "Every morning, greets you with a huddle: what's due today, what's on the calendar, which habits are still unchecked — and where to start. No prompt needed.",
+    skills: ["Morning huddle", "Daily, automatic", "Zero messages"],
   },
   {
     role: "scout",
     icon: "🔭",
     color: "#a855f7",
-    hireable: false,
-    soon: true,
+    hireable: true,
     name: "Scout",
-    tagline: "Works the web while you work",
+    tagline: "Give it a job. It works the web.",
     description:
-      "Send Scout on real web jobs — research a topic, watch for updates, deliver a digest note. Runs on the Noor agent loop. Ships in stage 3.",
-    skills: ["Web research", "Digest notes", "Agent loop"],
+      "Hand Scout a research job and it runs multi-turn on the web — searching, reading pages, writing it up. Delivers a findings note to your notes and a receipt. Doesn't touch your daily Noor messages.",
+    skills: ["Multi-step web jobs", "Findings notes", "No message cost"],
   },
   {
     role: "auditor",
@@ -81,7 +80,7 @@ export const PET_JOBS: JobDef[] = [
     name: "Auditor",
     tagline: "Your honest weekly review",
     description:
-      "Once a week, tallies what actually happened — tasks done, habit rate, journal streak — and drafts a review note. Ships in stage 3.",
+      "Once a week, tallies what actually happened — tasks done, habit rate, journal streak — and drafts a review note.",
     skills: ["Weekly recap", "Draft review note"],
   },
 ];
