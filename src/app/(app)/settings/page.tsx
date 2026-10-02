@@ -1315,7 +1315,7 @@ export default function SettingsPage() {
             </div>
             <div className="flex items-center justify-between">
               <span className="text-sm text-muted-foreground">AI Model</span>
-              <span className="text-sm font-medium">Ethos 4.7</span>
+              <span className="text-sm font-medium">Novella 5.0</span>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-sm text-muted-foreground">Framework</span>

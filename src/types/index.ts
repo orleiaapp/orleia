@@ -309,11 +309,12 @@ export interface WeeklySummary {
 // Cloud tiers are the fixed ids below; "local-*" ids (Local AI, powered by
 // the user's own Ollama install) are validated at the usage sites. The
 // (string & {}) trick keeps literal autocomplete while allowing local ids.
-// Novella 5.0: ONE model, six effort presets (novella-low ... novella-ultra).
+// Novella 5.0: ONE model, six effort presets (novella-hyperfast ... novella-ultra).
+// Order matters: it is the display order AND the slider order, fastest first.
 // "local-*" ids (Local AI, powered by the user's own Ollama install) are
 // validated at the usage sites. The (string & {}) trick keeps literal
 // autocomplete while allowing local ids and legacy aliases.
-export type AIModel = "novella-low" | "novella-medium" | "novella-high" | "novella-hyper" | "novella-max" | "novella-ultra" | (string & {});
+export type AIModel = "novella-hyperfast" | "novella-low" | "novella-medium" | "novella-high" | "novella-max" | "novella-ultra" | (string & {});
 
 export type AISource = {
   id?: string;
@@ -342,14 +343,17 @@ export const MODEL_ALIASES: Record<string, AIModel> = {
   "ethos-4.7": "novella-max",
   "logos-4.5": "novella-medium",
   "verse-4": "novella-low",
-  // Old three-tier ids all land on the default effort; the tiers no
+  // Old three-tier ids all land on their closest effort; the tiers no
   // longer exist as separate models.
-  "fast-1": "novella-low",
+  "fast-1": "novella-hyperfast",
   "core-1": "novella-medium",
   "agent-1": "novella-max",
-  fast: "novella-low",
+  fast: "novella-hyperfast",
   core: "novella-medium",
   agent: "novella-max",
+  // Pre-Hyperfast rename
+  "novella-hyper": "novella-hyperfast",
+  hyper: "novella-hyperfast",
   // Legacy aliases for migration
 };
 
@@ -358,10 +362,11 @@ export const MODEL_ALIASES: Record<string, AIModel> = {
  * effort presets. Pickers iterate this; ids are novella-* effort ids.
  */
 export const AI_MODELS: { id: AIModel; name: string; description: string; tagline: string; contextWindow: number; responseStyle: string }[] = [
+  // Array order = effort order (fastest → deepest) = effort-slider order.
+  { id: "novella-hyperfast", name: "Hyperfast", description: "Fastest replies, near-zero thinking", tagline: "Novella 5.0 · Hyperfast", contextWindow: 24, responseStyle: "concise" },
   { id: "novella-low", name: "Low", description: "Quick replies, minimal thinking", tagline: "Novella 5.0 · Low effort", contextWindow: 24, responseStyle: "concise" },
   { id: "novella-medium", name: "Medium", description: "Everyday balance of speed and depth", tagline: "Novella 5.0 · Medium effort", contextWindow: 24, responseStyle: "balanced" },
   { id: "novella-high", name: "High", description: "Structured, grounded in your data", tagline: "Novella 5.0 · High effort", contextWindow: 24, responseStyle: "balanced" },
-  { id: "novella-hyper", name: "Hyper", description: "Fast AND thorough, zero fluff", tagline: "Novella 5.0 · Hyper effort", contextWindow: 24, responseStyle: "balanced" },
   { id: "novella-max", name: "Max", description: "Deep reasoning and recommendations", tagline: "Novella 5.0 · Max effort", contextWindow: 24, responseStyle: "balanced" },
   { id: "novella-ultra", name: "Ultra", description: "Maximum depth for the hardest jobs", tagline: "Novella 5.0 · Ultra effort", contextWindow: 24, responseStyle: "balanced" },
 ];

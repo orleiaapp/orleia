@@ -414,7 +414,7 @@ export default function CalendarPage() {
       const out = await chat(
         `Plan my week ${week[0]} to ${week[6]}. My open tasks: ${taskList.join("; ") || "none"}. Habits to keep up: ${habitList.join(", ") || "none"}. Reply as a simple day-by-day plan (one line per day, "Mon:" prefix style), each day with at most 3 concrete items drawn from my tasks/habits. Be specific and brief.`,
         [],
-        "core-1",
+        "novella-medium",
         { extraSystem: "You are Noor planning a week inside Orleia Calendar. Output only the plan." }
       );
       setNoorPlan(out.trim());

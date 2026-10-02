@@ -37,7 +37,7 @@ const RIBBON = [
   "Notes",
   "Deck presentations",
   "Calendar",
-  "Noor AI — 3 models",
+  "Noor AI — Novella 5.0",
   "Deep research",
   "Free to start",
 ];
@@ -511,7 +511,7 @@ export default function LandingPage() {
             </Reveal>
             <Reveal delay={0.2}>
               <div className="mt-10 flex flex-wrap items-center justify-center gap-x-8 gap-y-3">
-                {["3 models — Ethos · Logos · Verse", "Deep research with citations", "Creates tasks, habits & events"].map((f) => (
+                {["Novella 5.0 — one model, six effort levels", "Deep research with citations", "Creates tasks, habits & events"].map((f) => (
                   <span key={f} className="inline-flex items-center gap-2 text-xs text-muted-foreground/60">
                     <span className="h-1 w-1 rounded-full bg-foreground/40" aria-hidden />
                     {f}

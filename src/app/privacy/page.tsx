@@ -77,7 +77,7 @@ export default function PrivacyPage() {
       <section>
         <h2 className="text-lg font-bold tracking-tight text-foreground mb-3">4. Noor AI & NVIDIA NIM</h2>
         <p className="mb-3">
-          Orleia integrates with NVIDIA’s NIM API to power Noor, its built-in AI assistant. Noor offers three models - Ethos 4.7 (deep reasoning), Logos 4.5 (balanced everyday intelligence), and Verse 4 (fast, lightweight responses). When you use Noor:
+          Orleia integrates with NVIDIA’s NIM API to power Noor, its built-in AI assistant. Noor runs on a single model — Novella 5.0 — with six effort levels (Hyperfast, Low, Medium, High, Max, Ultra) that control how deeply it reasons. When you use Noor:
         </p>
         <ul className="list-disc pl-6 space-y-1.5">
           <li>Your prompts and relevant context are sent to NVIDIA’s NIM API for processing</li>

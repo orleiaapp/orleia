@@ -40,6 +40,19 @@ import {
   Heading,
 } from "lucide-react";
 import { storage } from "@/lib/storage";
+import { EffortSlider } from "@/components/ui/effort-slider";
+import { effortModelId } from "@/lib/ai-models";
+import type { EffortLevel } from "@/lib/ai-models";
+
+/** Stored/legacy id → slider effort. */
+function effortOf(id: string): EffortLevel {
+  if (id.startsWith("novella-")) {
+    const lv = id.slice("novella-".length) as EffortLevel;
+    const all: EffortLevel[] = ["hyperfast", "low", "medium", "high", "max", "ultra"];
+    if (all.includes(lv)) return lv;
+  }
+  return "medium";
+}
 import { cn, generateId } from "@/lib/utils";
 import { Deck, DeckSlide, DeckSlideLayout } from "@/types";
 import { DECK_THEMES, DECK_ACCENTS, DECK_TRANSITIONS, slideAccent } from "@/lib/deck-themes";
@@ -467,20 +480,12 @@ export default function DeckPage() {
               <p className="text-[11px] text-muted-foreground mt-2">
                 Tip: include your real numbers. Noor builds assertion-style headlines around them instead of generic filler.
               </p>
-              <div className="flex items-center gap-2 mt-3">
-                <span className="text-xs text-muted-foreground">Effort:</span>
-                {(["novella-low", "novella-medium", "novella-high"] as const).map((m) => (
-                  <button
-                    key={m}
-                    onClick={() => setGenModel(m)}
-                    className={cn(
-                      "px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
-                      genModel === m ? "border border-foreground/40 text-foreground" : "border border-transparent text-muted-foreground hover:text-foreground"
-                    )}
-                  >
-                    {m === "novella-low" ? "Low" : m === "novella-medium" ? "Medium" : "High"}
-                  </button>
-                ))}
+              <div className="mt-3 max-w-xs">
+                <EffortSlider
+                  standalone={false}
+                  value={effortOf(genModel)}
+                  onChange={(lv) => setGenModel(effortModelId(lv))}
+                />
               </div>
               {genError && <p className="text-sm text-red-500 mt-3">{genError}</p>}
               <button

@@ -106,7 +106,7 @@ function coerceOutline(parsed: unknown): GeneratedOutline | null {
   };
 }
 
-const VALID_MODELS = ["novella-low", "novella-medium", "novella-high", "novella-hyper", "novella-max", "novella-ultra", "fast-1", "core-1", "agent-1"];
+const VALID_MODELS = ["novella-hyperfast", "novella-low", "novella-medium", "novella-high", "novella-max", "novella-ultra", "novella-hyper", "fast-1", "core-1", "agent-1"];
 
 export async function generateDeckOutline(
   prompt: string,

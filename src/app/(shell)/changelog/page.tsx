@@ -18,6 +18,20 @@ interface Release {
 
 const RELEASES: Release[] = [
   {
+    version: "2.6.0",
+    date: "October 2026",
+    tag: "Feature",
+    highlight: "Novella 5.0. Pets on duty 24/7.",
+    items: [
+      "One model, six efforts: Novella 5.0 replaces the old tiers. Pick Hyperfast, Low, Medium, High, Max or Ultra on a new Faster → Smarter slider — same brain, you just choose how hard it thinks.",
+      "Pet agents are now always-on employees: hired pets work timed rounds while Orleia is open, keep a shift log with last-active stamps, and check in every 15 minutes even when nothing changed.",
+      "Night shift: agents keep working overnight, silently — findings wait for morning instead of pinging you at 3am.",
+      "Scout takes web research jobs around the clock and delivers findings notes without spending Noor messages; the Planner greets every morning with a huddle; the Wrangler sweeps overdue tasks in rounds.",
+      "No more slanted text: Noor's replies render emphasis upright, and Noor is now asked to never write italics at all.",
+      "The Pets tab got simpler: fewer animations, tighter copy, plain dialogs.",
+    ],
+  },
+  {
     version: "Spark 1.0",
     date: "September 2026",
     tag: "Release",

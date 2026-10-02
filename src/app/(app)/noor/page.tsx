@@ -52,6 +52,8 @@ import {
   Laptop,
 } from "lucide-react";
 import { LOCAL_MODELS, probeOllama, isModelInstalled, ollamaSetupHint, type OllamaStatus, type LocalModelDef } from "@/lib/local-ai";
+import { EFFORT_LEVELS, effortModelId, type EffortLevel } from "@/lib/ai-models";
+import { EffortSlider } from "@/components/ui/effort-slider";
 import { storage } from "@/lib/storage";
 import { buildSituationModel } from "@/lib/graph/situation";
 import { getGraph } from "@/lib/graph/engine";
@@ -89,10 +91,10 @@ import {
 // Novella 5.0: one model, six effort presets. Labels map effort ids
 // (novella-low ... novella-ultra); legacy ids fall through the aliases.
 const MODEL_META: Record<string, string> = {
+  "novella-hyperfast": "Novella 5.0 · Hyperfast",
   "novella-low": "Novella 5.0 · Low",
   "novella-medium": "Novella 5.0 · Medium",
   "novella-high": "Novella 5.0 · High",
-  "novella-hyper": "Novella 5.0 · Hyper",
   "novella-max": "Novella 5.0 · Max",
   "novella-ultra": "Novella 5.0 · Ultra",
 };
@@ -232,6 +234,16 @@ function sourceIcon(kind: AISource["kind"]) {
 
 const SAFE_MODEL: AIModel = "novella-medium";
 
+/** Any stored/legacy id → its Novella effort level (for the slider). */
+function effortOf(id: string): EffortLevel {
+  if (id.startsWith("novella-")) {
+    const lv = id.slice("novella-".length) as EffortLevel;
+    if (EFFORT_LEVELS.includes(lv)) return lv;
+  }
+  const legacy: Record<string, EffortLevel> = { "fast-1": "hyperfast", "novella-hyper": "hyperfast" };
+  return legacy[id] || "medium";
+}
+
 // Text files shorter than this are sent to the model verbatim; longer ones
 // are digested into an overview first (see /api/overview) so Noor understands
 // the whole file without blowing the context window.
@@ -311,8 +323,6 @@ export default function AssistantPage() {
   };
   const [loading, setLoading] = useState(false);
   const [selectedModel, setSelectedModel] = useState<AIModel>(getSafeModel(data.selectedModel));
-  // Novella 5.0 effort submenu (model picker).
-  const [effortOpen, setEffortOpen] = useState(false);
   const [showModelPicker, setShowModelPicker] = useState(false);
   // Local AI (Ollama): sub-list expansion + live install probe.
   const [localOpen, setLocalOpen] = useState(false);
@@ -1803,44 +1813,15 @@ try {
                     className="absolute top-full right-0 mt-2 w-72 max-w-[calc(100vw-3rem)] sm:w-80 bg-background border border-border rounded-2xl shadow-2xl p-2 z-50"
                   >
                     <p className="text-[9px] font-mono tracking-wider text-muted-foreground/40 px-3 py-1.5 uppercase">{t("assistant.models")}</p>
-                    {/* Novella 5.0 — one model, six effort levels */}
-                    <button
-                      onClick={() => setEffortOpen(!effortOpen)}
-                      className="w-full flex items-center gap-3 px-3 py-3 rounded-xl text-left transition-all duration-200 hover:bg-secondary"
-                    >
-                      <Sparkles className="h-4 w-4 text-primary-500" />
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-medium">Novella 5.0</span>
-                          {selectedModel.startsWith("novella-") && <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-primary-500/20 text-primary-500">{t("assistant.active")}</span>}
-                        </div>
-                        <p className="text-xs text-muted-foreground mt-0.5">One brain. Pick how hard it thinks.</p>
+                    {/* Novella 5.0 — one model, effort slider (Faster ←→ Smarter) */}
+                    <div className="px-2 pb-1 pt-0.5">
+                      <div className="flex items-center gap-2 px-1.5 pb-1.5">
+                        <Sparkles className="h-3.5 w-3.5 text-primary-500" />
+                        <span className="text-xs font-semibold text-foreground">Novella 5.0</span>
+                        <span className="text-[10px] text-muted-foreground/70">one brain, six efforts</span>
                       </div>
-                      <ChevronDown className={cn("h-3.5 w-3.5 text-muted-foreground transition-transform duration-200", effortOpen && "rotate-180")} />
-                    </button>
-                    {effortOpen && (
-                      <div className="mt-1 space-y-0.5">
-                        {AI_MODELS.map((m) => (
-                          <button
-                            key={m.id}
-                            onClick={() => changeModel(m.id)}
-                            className={cn(
-                              "w-full flex items-start gap-2.5 px-3 py-2.5 rounded-xl text-left transition-all duration-200",
-                              selectedModel === m.id ? "bg-primary-500/10 ring-1 ring-primary-500/20" : "hover:bg-secondary"
-                            )}
-                          >
-                            <Zap className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2">
-                                <span className="text-sm font-medium">{m.name}</span>
-                                {selectedModel === m.id && <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-primary-500/20 text-primary-500">{t("assistant.active")}</span>}
-                              </div>
-                              <p className="text-xs text-muted-foreground mt-0.5">{m.description}</p>
-                            </div>
-                          </button>
-                        ))}
-                      </div>
-                    )}
+                      <EffortSlider value={effortOf(selectedModel)} onChange={(lv) => changeModel(effortModelId(lv))} />
+                    </div>
                     <div className="my-1.5 h-px bg-border/60" />
                     {/* ---- Local AI (Ollama) — runs on this computer, no cap ---- */}
                     <button
@@ -2458,43 +2439,15 @@ try {
                     <div className="absolute bottom-full left-0 mb-2 w-72 max-w-[calc(100vw-2rem)] rounded-2xl border border-border bg-background shadow-2xl p-2 z-50">
                       <p className="text-[9px] font-mono tracking-wider text-muted-foreground/40 px-3 py-1.5 uppercase">{t("assistant.models")}</p>
                       {/* Novella 5.0 — one model, six effort levels */}
-                      <button
-                        onClick={() => setEffortOpen(!effortOpen)}
-                        className="w-full flex items-center gap-3 px-3 py-3 rounded-xl text-left transition-all duration-200 hover:bg-secondary"
-                      >
-                        <Sparkles className="h-4 w-4 text-primary-500" />
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm font-medium">Novella 5.0</span>
-                            {selectedModel.startsWith("novella-") && <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-primary-500/20 text-primary-500">{t("assistant.active")}</span>}
-                          </div>
-                          <p className="text-xs text-muted-foreground mt-0.5">One brain. Pick how hard it thinks.</p>
-                        </div>
-                        <ChevronDown className={cn("h-3.5 w-3.5 text-muted-foreground transition-transform duration-200", effortOpen && "rotate-180")} />
-                      </button>
-                      {effortOpen && (
-                        <div className="mt-1 space-y-0.5">
-                          {AI_MODELS.map((m) => (
-                            <button
-                              key={m.id}
-                              onClick={() => changeModel(m.id)}
-                              className={cn(
-                                "w-full flex items-start gap-2.5 px-3 py-2.5 rounded-xl text-left transition-all duration-200",
-                                selectedModel === m.id ? "bg-primary-500/10 ring-1 ring-primary-500/20" : "hover:bg-secondary"
-                              )}
-                            >
-                              <Zap className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-2">
-                                  <span className="text-sm font-medium">{m.name}</span>
-                                  {selectedModel === m.id && <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-primary-500/20 text-primary-500">{t("assistant.active")}</span>}
-                                </div>
-                                <p className="text-xs text-muted-foreground mt-0.5">{m.description}</p>
-                              </div>
-                            </button>
-                          ))}
-                        </div>
-                      )}
+                      <div className="flex items-center gap-2 px-3 pt-2 pb-1">
+                        <Sparkles className="h-3.5 w-3.5 text-primary-500" />
+                        <span className="text-xs font-semibold text-foreground">Novella 5.0</span>
+                        <span className="text-[10px] text-muted-foreground/70">one brain, six efforts</span>
+                      </div>
+                      {/* Novella 5.0 effort slider (embedded) */}
+                      <div className="px-2 pb-1 pt-0.5">
+                        <EffortSlider value={effortOf(selectedModel)} onChange={(lv) => changeModel(effortModelId(lv))} />
+                      </div>
                       <div className="my-1.5 h-px bg-border/60" />
                       <button
                         onClick={() => { const next = !localOpen; setLocalOpen(next); if (next && !ollama) void probeOllama().then(setOllama); }}

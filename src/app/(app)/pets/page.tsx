@@ -1,22 +1,21 @@
 "use client";
 
 // ============================================================
-// Pets — the agent roster + job catalog (S1 of PET_AGENT_PLAN.md).
+// Pets — the agent roster + job catalog.
 //
-// Noor is the operator; pets are agents you HIRE into roles.
-// Hiring is the paid feature (slots via billing tier). v1 ships the
-// Wrangler; Planner/Scout/Auditor show as "soon" so the roadmap is
-// honest. Everything confirm-first: agents propose, you tap.
+// Kept deliberately plain: no entrance animations, short copy.
+// Agents are 24/7 employees (work timed rounds, log shifts);
+// everything they change is confirm-first. Hiring is the paid
+// feature (slots via billing tier).
 // ============================================================
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { motion, AnimatePresence } from "framer-motion";
-import { PawPrint, Plus, Check, X, Clock, ShieldCheck, Sparkles, Lock, ChevronRight, MessageSquare, Send, Play } from "lucide-react";
+import { PawPrint, Plus, Check, X, Clock, ShieldCheck, Lock, ChevronRight, MessageSquare, Send, Play } from "lucide-react";
 import { storage } from "@/lib/storage";
 import { useHydrated } from "@/lib/use-hydrated";
 import { useI18n } from "@/lib/i18n";
-import { cn, formatRelative } from "@/lib/utils";
+import { formatRelative } from "@/lib/utils";
 import { PETS, petById, petSvg } from "@/lib/pets";
 import { PET_JOBS, type JobDef } from "@/lib/pet-jobs";
 import {
@@ -154,6 +153,7 @@ export default function PetsPage() {
 
   const used = agents.length;
   const max = slots?.slots ?? 0;
+  const quiet = isQuietHours();
 
   return (
     <div className="space-y-6 pb-24 md:pb-8">
@@ -164,16 +164,16 @@ export default function PetsPage() {
           {t("pets.title", "Pets")}
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          {t("pets.subtitle", "Hire pet agents for real jobs. They propose — you confirm. Noor stays your operator.")}
+          {t("pets.subtitleShort", "Hire agents that work around the clock. They propose — you confirm.")}
         </p>
       </div>
 
       {/* Cosmetic pet nudge: pick a companion first */}
       {!cosmetic && (
         <div className="card flex items-center gap-3 p-4">
-          <Sparkles className="h-5 w-5 shrink-0 text-primary-500" />
+          <PawPrint className="h-5 w-5 shrink-0 text-primary-500" />
           <p className="text-sm text-muted-foreground">
-            {t("pets.noPetYet", "Pick a companion on the Habits page first — it becomes your profile picture and the face of your agents.")}
+            {t("pets.noPetYet", "Pick a companion on the Habits page first — it becomes the face of your agents.")}
           </p>
         </div>
       )}
@@ -209,14 +209,17 @@ export default function PetsPage() {
         ) : (
           <div className="grid gap-3 sm:grid-cols-2">
             {agents.map((agent) => {
-            const quiet = isQuietHours();
               const job = PET_JOBS.find((j) => j.role === agent.role);
               const pet = petById(agent.petId);
+              const activeJob =
+                agent.role === "scout"
+                  ? scoutJobs(agent.id).find((j) => j.status === "pending" || j.status === "running")
+                  : undefined;
               return (
-                <motion.div key={agent.id} layout className="card p-4">
-                  <div className="flex items-start gap-3">
+                <div key={agent.id} className="card p-4">
+                  <div className="flex items-center gap-3">
                     {pet && (
-                      <span className="h-11 w-11 shrink-0" dangerouslySetInnerHTML={{ __html: petSvg(pet, "h-full w-full") }} />
+                      <span className="h-9 w-9 shrink-0" dangerouslySetInnerHTML={{ __html: petSvg(pet, "h-full w-full") }} />
                     )}
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-semibold text-foreground">{agent.name}</p>
@@ -240,7 +243,7 @@ export default function PetsPage() {
                     <button
                       onClick={() => router.push(`/noor?pet=${agent.id}`)}
                       className="inline-flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-sidebar-hover hover:text-foreground"
-                      title={t("pets.chatHint", "Chat with your agent — it can do its job on your word")}
+                      title={t("pets.chatHint", "Chat with your agent")}
                     >
                       <MessageSquare className="h-3.5 w-3.5" />
                       {t("pets.chat", "Chat")}
@@ -254,59 +257,30 @@ export default function PetsPage() {
                       <X className="h-4 w-4" />
                     </button>
                   </div>
-                  {/* Scout live job status (queued → working). */}
-                  {agent.role === "scout" &&
-                    (() => {
-                      const job = scoutJobs(agent.id).find((j) => j.status === "pending" || j.status === "running");
-                      if (!job) return null;
-                      const running = job.status === "running";
-                      return (
-                        <div className="mt-3 flex items-center gap-2 rounded-lg border border-primary-500/25 bg-primary-500/5 px-2.5 py-1.5 text-[11px]">
-                          <span className="shrink-0">{running ? "🔭" : "⏳"}</span>
-                          <span className="min-w-0 flex-1 truncate text-muted-foreground">
-                            {running ? t("pets.jobWorking", "Working on:") : t("pets.jobQueued", "Queued:")}{" "}
-                            <span className="font-medium text-foreground">“{job.topic}”</span>
-                          </span>
-                          {running && (
-                            <button
-                              onClick={() => router.push(`/noor?pet=${agent.id}`)}
-                              className="shrink-0 font-semibold text-primary-600"
-                            >
-                              {t("pets.watchJob", "Watch")}
-                            </button>
-                          )}
-                        </div>
-                      );
-                    })()}
-                  {/* 24/7 employee status line: last shift + quiet-hours badge. */}
-                  <div className="mt-2 flex items-center gap-1.5 text-[11px]">
-                    <span className={cn(
-                      "h-1.5 w-1.5 shrink-0 rounded-full",
-                      quiet ? "bg-indigo-400" : "bg-emerald-500 animate-pulse"
-                    )} />
-                    <span className="text-muted-foreground">
+                  {activeJob && (
+                    <div className="mt-2 flex items-center gap-2 text-[11px] text-muted-foreground">
+                      <span>{activeJob.status === "running" ? "🔭" : "⏳"}</span>
+                      <span className="min-w-0 flex-1 truncate">
+                        {activeJob.status === "running"
+                          ? t("pets.jobWorking", "Working on:")
+                          : t("pets.jobQueued", "Queued:")}{" "}
+                        <span className="font-medium text-foreground">{activeJob.topic}</span>
+                      </span>
+                    </div>
+                  )}
+                  {/* 24/7 status: last shift + trust, one plain line. */}
+                  <div className="mt-2 flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                    <span className={quiet ? "h-1.5 w-1.5 shrink-0 rounded-full bg-indigo-400" : "h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500"} />
+                    <span>
                       {agent.lastActiveAt
                         ? t("petagent.lastActive", "Last active") + " " + formatRelative(agent.lastActiveAt)
                         : t("petagent.lastActiveNever", "Starting first shift…")}
                     </span>
-                    {quiet && (
-                      <span className="ml-auto rounded-full bg-indigo-500/10 px-1.5 py-0.5 text-[10px] font-medium text-indigo-500">
-                        {t("petagent.quietHours", "Night shift")}
-                      </span>
-                    )}
-                  </div>
-                  <div className="mt-3 flex items-center gap-2">
-                    <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
-                      <div
-                        className="h-full rounded-full bg-primary-500 transition-all"
-                        style={{ width: `${Math.min(100, agent.trust * 10)}%` }}
-                      />
-                    </div>
-                    <span className="text-[11px] text-muted-foreground" title={t("pets.trustHint", "Trust grows when you accept proposals")}>
+                    <span className="ml-auto">
                       {t("pets.trust", "Trust")} {agent.trust}
                     </span>
                   </div>
-                </motion.div>
+                </div>
               );
             })}
           </div>
@@ -323,49 +297,37 @@ export default function PetsPage() {
             const hired = agents.some((a) => a.role === job.role);
             const slotsFull = slots ? used >= max : false;
             return (
-              <div key={job.role} className="card flex flex-col p-4">
-                <div className="flex items-start gap-3">
-                  <span className="text-2xl leading-none">{job.icon}</span>
+              <div key={job.role} className="card p-4">
+                <div className="flex items-center gap-3">
+                  <span className="text-xl leading-none">{job.icon}</span>
                   <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <p className="text-sm font-semibold text-foreground">{t(`petjob.${job.role}.name`, job.name)}</p>
+                    <p className="text-sm font-semibold text-foreground">
+                      {t(`petjob.${job.role}.name`, job.name)}
                       {job.soon && (
-                        <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                        <span className="ml-2 rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
                           {t("pets.soon", "Soon")}
                         </span>
                       )}
-                    </div>
+                    </p>
                     <p className="text-xs text-muted-foreground">{t(`petjob.${job.role}.tagline`, job.tagline)}</p>
                   </div>
-                </div>
-                <p className="mt-2 flex-1 text-xs leading-relaxed text-muted-foreground">
-                  {t(`petjob.${job.role}.description`, job.description)}
-                </p>
-                <div className="mt-3 flex flex-wrap gap-1.5">
-                  {job.skills.map((s) => (
-                    <span key={s} className="rounded-full bg-muted px-2 py-0.5 text-[10px] text-muted-foreground">
-                      {s}
-                    </span>
-                  ))}
-                </div>
-                <div className="mt-3">
                   {hired ? (
-                    <span className="inline-flex items-center gap-1.5 text-xs font-medium text-primary-500">
+                    <span className="inline-flex shrink-0 items-center gap-1 text-xs font-medium text-primary-500">
                       <Check className="h-3.5 w-3.5" /> {t("pets.hiredOnDuty", "On duty")}
                     </span>
                   ) : job.hireable ? (
                     <button
                       onClick={() => startHire(job)}
                       disabled={busy}
-                      className="inline-flex items-center gap-1.5 rounded-lg bg-primary-500 px-3 py-1.5 text-xs font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-60"
+                      className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-primary-500 px-3 py-1.5 text-xs font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-60"
                     >
                       {slotsFull ? <Lock className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}
-                      {slotsFull ? t("pets.upgradeToHire", "Unlock slot") : t("pets.hire", "Hire")}
+                      {slotsFull ? t("pets.upgradeToHire", "Unlock") : t("pets.hire", "Hire")}
                       <ChevronRight className="h-3.5 w-3.5" />
                     </button>
                   ) : (
-                    <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground/70">
-                      <Clock className="h-3.5 w-3.5" /> {t("pets.comingSoon", "In the works")}
+                    <span className="inline-flex shrink-0 items-center gap-1.5 text-xs text-muted-foreground/70">
+                      <Clock className="h-3.5 w-3.5" /> {t("pets.comingSoon", "Soon")}
                     </span>
                   )}
                 </div>
@@ -379,7 +341,7 @@ export default function PetsPage() {
       {logs.length > 0 && (
         <section>
           <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-            {t("pets.receipts", "Receipts")}
+            {t("pets.receipts", "Activity")}
           </h2>
           <div className="card divide-y divide-border">
             {logs.slice(0, 8).map((r) => (
@@ -388,144 +350,104 @@ export default function PetsPage() {
                   {new Date(r.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                 </span>
                 <span className="min-w-0 flex-1 text-foreground">{r.summary}</span>
-                <span
-                  className={
-                    r.kind === "accepted"
-                      ? "text-primary-500"
-                      : r.kind === "dismissed"
-                        ? "text-muted-foreground/60"
-                        : "text-muted-foreground"
-                  }
-                >
-                  {r.kind === "hired" ? "🐕" : r.kind === "released" ? "👋" : r.kind === "accepted" ? "✅" : r.kind === "dismissed" ? "🙈" : "🔔"}
-                </span>
               </div>
             ))}
           </div>
         </section>
       )}
 
-      {/* Assign-a-job dialog (Scout): hand the pet a real web job. */}
-      <AnimatePresence>
-        {assignFor && (
-          <motion.div
-            className="fixed inset-0 z-[80] flex items-end justify-center bg-black/40 p-4 sm:items-center"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={() => setAssignFor(null)}
-          >
-            <motion.div
-              className="card w-full max-w-md p-5"
-              initial={{ y: 24, opacity: 0, scale: 0.98 }}
-              animate={{ y: 0, opacity: 1, scale: 1 }}
-              exit={{ y: 16, opacity: 0, scale: 0.98 }}
-              transition={{ duration: 0.2, ease: "easeOut" }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <p className="text-sm font-semibold text-foreground">{t("pets.assignTitle", "Assign a job")}</p>
-              <p className="mt-0.5 text-xs text-muted-foreground">
-                {t(
-                  "pets.assignSubtitle",
-                  "{pet} will search the web, read pages, and deliver a findings note — no Noor messages spent."
-                ).replace("{pet}", assignFor.name)}
-              </p>
-              <textarea
-                value={jobTopic}
-                onChange={(e) => setJobTopic(e.target.value)}
-                rows={3}
-                autoFocus
-                placeholder={t(
-                  "pets.assignPlaceholder",
-                  "e.g. “Find the 3 best-rated budget electric bikes in the EU under €1,500, with prices”"
-                )}
-                className="mt-3 w-full resize-none rounded-xl border border-border bg-background px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/60 focus:border-primary-500/50 focus:outline-none"
-              />
-              <div className="mt-3 flex gap-2">
-                <button
-                  onClick={submitAssign}
-                  disabled={!jobTopic.trim()}
-                  className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-primary-500 px-4 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
-                >
-                  <Send className="h-4 w-4" /> {t("pets.assignSend", "Send to work")}
-                </button>
-                <button
-                  onClick={() => setAssignFor(null)}
-                  className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-sidebar-hover"
-                >
-                  {t("common.cancel", "Cancel")}
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* Assign-a-job dialog (Scout) */}
+      {assignFor && (
+        <div
+          className="fixed inset-0 z-[80] flex items-end justify-center bg-black/40 p-4 sm:items-center"
+          onClick={() => setAssignFor(null)}
+        >
+          <div className="card w-full max-w-md p-5" onClick={(e) => e.stopPropagation()}>
+            <p className="text-sm font-semibold text-foreground">{t("pets.assignTitle", "Assign a job")}</p>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              {t(
+                "pets.assignSubtitle",
+                "{pet} will search the web and deliver a findings note — no Noor messages spent."
+              ).replace("{pet}", assignFor.name)}
+            </p>
+            <textarea
+              value={jobTopic}
+              onChange={(e) => setJobTopic(e.target.value)}
+              rows={3}
+              autoFocus
+              placeholder={t(
+                "pets.assignPlaceholder",
+                "e.g. \"Find the 3 best-rated budget electric bikes in the EU under €1,500, with prices\""
+              )}
+              className="mt-3 w-full resize-none rounded-xl border border-border bg-background px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/60 focus:border-primary-500/50 focus:outline-none"
+            />
+            <div className="mt-3 flex gap-2">
+              <button
+                onClick={submitAssign}
+                disabled={!jobTopic.trim()}
+                className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-primary-500 px-4 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+              >
+                <Send className="h-4 w-4" /> {t("pets.assignSend", "Send to work")}
+              </button>
+              <button
+                onClick={() => setAssignFor(null)}
+                className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-sidebar-hover"
+              >
+                {t("common.cancel", "Cancel")}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Hire dialog: pick which pet wears the badge */}
-      <AnimatePresence>
-        {hiring && (
-          <motion.div
-            className="fixed inset-0 z-[80] flex items-end justify-center bg-black/40 p-4 sm:items-center"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={() => !busy && setHiring(null)}
-          >
-            <motion.div
-              className="card w-full max-w-md p-5"
-              initial={{ y: 24, opacity: 0, scale: 0.98 }}
-              animate={{ y: 0, opacity: 1, scale: 1 }}
-              exit={{ y: 16, opacity: 0, scale: 0.98 }}
-              transition={{ duration: 0.2, ease: "easeOut" }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <p className="text-sm font-semibold text-foreground">
-                {t("pets.pickAgent", "Who takes this job?")}
-              </p>
-              <p className="mt-0.5 text-xs text-muted-foreground">
-                {t(`petjob.${hiring.role}.name`, hiring.name)} — {t(`petjob.${hiring.role}.tagline`, hiring.tagline)}
-              </p>
-              <div className="mt-4 grid grid-cols-3 gap-2">
-                {PETS.map((p) => (
-                  <button
-                    key={p.id}
-                    onClick={() => setPickPet(p.id)}
-                    aria-pressed={pickPet === p.id}
-                    className={`flex flex-col items-center gap-1.5 rounded-xl border p-3 transition-colors ${
-                      pickPet === p.id ? "border-primary-500 bg-primary-500/10" : "border-border hover:bg-sidebar-hover"
-                    }`}
-                  >
-                    <span className="h-10 w-10" dangerouslySetInnerHTML={{ __html: petSvg(p, "h-full w-full") }} />
-                    <span className="text-[11px] font-medium text-foreground">
-                      {(storage.getData() as any).profile?.petName?.trim() && petId === p.id
-                        ? (storage.getData() as any).profile.petName.trim()
-                        : p.name}
-                    </span>
-                  </button>
-                ))}
-              </div>
-              <div className="mt-4 flex gap-2">
+      {hiring && (
+        <div
+          className="fixed inset-0 z-[80] flex items-end justify-center bg-black/40 p-4 sm:items-center"
+          onClick={() => !busy && setHiring(null)}
+        >
+          <div className="card w-full max-w-md p-5" onClick={(e) => e.stopPropagation()}>
+            <p className="text-sm font-semibold text-foreground">{t("pets.pickAgent", "Who takes this job?")}</p>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              {t(`petjob.${hiring.role}.name`, hiring.name)} — {t(`petjob.${hiring.role}.tagline`, hiring.tagline)}
+            </p>
+            <div className="mt-4 grid grid-cols-3 gap-2">
+              {PETS.map((p) => (
                 <button
-                  onClick={confirmHire}
-                  disabled={busy}
-                  className="flex-1 rounded-lg bg-primary-500 px-4 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-60"
+                  key={p.id}
+                  onClick={() => setPickPet(p.id)}
+                  aria-pressed={pickPet === p.id}
+                  className={`flex flex-col items-center gap-1.5 rounded-xl border p-3 transition-colors ${
+                    pickPet === p.id ? "border-primary-500 bg-primary-500/10" : "border-border hover:bg-sidebar-hover"
+                  }`}
                 >
-                  {t("pets.confirmHire", "Hire")}
+                  <span className="h-10 w-10" dangerouslySetInnerHTML={{ __html: petSvg(p, "h-full w-full") }} />
+                  <span className="text-[11px] font-medium text-foreground">
+                    {(storage.getData() as any).profile?.petName?.trim() && petId === p.id
+                      ? (storage.getData() as any).profile.petName.trim()
+                      : p.name}
+                  </span>
                 </button>
-                <button
-                  onClick={() => setHiring(null)}
-                  className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-sidebar-hover"
-                >
-                  {t("common.cancel", "Cancel")}
-                </button>
-              </div>
-              <p className="mt-3 text-[11px] leading-relaxed text-muted-foreground">
-                {t("pets.hireDisclaimer", "Agents propose work — nothing changes without your tap. You can release them anytime.")}
-              </p>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+              ))}
+            </div>
+            <div className="mt-4 flex gap-2">
+              <button
+                onClick={confirmHire}
+                disabled={busy}
+                className="flex-1 rounded-lg bg-primary-500 px-4 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-60"
+              >
+                {t("pets.confirmHire", "Hire")}
+              </button>
+              <button
+                onClick={() => setHiring(null)}
+                className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-sidebar-hover"
+              >
+                {t("common.cancel", "Cancel")}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

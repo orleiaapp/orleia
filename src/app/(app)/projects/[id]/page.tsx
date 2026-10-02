@@ -32,8 +32,21 @@ import { NoorCapError } from "@/lib/noor-cap";
 import { cn, generateId, getToday } from "@/lib/utils";
 import { isBlockedUpload, blockedUploadReason } from "@/lib/upload-guard";
 import { useI18n } from "@/lib/i18n";
-import { Project, Task, TaskPriority, TaskStatus, AIMessage, Deck, AI_MODELS } from "@/types";
+import { Project, Task, TaskPriority, TaskStatus, AIMessage, Deck } from "@/types";
 import type { AIModel } from "@/types";
+import { EffortSlider } from "@/components/ui/effort-slider";
+import { effortModelId } from "@/lib/ai-models";
+import type { EffortLevel } from "@/lib/ai-models";
+
+/** Stored/legacy id → slider effort. */
+function effortOf(id: string): EffortLevel {
+  if (id.startsWith("novella-")) {
+    const lv = id.slice("novella-".length) as EffortLevel;
+    const all: EffortLevel[] = ["hyperfast", "low", "medium", "high", "max", "ultra"];
+    if (all.includes(lv)) return lv;
+  }
+  return "medium";
+}
 import { SlideThumb } from "@/components/deck/SlideCanvas";
 import { DECK_THEMES } from "@/lib/deck-themes";
 import { ThinkingOrb } from "thinking-orbs";
@@ -708,20 +721,13 @@ export default function ProjectWorkspace() {
           >
             {/* Model Selector */}
             <div className="flex items-center gap-2 mb-4">
-              {AI_MODELS.map((model) => (
-                <button
-                  key={model.id}
-                  onClick={() => setNoorModel(model.id)}
-                  className={cn(
-                    "px-3 py-1.5 text-xs font-medium rounded-lg border transition-all",
-                    noorModel === model.id
-                      ? "border-foreground/20 bg-foreground/5"
-                      : "border-border/50 text-muted-foreground/60 hover:border-border"
-                  )}
-                >
-                  {model.name}
-                </button>
-              ))}
+              <div className="w-64">
+                <EffortSlider
+                  standalone={false}
+                  value={effortOf(noorModel)}
+                  onChange={(lv) => setNoorModel(effortModelId(lv))}
+                />
+              </div>
             </div>
 
             {/* Messages */}
