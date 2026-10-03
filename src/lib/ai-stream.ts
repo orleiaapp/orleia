@@ -361,6 +361,13 @@ export async function chatStream(
     ? { matched: false, type: null, params: {}, confidence: 0 }
     : detectAction(query);
   if (action.matched && action.confidence >= 0.7 && !modelId.startsWith("novella-max") && !modelId.startsWith("novella-ultra")) {
+    // Confirm-chips mode (pet threads): NEVER auto-execute — hand the
+    // local match to the UI as a proposal, same contract as the stream
+    // interceptor below.
+    if (opts.onProposeAction) {
+      if (action.type) opts.onProposeAction({ action: action.type, params: action.params });
+      return "";
+    }
     const result = executeAction(action);
     opts.onToken(result.message);
     return result.message;

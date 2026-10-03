@@ -524,3 +524,62 @@ export function ensurePetConversation(agent: PetAgent): string {
   void job;
   return conv.id;
 }
+
+// ============================================================
+// Mentions (@agentname) + the shared team (group) thread
+// ============================================================
+
+export type AgentMention =
+  | { kind: "agent"; agent: PetAgent; start: number; end: number }
+  | { kind: "noor"; start: number; end: number };
+
+/**
+ * Find the leftmost "@name" in text that resolves to a hired agent (or
+ * "@noor" for the operator). Matching is case-insensitive; the char right
+ * after the name must not be alphanumeric so "@Johnny" never triggers a
+ * "John" mention.
+ */
+export function resolveMention(text: string, agents: PetAgent[]): AgentMention | null {
+  const lower = text.toLowerCase();
+  const candidates: { name: string; agent?: PetAgent; kind: "agent" | "noor" }[] = [
+    ...agents.map((a) => ({ name: a.name.trim(), agent: a, kind: "agent" as const })),
+    { name: "noor", kind: "noor" as const },
+  ].filter((c) => c.name.length > 0);
+
+  let best: AgentMention | null = null;
+  for (const c of candidates) {
+    const needle = "@" + c.name.toLowerCase();
+    let from = 0;
+    for (;;) {
+      const i = lower.indexOf(needle, from);
+      if (i === -1) break;
+      const end = i + needle.length;
+      const after = text[end];
+      const beforeChar = text[i - 1];
+      // "@name" must stand alone: not glued to a word before or after
+      // (so "email@john" never counts as a mention of John).
+      const boundaryOk =
+        (!after || !/[a-z0-9]/i.test(after)) && (!beforeChar || !/[a-z0-9]/i.test(beforeChar));
+      if (boundaryOk && (!best || i < best.start)) {
+        best =
+          c.kind === "noor"
+            ? { kind: "noor", start: i, end }
+            : { kind: "agent", agent: c.agent!, start: i, end };
+      }
+      from = i + 1;
+    }
+  }
+  return best;
+}
+
+/** One shared "Team chat" thread where all hired agents hang out. */
+export function ensureGroupConversation(): string {
+  const d = storage.getData();
+  const existing = d.aiConversations.find((c) => c.petAgentGroup);
+  if (existing) return existing.id;
+  const conv = storage.createConversation();
+  conv.petAgentGroup = true;
+  conv.title = "Team chat";
+  storage.saveData();
+  return conv.id;
+}

@@ -376,6 +376,8 @@ export interface AIMessage {
   role: "user" | "assistant";
   /** Confirm chip: a proposed action awaiting the user's one-tap decision. */
   proposal?: { action: string; params: Record<string, unknown> };
+  /** Hired agent that wrote this reply (agent group chats show the sender). */
+  agentId?: string;
   /** Set once the user confirmed/dismissed this proposal (chip renders inert). */
   proposalResolved?: "confirmed" | "dismissed";
   /** System-injected banner (e.g. "5 messages left today"). Never sent to the LLM. */
@@ -401,6 +403,8 @@ export interface AIConversation {
   pinned?: boolean;
   /** Set on threads bound to a hired pet agent (chat-with-pet mode). */
   petAgentId?: string;
+  /** Set on the shared team thread where ALL hired agents chat together. */
+  petAgentGroup?: boolean;
   createdAt: string;
   updatedAt: string;
 }

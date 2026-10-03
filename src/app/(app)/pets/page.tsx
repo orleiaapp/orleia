@@ -15,7 +15,8 @@ import { PawPrint, Plus, Check, X, Clock, ShieldCheck, Lock, ChevronRight, Messa
 import { storage } from "@/lib/storage";
 import { useHydrated } from "@/lib/use-hydrated";
 import { useI18n } from "@/lib/i18n";
-import { formatRelative } from "@/lib/utils";
+import { formatRelative, cn } from "@/lib/utils";
+import { PetChat } from "@/components/pets/pet-chat";
 import { PETS, petById, petSvg } from "@/lib/pets";
 import { PET_JOBS, type JobDef } from "@/lib/pet-jobs";
 import {
@@ -49,6 +50,8 @@ export default function PetsPage() {
   const [pickPet, setPickPet] = useState<string>("");
   const [notice, setNotice] = useState<string>("");
   const [busy, setBusy] = useState(false);
+  // Tabs: team roster vs WhatsApp-style agent chat.
+  const [tab, setTab] = useState<"team" | "chat">("team");
   // Assign-a-job (Scout): dialog state + a tick to refresh live job chips.
   const [assignFor, setAssignFor] = useState<PetAgent | null>(null);
   const [jobTopic, setJobTopic] = useState("");
@@ -168,6 +171,32 @@ export default function PetsPage() {
         </p>
       </div>
 
+      {/* Tabs: team roster vs chat */}
+      <div className="flex gap-1 rounded-xl bg-secondary/60 p-1">
+        <button
+          onClick={() => setTab("team")}
+          className={cn(
+            "flex-1 rounded-lg px-3.5 py-1.5 text-xs font-semibold transition-colors",
+            tab === "team" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+          )}
+        >
+          {t("pets.tabTeam", "Team")}
+        </button>
+        <button
+          onClick={() => setTab("chat")}
+          className={cn(
+            "flex-1 rounded-lg px-3.5 py-1.5 text-xs font-semibold transition-colors",
+            tab === "chat" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+          )}
+        >
+          {t("pets.tabChat", "Chat")}
+        </button>
+      </div>
+
+      {tab === "chat" ? (
+        <PetChat agents={agents} onChanged={refresh} />
+      ) : (
+        <>
       {/* Cosmetic pet nudge: pick a companion first */}
       {!cosmetic && (
         <div className="card flex items-center gap-3 p-4">
@@ -354,6 +383,8 @@ export default function PetsPage() {
             ))}
           </div>
         </section>
+      )}
+        </>
       )}
 
       {/* Assign-a-job dialog (Scout) */}

@@ -67,7 +67,7 @@ import { isLiveQuery } from "@/lib/web-search";
 import { cn, generateId } from "@/lib/utils";
 import { useMobile } from "@/hooks/useMobile";
 import { getDeviceId } from "@/lib/device-id";
-import { AIMessage, AIModel, AI_MODELS, MODEL_ALIASES, BriefAction, AISource } from "@/types";
+import { AIMessage, AIModel, AI_MODELS, MODEL_ALIASES, BriefAction, AISource, PetAgent } from "@/types";
 import { Markdown } from "@/components/chat/Markdown";
 import { useI18n } from "@/lib/i18n";
 import { useVoiceDictation } from "@/lib/useVoiceDictation";
@@ -77,7 +77,7 @@ import { shareText } from "@/lib/share";
 import ImageLoader from "@/components/ui/image-loading";
 import { MiniCamera, type CapturedPhoto } from "@/components/noor/MiniCamera";
 import { PawPrint } from "lucide-react";
-import { roster as petRoster, petPersonaPrefix, ensurePetConversation, roleHasJob, runRoleNow } from "@/lib/pet-agent";
+import { roster as petRoster, petPersonaPrefix, ensurePetConversation, roleHasJob, runRoleNow, resolveMention } from "@/lib/pet-agent";
 import { jobByRole } from "@/lib/pet-jobs";
 import { petById, petSvg } from "@/lib/pets";
 import {
@@ -301,6 +301,11 @@ export default function AssistantPage() {
   const [allSkills, setAllSkills] = useState<NoorSkill[]>([]);
   const [slashOpen, setSlashOpen] = useState(false);
   const [slashIdx, setSlashIdx] = useState(0);
+  // @mention autocomplete: hired agents + a "Noor" entry that hands the
+  // thread back to the operator. mentionToken = text after the last "@".
+  const [mentionToken, setMentionToken] = useState<string | null>(null);
+  const [mentionIdx, setMentionIdx] = useState(0);
+  const mentionPickedRef = useRef(false);
   useEffect(() => { setAllSkills(getSkills()); }, []);
   const skillSlug = (name: string) => name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
   const slashMatches = slashOpen
@@ -318,6 +323,41 @@ export default function AssistantPage() {
       if (inputRef.current) {
         inputRef.current.focus();
         inputRef.current.setSelectionRange(v.length, v.length);
+      }
+    });
+  };
+  const mentionMatches: { name: string; kind: "agent" | "noor"; agent?: PetAgent }[] =
+    mentionToken === null
+      ? []
+      : (() => {
+          const q = mentionToken.toLowerCase();
+          const opts: { name: string; kind: "agent" | "noor"; agent?: PetAgent }[] = [
+            ...petRoster().map((a) => ({ name: a.name, kind: "agent" as const, agent: a })),
+            { name: "Noor", kind: "noor" as const },
+          ];
+          return opts.filter((o) => o.name.toLowerCase().startsWith(q)).slice(0, 6);
+        })();
+  const mentionPetSvg = (a: PetAgent) => {
+    const pet = petById(a.petId);
+    return pet ? petSvg(pet, "h-full w-full") : null;
+  };
+  const insertMention = (name: string) => {
+    const el = inputRef.current;
+    const v = input;
+    const caret = el?.selectionStart ?? v.length;
+    const before = v.slice(0, caret);
+    const at = before.lastIndexOf("@");
+    if (at === -1) return;
+    const next = v.slice(0, at) + "@" + name + " " + v.slice(caret);
+    setInput(next);
+    mentionPickedRef.current = true;
+    setMentionToken(null);
+    setMentionIdx(0);
+    requestAnimationFrame(() => {
+      if (el) {
+        const pos = at + name.length + 2;
+        el.focus();
+        el.setSelectionRange(pos, pos);
       }
     });
   };
@@ -1273,6 +1313,33 @@ export default function AssistantPage() {
     // Resolve a leading /skill-slug: the chat bubble keeps the short
     // command, the model receives the skill's full instructions.
     let queryText = text;
+
+    // @mention routing: naming a hired agent (@name) switches this thread
+    // to chat with them — one agent at a time; @noor hands the thread back
+    // to Noor. The bubble keeps the raw text; the model receives the
+    // cleaned text plus the agent's persona prefix below.
+    let activePetId = petAgentId;
+    const mention = resolveMention(text, petRoster());
+    if (mention) {
+      const cleaned = (queryText.slice(0, mention.start) + queryText.slice(mention.end)).trim();
+      queryText = cleaned || queryText;
+      const mentionConv = storage.getData().aiConversations.find((c) => c.id === currentConvId);
+      if (mention.kind === "noor") {
+        activePetId = null;
+        if (mentionConv && mentionConv.petAgentId) {
+          delete mentionConv.petAgentId;
+          storage.saveData();
+        }
+        setPetAgentId(null);
+      } else {
+        activePetId = mention.agent.id;
+        if (mentionConv && mentionConv.petAgentId !== mention.agent.id) {
+          mentionConv.petAgentId = mention.agent.id;
+          storage.saveData();
+        }
+        setPetAgentId(mention.agent.id);
+      }
+    }
     if (text.startsWith("/")) {
       const m = /^\/([a-z0-9-]+)/i.exec(text);
       const slug = (n: string) => n.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
@@ -1337,16 +1404,16 @@ export default function AssistantPage() {
     // Pet chat: speak as the hired pet — persona prefix on the FINAL query
     // (after attachment enrichment). Everything else (cap, actions, chips,
     // sources) flows through the normal Noor path untouched.
-    if (petAgentId) {
-      const petAgentForTurn = petRoster().find((a) => a.id === petAgentId);
+    if (activePetId) {
+      const petAgentForTurn = petRoster().find((a) => a.id === activePetId);
       if (petAgentForTurn) llmQuery = petPersonaPrefix(petAgentForTurn) + "\n\n---\nUser: " + llmQuery;
     }
 
     // SCOUT JOB DISPATCH: "assign: <topic>" in a scout's thread enqueues a
     // real background web job (agent loop) instead of a chat reply. The
     // user's message is stored verbatim; delivery arrives in this thread.
-    if (petAgentId && queryText.toLowerCase().startsWith("assign:")) {
-      const scoutAgent = petRoster().find((a) => a.id === petAgentId);
+    if (activePetId && queryText.toLowerCase().startsWith("assign:")) {
+      const scoutAgent = petRoster().find((a) => a.id === activePetId);
       const topic = queryText.slice(7).trim();
       if (scoutAgent?.role === "scout" && topic) {
         const res = assignScoutJob(scoutAgent.id, topic, currentConvId);
@@ -1431,7 +1498,7 @@ try {
               acc += delta;
               setStreamText(acc);
             },
-            ...(petAgentId
+            ...(activePetId
               ? {
                   onProposeAction: (proposal: unknown) => {
                     petProposals.push(proposal as unknown as ProposedAction);
@@ -2736,6 +2803,34 @@ try {
               )}
               <input ref={fileInputRef} type="file" className="hidden" onChange={handleAttachFile} />
               <div className="relative flex flex-1 items-end">
+              {mentionToken !== null && mentionMatches.length > 0 && (
+                <div className="absolute bottom-full left-0 right-0 z-40 mb-2 max-h-56 overflow-y-auto rounded-2xl border border-border bg-popover p-1 shadow-xl">
+                  <p className="px-3 pb-1 pt-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                    {t("assistant.mentionTitle", "Chat with an agent")}
+                  </p>
+                  {mentionMatches.map((m, i) => (
+                    <button
+                      key={m.kind + (m.agent?.id ?? "noor")}
+                      type="button"
+                      onMouseDown={(ev) => { ev.preventDefault(); insertMention(m.name); }}
+                      onMouseEnter={() => setMentionIdx(i)}
+                      className={cn("flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm transition-colors", i === mentionIdx ? "bg-secondary" : "")}
+                    >
+                      {m.kind === "agent" && m.agent && mentionPetSvg(m.agent) ? (
+                        <span className="h-6 w-6 shrink-0" dangerouslySetInnerHTML={{ __html: mentionPetSvg(m.agent) ?? "" }} />
+                      ) : (
+                        <PawPrint className="h-4 w-4 shrink-0 text-primary-500" />
+                      )}
+                      <span className="truncate font-medium">@{m.name}</span>
+                      <span className="flex-1 truncate text-right text-xs text-muted-foreground">
+                        {m.kind === "agent" && m.agent
+                          ? t(`petjob.${m.agent.role}.name`, m.agent.role)
+                          : t("assistant.backToNoor", "Back to Noor")}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
               {slashOpen && slashMatches.length > 0 && (
                 <div className="absolute bottom-full left-0 right-0 z-40 mb-2 max-h-56 overflow-y-auto rounded-2xl border border-border bg-popover p-1 shadow-xl">
                   <p className="px-3 pb-1 pt-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{t("skills.pick")}</p>
@@ -2763,10 +2858,33 @@ try {
                   setInput(v);
                   setSlashOpen(v.startsWith("/") && !v.slice(1).includes(" "));
                   setSlashIdx(0);
+                  // @mention token = text after the last "@" before the caret
+                  if (mentionPickedRef.current) {
+                    mentionPickedRef.current = false;
+                    setMentionToken(null);
+                  } else {
+                    const caret = e.target.selectionStart ?? v.length;
+                    const before = v.slice(0, caret);
+                    const at = before.lastIndexOf("@");
+                    const seg = at === -1 ? null : before.slice(at + 1);
+                    setMentionToken(seg !== null && !seg.includes("\n") ? seg : null);
+                    setMentionIdx(0);
+                  }
                   e.target.style.height = "auto";
                   e.target.style.height = Math.min(e.target.scrollHeight, 160) + "px";
                 }}
                 onKeyDown={(e) => {
+                  if (mentionToken !== null && mentionMatches.length > 0) {
+                    if (e.key === "ArrowDown") { e.preventDefault(); setMentionIdx((i) => (i + 1) % mentionMatches.length); return; }
+                    if (e.key === "ArrowUp") { e.preventDefault(); setMentionIdx((i) => (i - 1 + mentionMatches.length) % mentionMatches.length); return; }
+                    if (e.key === "Enter" || e.key === "Tab") {
+                      e.preventDefault();
+                      const m = mentionMatches[mentionIdx] ?? mentionMatches[0];
+                      if (m) insertMention(m.name);
+                      return;
+                    }
+                    if (e.key === "Escape") { e.preventDefault(); setMentionToken(null); return; }
+                  }
                   if (slashOpen && slashMatches.length > 0) {
                     if (e.key === "ArrowDown") { e.preventDefault(); setSlashIdx((i) => (i + 1) % slashMatches.length); return; }
                     if (e.key === "ArrowUp") { e.preventDefault(); setSlashIdx((i) => (i - 1 + slashMatches.length) % slashMatches.length); return; }
