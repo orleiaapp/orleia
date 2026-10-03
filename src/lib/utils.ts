@@ -67,6 +67,32 @@ export function truncate(str: string, len: number): string {
   return str.slice(0, len) + "...";
 }
 
+/**
+ * Readable, short form of a URL for link text: host + first path segments,
+ * no protocol, query or fragment ("openai.com/index/devday" instead of
+ * "https://www.openai.com/index/devday-2026?utm_source=…"). The href keeps
+ * the full URL - only the visible label is compacted.
+ */
+export function compactUrl(raw: string, max = 46): string {
+  try {
+    const u = new URL(raw);
+    const host = u.hostname.replace(/^www\./, "");
+    const segs = u.pathname.split("/").filter(Boolean);
+    // Prefer the trailing slug (article titles live there); time-partitioned
+    // paths like /2026/10/... read terribly as link text.
+    const last = segs[segs.length - 1] || "";
+    // Long separator-less tokens (Google News' CBMi… wrappers) are opaque
+    // ids, not readable slugs - fall back to the leading path instead.
+    const opaque = /^[a-z0-9]{20,}$/i.test(last);
+    const slug =
+      !opaque && /^[a-z0-9][a-z0-9._-]{3,47}$/i.test(last) && /[a-z]/i.test(last) ? last : "";
+    const label = slug ? `${host}/${slug}` : segs.length ? `${host}/${segs.slice(0, 2).join("/")}` : host;
+    return truncate(label, max);
+  } catch {
+    return truncate(raw.replace(/^https?:\/\//, ""), max);
+  }
+}
+
 export function calculateStreak(logDates: string[]): { current: number; longest: number } {
   if (logDates.length === 0) return { current: 0, longest: 0 };
 

@@ -33,6 +33,7 @@ import { PET_JOBS } from "@/lib/pet-jobs";
 import { novellaModelId } from "@/lib/ai-models";
 import { useI18n } from "@/lib/i18n";
 import { cn, generateId } from "@/lib/utils";
+import { splitLinks } from "@/lib/link-text";
 import type { AIMessage, PetAgent } from "@/types";
 
 const GROUP = "__group__";
@@ -61,6 +62,30 @@ const listTime = (ts: string) => {
   if (d.toDateString() === new Date().toDateString()) return timeOf(ts);
   return d.toLocaleDateString([], { month: "short", day: "numeric" });
 };
+
+/**
+ * Pet bubbles are plain text, so links would be dead weight: render the
+ * content as text runs + compact anchors ("openai.com/devday" label, full
+ * address in the href) via splitLinks().
+ */
+function renderLinks(content: string, mine: boolean): React.ReactNode[] {
+  const cls = mine
+    ? "font-medium underline underline-offset-2 break-all opacity-90 hover:opacity-100"
+    : "text-primary-500 underline underline-offset-2 break-all hover:opacity-80";
+  const out: React.ReactNode[] = [];
+  splitLinks(content).forEach((tok, i) => {
+    if (tok.type === "link") {
+      out.push(
+        <a key={`lnk${i}`} href={tok.href} target="_blank" rel="noopener noreferrer" className={cls}>
+          {tok.label}
+        </a>
+      );
+    } else if (tok.text) {
+      out.push(tok.text);
+    }
+  });
+  return out.length ? out : [content];
+}
 
 function Avatar({ agent, size = 44 }: { agent?: PetAgent; size?: number }) {
   const pet = agent ? petById(agent.petId) : null;
@@ -662,7 +687,7 @@ export function PetChat({ agents, onChanged }: { agents: PetAgent[]; onChanged?:
                         : "rounded-2xl rounded-bl-sm bg-secondary text-foreground"
                     )}
                   >
-                    {m.content}
+                    {renderLinks(m.content, mine)}
                   </div>
                 )}
                 {m.proposal && (

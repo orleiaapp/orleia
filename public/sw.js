@@ -1,4 +1,4 @@
-const CACHE_NAME = "orleia-v40";
+const CACHE_NAME = "orleia-v41";
 const PRECACHE = ["/orleia-logo.png", "/manifest.json"];
 
 self.addEventListener("install", (e) => {
@@ -47,6 +47,13 @@ self.addEventListener("fetch", (e) => {
     e.request.headers.get("RSC") === "1" ||
     e.request.headers.get("Next-Router-Prefetch") === "1"
   ) {
+    e.respondWith(fetch(e.request));
+    return;
+  }
+
+  // Development serves UNHASHED chunks that change on every edit — caching
+  // them is how a stale bundle survives a reload. Network-only on localhost.
+  if (url.hostname === "localhost" || url.hostname === "127.0.0.1") {
     e.respondWith(fetch(e.request));
     return;
   }

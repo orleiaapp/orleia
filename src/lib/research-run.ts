@@ -11,6 +11,7 @@
 // ============================================================
 
 import type { AISource } from "@/types";
+import { compactUrl } from "./utils";
 import type {
   ResearchFormat,
   ResearchPage,
@@ -95,9 +96,11 @@ function chatReply(result: ResearchResult): string {
           .join("\n")
     );
   }
+  // Compact, clickable: the link TEXT is a short URL (host + path), the
+  // href keeps the full one - long raw URLs made this list unreadable.
   const links = result.sources
     .slice(0, 6)
-    .map((s, i) => `${i + 1}. ${s.title} — ${s.url}`)
+    .map((s, i) => `${i + 1}. [${compactUrl(s.url)}](${s.url})`)
     .join("\n");
   if (links) parts.push(`Sources\n${links}`);
   return parts.join("\n\n");
