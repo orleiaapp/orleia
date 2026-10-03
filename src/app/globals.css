@@ -634,10 +634,30 @@ html[data-touch="true"] .touch-reveal {
   100% { transform: scale(1.9); opacity: 0; }
 }
 
-/* EffortSlider (Ultra pixel field) — track crossfade + label swap */
-@keyframes effort-track-fade {
-  from { opacity: 0; }
-  to { opacity: 1; }
+/* EffortSlider — spring snap + header label layers (21st.dev port) */
+:root {
+  /* gently overdamped spring: single ~4% overshoot, no secondary oscillation */
+  --effort-spring: linear(0, 0.062 3.4%, 0.24 7.5%, 0.51 12.5%, 0.76 17.9%, 0.905 22.4%,
+    0.997 27.2%, 1.038 32.4%, 1.05 37.4%, 1.044 42.7%, 1.028 49.2%,
+    1.012 56.9%, 1.003 65.7%, 0.999 76%, 1);
+  --effort-ease-swap: cubic-bezier(0.2, 0, 0, 1);
+}
+.effort-hdr {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  opacity: 0;
+  translate: 0 3px;
+  filter: blur(3px);
+  pointer-events: none;
+  transition: opacity 200ms var(--effort-ease-swap), translate 200ms var(--effort-ease-swap),
+    filter 200ms var(--effort-ease-swap);
+}
+.effort-hdr.is-active {
+  opacity: 1;
+  translate: 0 0;
+  filter: blur(0);
 }
 @keyframes effort-label-in {
   from { opacity: 0; filter: blur(4px); transform: translateX(14px); }
@@ -653,11 +673,7 @@ html[data-touch="true"] .touch-reveal {
 .effort-label-out {
   animation: effort-label-out 140ms ease-in both;
 }
-/* Dark theme: the original's warm paper tones need dark equivalents. */
-.dark {
-  --effort-track: #23222b;
-  --effort-thumb: #d6d3d1;
-}
+
 .orb-ring-soft {
   border-color: rgba(245,158,11,0.4);
   animation-duration: 3s;

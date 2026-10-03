@@ -1,81 +1,94 @@
 "use client";
 
 // ============================================================
-// EffortSlider — Novella 5.0 effort picker (21st.dev Claude-style
-// model selector, faithfully ported to a React component).
+// EffortSlider — Novella 5.0 effort picker.
 //
-// One model, six effort levels, fastest → deepest. The trigger is
-// a pill button; the panel holds a "Faster ←→ Smarter" track whose
-// thumb is a raised pill and whose fill crossfades to a purple
-// gradient at Ultra. At Ultra the track runs a per-cell pixel
-// canvas: a flow field of glittering purple tones that sweeps in
-// from the thumb, with random flicker pulses (rAF @ ~30fps).
+// Slider ported 1:1 from the 21st.dev "ChatGPT model selector"
+// (chatgpt-model-selector): pill knob on a rounded track, tick
+// dots, accent-colored fill with a streaming white sparkle canvas
+// inside it, spring snap on release (linear() spring easing), and
+// an Ultra state that crossfades the fill to a violet gradient and
+// pops a ring of bead confetti from the knob.
 //
-// Behavior ported from the original:
-// - Magnet snap while dragging (ticks pull the thumb in).
-// - Spring physics on release (stiffness 920 / damping 40,
-//   velocity from recent pointer samples).
-// - onChange fires ONLY on release/keyboard/blur — never mid-drag
-//   (mid-drag commits used to close the host picker popup).
-// - Animated label swap (blur/translate) when the level changes.
-// - Pointer events stop propagation so host popups never treat a
-//   slider drag as an outside click.
+// Colors follow the user's accent: the fill is rgb(var(--primary));
+// at Ultra the violet is derived by blending the accent toward the
+// original's violet, so it stays "a similar colour to the accent".
 //
-// Widths are fluid: the panel fills its container (`w-full`), so
-// embedded hosts clamp it (noor uses max-w-[calc(100vw-2rem)]).
+// Interaction (from the original):
+// - knob follows the pointer freely; the nearest stop previews the
+//   labels/theme live and commits as you cross it
+// - release springs to the nearest stop (380ms spring)
+// - keyboard arrows commit instantly (no animation)
+// - reduced motion: static sparkle frame, no snap/confetti
 // ============================================================
 
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type KeyboardEvent as ReactKeyboardEvent,
+  type PointerEvent as ReactPointerEvent,
+} from "react";
 import { EFFORT_META, EFFORT_LEVELS, type EffortLevel } from "@/lib/ai-models";
 import { cn } from "@/lib/utils";
 
-const LEVEL_COUNT = EFFORT_LEVELS.length; // 6
+const N = EFFORT_LEVELS.length; // 6 effort stops
+const KNOB = 34; // knob diameter (px) — from the original
+const LAST = N - 1;
 
-function clamp(value: number, min: number, max: number): number {
-  return Math.min(max, Math.max(min, value));
+type RGB = [number, number, number];
+
+const WHITE: RGB = [255, 255, 255];
+const BLACK: RGB = [0, 0, 0];
+/** The original component's ultra violet anchor (#8B73F3). */
+const VIOLET: RGB = [139, 115, 243];
+
+const mixRGB = (a: RGB, b: RGB, t: number): RGB => [
+  a[0] + (b[0] - a[0]) * t,
+  a[1] + (b[1] - a[1]) * t,
+  a[2] + (b[2] - a[2]) * t,
+];
+
+const rgbStr = (c: RGB, a = 1) =>
+  `rgba(${Math.round(c[0])},${Math.round(c[1])},${Math.round(c[2])},${a})`;
+
+const clamp = (v: number, min: number, max: number) => Math.min(max, Math.max(min, v));
+
+const prefersReducedMotion = () =>
+  typeof window !== "undefined" && !!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+
+/** The user's accent color, as live RGB channels read from --primary. */
+function useAccent(): RGB {
+  const [rgb, setRgb] = useState<RGB>([99, 102, 241]);
+  useEffect(() => {
+    const read = () => {
+      const raw = getComputedStyle(document.documentElement).getPropertyValue("--primary").trim();
+      const parts = raw.split(/[\s,]+/).map(Number);
+      if (parts.length >= 3 && parts.every(n => Number.isFinite(n))) {
+        setRgb([parts[0], parts[1], parts[2]]);
+      }
+    };
+    read();
+    // Re-read when the theme/accent attribute or dark class changes.
+    const obs = new MutationObserver(read);
+    obs.observe(document.documentElement, { attributes: true, attributeFilter: ["class", "data-accent", "style"] });
+    return () => obs.disconnect();
+  }, []);
+  return rgb;
 }
 
-function smoothstep(edge0: number, edge1: number, x: number): number {
-  const t = clamp((x - edge0) / (edge1 - edge0), 0, 1);
-  return t * t * (3 - 2 * t);
-}
-
-function mix(a: number, b: number, t: number): number {
-  return a + (b - a) * t;
-}
-
-function mixRGB(
-  a: [number, number, number],
-  b: [number, number, number],
-  t: number
-): [number, number, number] {
-  return [mix(a[0], b[0], t), mix(a[1], b[1], t), mix(a[2], b[2], t)];
-}
-
-function rgbStr(c: [number, number, number], alpha = 1): string {
-  return `rgba(${Math.round(c[0])},${Math.round(c[1])},${Math.round(c[2])},${alpha})`;
-}
-
-// --- Ultra pixel-field palette (from the 21st.dev original) ---
-const ULTRA_DEEP_VIOLET: [number, number, number] = [156, 120, 192];
-const ULTRA_MID_PURPLE: [number, number, number] = [168, 144, 204];
-const ULTRA_SOFT_LILAC: [number, number, number] = [180, 168, 204];
-const ULTRA_PALE_COOL: [number, number, number] = [192, 180, 204];
-const ULTRA_HIGHLIGHT: [number, number, number] = [216, 204, 228];
-const ULTRA_PEAK: [number, number, number] = [232, 224, 242];
-const ULTRA_LEFT: [number, number, number] = [210, 206, 214];
-
-const CELL = 6; // pixel-cell size in CSS px
-const GAP = 1.1; // gap between cells
-const FLOW_DURATION = 4000; // flow-field period (ms)
-const REVEAL_MS = 1000; // reveal sweep duration (ms)
-const FRAME_MS = 33; // ~30fps like the original rAF cadence
-
-/** Deterministic per-cell hash → 0..1 (drives flicker + color pick). */
-function cellHash(x: number, y: number): number {
-  let h = (x * 374761393 + y * 668265263) | 0;
-  h = Math.imul(h ^ (h >>> 13), 1274126177);
-  return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
+function useIsDark(): boolean {
+  const [isDark, setIsDark] = useState(false);
+  useEffect(() => {
+    const root = document.documentElement;
+    const read = () => setIsDark(root.classList.contains("dark"));
+    read();
+    const obs = new MutationObserver(read);
+    obs.observe(root, { attributes: true, attributeFilter: ["class"] });
+    return () => obs.disconnect();
+  }, []);
+  return isDark;
 }
 
 export interface EffortSliderProps {
@@ -91,6 +104,17 @@ export interface EffortSliderProps {
   className?: string;
 }
 
+interface Bead {
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  size: number;
+  life: number;
+  ttl: number;
+  color: string;
+}
+
 export function EffortSlider({
   value,
   onChange,
@@ -101,14 +125,64 @@ export function EffortSlider({
 }: EffortSliderProps) {
   const index = Math.max(0, EFFORT_LEVELS.indexOf(value));
   const [open, setOpen] = useState(false);
-  const [pos, setPos] = useState(index); // continuous 0..5 while dragging
-  const posRef = useRef(pos);
-  const wrapRef = useRef<HTMLDivElement | null>(null);
+  const accent = useAccent();
+  const isDark = useIsDark();
+
+  // ---- slider geometry / gesture state (ported from the original) ----
+  const sliderRef = useRef<HTMLDivElement | null>(null);
+  const trackRef = useRef<HTMLDivElement | null>(null);
+  const knobRef = useRef<HTMLDivElement | null>(null);
+  const sparkRef = useRef<HTMLCanvasElement | null>(null);
+  const confettiRef = useRef<HTMLCanvasElement | null>(null);
+  const [trackW, setTrackW] = useState(0);
+  const [dragPos, setDragPos] = useState<number | null>(null);
+  const dragPosRef = useRef<number | null>(null);
+  const [dragging, setDragging] = useState(false);
   const draggingRef = useRef(false);
+  const activePointerRef = useRef<number | null>(null);
+  const geomRef = useRef<{ left: number; width: number } | null>(null);
+  const [snapping, setSnapping] = useState(false);
+  const snapTimer = useRef<number>(0);
+  const burstTimer = useRef<number>(0);
+
+  // ---- confetti burst state ----
+  const beadsRef = useRef<Bead[]>([]);
+  const confRaf = useRef<number>(0);
+  const confLast = useRef<number>(0);
+  const confBox = useRef<{ w: number; h: number; dpr: number } | null>(null);
+  const lastBurstRef = useRef<number>(0);
+  const burstFiredRef = useRef(false); // once per gesture
+  const selfCommitRef = useRef(false); // our own release/keyboard commit
+  const mountedRef = useRef(false);
+
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
 
-  // --- Label swap animation state ---
+  // ---- Ultra colors: accent blended toward the original's violet ----
+  const ultraBase = mixRGB(accent, VIOLET, 0.5);
+  const ultraGrad = `linear-gradient(90deg, ${rgbStr(mixRGB(ultraBase, BLACK, 0.34))} 0%, ${rgbStr(
+    mixRGB(ultraBase, WHITE, 0.22)
+  )} 65%, ${rgbStr(mixRGB(ultraBase, WHITE, 0.08))} 100%)`;
+  const ultraText = isDark ? mixRGB(ultraBase, WHITE, 0.45) : mixRGB(ultraBase, BLACK, 0.3);
+  const ultraColorsRef = useRef<string[]>([]);
+  ultraColorsRef.current = [
+    rgbStr(mixRGB(ultraBase, WHITE, 0.42)),
+    rgbStr(mixRGB(ultraBase, WHITE, 0.3)),
+    rgbStr(mixRGB(ultraBase, WHITE, 0.52)),
+    rgbStr(mixRGB(ultraBase, WHITE, 0.18)),
+  ];
+
+  const isUltra = index === LAST;
+
+  // ---- geometry (px-based, knob-inset span like the original) ----
+  const min = KNOB / 2;
+  const max = Math.max(min, trackW - KNOB / 2);
+  const span = Math.max(1, max - min);
+  const pos = dragPos ?? index / LAST;
+  const knobCx = min + pos * span;
+  const fillW = knobCx + KNOB / 2;
+
+  // ---- label swap animation (kept from the previous panel) ----
   const [labelName, setLabelName] = useState(EFFORT_META[value]?.name ?? "");
   const [labelAnim, setLabelAnim] = useState<"in" | "out" | null>(null);
   const lastNameRef = useRef(EFFORT_META[value]?.name ?? "");
@@ -125,83 +199,352 @@ export function EffortSlider({
     }
   }, [value]);
 
+  // ---- track width via ResizeObserver (re-seeds canvases like the original) ----
   useEffect(() => {
-    setPos(index);
-    posRef.current = index;
-  }, [index]);
-
-  // Close on outside click / Escape (standalone popup only).
-  useEffect(() => {
-    if (!standalone || !open) return;
-    const onDown = (e: PointerEvent) => {
-      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false);
-    };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOpen(false);
-    };
-    document.addEventListener("pointerdown", onDown, true);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("pointerdown", onDown, true);
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [standalone, open]);
+    const track = trackRef.current;
+    if (!track) return;
+    const ro = new ResizeObserver(() => setTrackW(track.clientWidth));
+    ro.observe(track);
+    setTrackW(track.clientWidth);
+    return () => ro.disconnect();
+  }, []);
 
   const commit = useCallback(
-    (v: number) => {
-      const snapped = clamp(Math.round(v), 0, LEVEL_COUNT - 1);
-      const level = EFFORT_LEVELS[snapped];
+    (i: number) => {
+      const clamped = clamp(Math.round(i), 0, LAST);
+      const level = EFFORT_LEVELS[clamped];
       if (level && level !== value) onChangeRef.current(level);
     },
     [value]
   );
 
-  const onSliderInput = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const v = Number.parseFloat(e.target.value);
-    const nearest = Math.round(v);
-    const delta = v - nearest;
-    // Magnet snap: ticks pull the thumb in while dragging (original
-    // strength 0.68 + 0.42t; 0.35 radius feels identical at six ticks).
-    const snapped = Math.abs(delta) < 0.35 ? nearest : v;
-    posRef.current = snapped;
-    setPos(snapped);
-    // NOTE: no commit here — onChange fires on release only. Committing
-    // mid-drag used to close the host model picker (changeModel closes
-    // it), kicking the user out while they were still sliding.
-  };
+  // ---- confetti burst (ported: ring of beads from the knob rim) ----
+  const fireBurst = useCallback(() => {
+    if (prefersReducedMotion()) return;
+    const slider = sliderRef.current;
+    const cvs = confettiRef.current;
+    const knob = knobRef.current;
+    if (!slider || !cvs || !knob) return;
+    if (!slider.getClientRects().length) return; // hidden (e.g. mirrored picker)
+    const now = performance.now();
+    if (now - lastBurstRef.current < 350) return; // no rapid-fire spam
+    lastBurstRef.current = now;
 
-  const settle = useCallback(() => {
-    // Spring to the nearest tick (stiffness 920 / damping 40 in the
-    // original; a short ease gives the same settle without a rAF loop).
-    const snapped = clamp(Math.round(posRef.current), 0, LEVEL_COUNT - 1);
-    posRef.current = snapped;
-    setPos(snapped);
-    commit(snapped);
-  }, [commit]);
-
-  const onSliderPointerUp = () => {
-    draggingRef.current = false;
-    settle();
-  };
-
-  const onSliderKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    const cur = clamp(Math.round(posRef.current), 0, LEVEL_COUNT - 1);
-    if (e.key === "ArrowRight" || e.key === "ArrowUp") {
-      e.preventDefault();
-      posRef.current = clamp(cur + 1, 0, LEVEL_COUNT - 1);
-      setPos(posRef.current);
-      commit(posRef.current);
-    } else if (e.key === "ArrowLeft" || e.key === "ArrowDown") {
-      e.preventDefault();
-      posRef.current = clamp(cur - 1, 0, LEVEL_COUNT - 1);
-      setPos(posRef.current);
-      commit(posRef.current);
+    const MX = 32, MY = 40;
+    const sw = slider.offsetWidth;
+    const sh = slider.offsetHeight;
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    const w = sw + MX * 2;
+    const h = sh + MY * 2;
+    if (!confBox.current || confBox.current.w !== w || confBox.current.h !== h || confBox.current.dpr !== dpr) {
+      cvs.width = w * dpr;
+      cvs.height = h * dpr;
+      confBox.current = { w, h, dpr };
     }
-  };
+    // knob's live on-screen position (computed style, not the transition target)
+    const knobLeft = parseFloat(getComputedStyle(knob).left) || sw / 2;
+    const cx = knobLeft + MX;
+    const cy = sh / 2 + MY;
+    // ring of chunky lavender-ish beads, dissolving within ~0.2s
+    const colors = ultraColorsRef.current;
+    const R = KNOB / 2;
+    const COUNT = 14;
+    for (let i = 0; i < COUNT; i++) {
+      const ang = (i / COUNT) * Math.PI * 2 + (Math.random() - 0.5) * 0.35;
+      const sp = 105 + Math.random() * 45;
+      beadsRef.current.push({
+        x: cx + Math.cos(ang) * R,
+        y: cy + Math.sin(ang) * R,
+        vx: Math.cos(ang) * sp,
+        vy: Math.sin(ang) * sp - 25,
+        size: 4.5 + Math.random(),
+        life: 0,
+        ttl: 0.2 + Math.random() * 0.08,
+        color: colors[i % colors.length],
+      });
+    }
+    if (!confRaf.current) {
+      confLast.current = now;
+      confRaf.current = requestAnimationFrame(confettiTick);
+    }
+    // settle-time micro-pulse on the knob; skipped mid-drag
+    if (!draggingRef.current && knob.animate) {
+      knob.animate(
+        [{ scale: "1" }, { scale: "1.05" }, { scale: "1" }],
+        { duration: 180, easing: "cubic-bezier(0.32, 0.72, 0, 1)" }
+      );
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  const meta = EFFORT_META[EFFORT_LEVELS[clamp(Math.round(pos), 0, LEVEL_COUNT - 1)]];
-  const isUltra = value === "ultra";
-  const fillPct = (clamp(pos, 0, LEVEL_COUNT - 1) / (LEVEL_COUNT - 1)) * 100;
+  const confettiTick = useCallback((t: number) => {
+    const cvs = confettiRef.current;
+    const box = confBox.current;
+    if (!cvs || !box) {
+      confRaf.current = 0;
+      return;
+    }
+    const ctx = cvs.getContext("2d");
+    if (!ctx) {
+      confRaf.current = 0;
+      return;
+    }
+    const dt = clamp((t - confLast.current) / 1000, 0, 0.032);
+    confLast.current = t;
+    ctx.setTransform(box.dpr, 0, 0, box.dpr, 0, 0);
+    ctx.clearRect(0, 0, box.w, box.h);
+    beadsRef.current = beadsRef.current.filter(p => {
+      p.life += dt;
+      if (p.life >= p.ttl) return false;
+      const damp = Math.exp(-6 * dt); // frame-rate-independent decay
+      p.vx *= damp;
+      p.vy = p.vy * damp - 20 * dt; // slight upward lift, no gravity
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+      const k = p.life / p.ttl;
+      ctx.globalAlpha = Math.pow(1 - k, 1.5);
+      ctx.fillStyle = p.color;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size / 2, 0, Math.PI * 2);
+      ctx.fill();
+      return true;
+    });
+    ctx.globalAlpha = 1;
+    if (beadsRef.current.length) {
+      confRaf.current = requestAnimationFrame(confettiTick);
+    } else {
+      confRaf.current = 0;
+      ctx.clearRect(0, 0, box.w, box.h);
+    }
+  }, []);
+
+  const maybeBurst = useCallback(
+    (immediate: boolean) => {
+      if (immediate) {
+        fireBurst();
+      } else {
+        clearTimeout(burstTimer.current);
+        burstTimer.current = window.setTimeout(fireBurst, 400); // after the spring settles
+      }
+    },
+    [fireBurst]
+  );
+
+  // ---- external value changes: spring to the new stop (+ celebrate Ultra) ----
+  useEffect(() => {
+    if (!mountedRef.current) {
+      mountedRef.current = true;
+      return;
+    }
+    if (draggingRef.current) return;
+    if (selfCommitRef.current) {
+      selfCommitRef.current = false;
+      return;
+    }
+    if (!prefersReducedMotion()) {
+      setSnapping(true);
+      clearTimeout(snapTimer.current);
+      snapTimer.current = window.setTimeout(() => setSnapping(false), 460);
+    }
+    if (index === LAST) maybeBurst(false);
+  }, [index, maybeBurst]);
+
+  useEffect(
+    () => () => {
+      clearTimeout(snapTimer.current);
+      clearTimeout(burstTimer.current);
+      cancelAnimationFrame(confRaf.current);
+      confRaf.current = 0;
+    },
+    []
+  );
+
+  // ---- gesture handlers (ported) ----
+  const stopSnap = useCallback(() => {
+    clearTimeout(snapTimer.current);
+    setSnapping(false);
+  }, []);
+
+  const dragTo = useCallback(
+    (e: ReactPointerEvent) => {
+      const g = geomRef.current;
+      if (!g || g.width <= KNOB) return;
+      // fraction along the track is scale-invariant
+      const frac = (e.clientX - g.left) / g.width;
+      const p = clamp((frac * g.width - KNOB / 2) / (g.width - KNOB), 0, 1);
+      dragPosRef.current = p;
+      setDragPos(p);
+      // live preview: the nearest stop commits as you cross it
+      const nearest = Math.round(p * LAST);
+      if (nearest !== index) commit(nearest);
+    },
+    [commit, index]
+  );
+
+  const onPointerDown = useCallback(
+    (e: ReactPointerEvent<HTMLDivElement>) => {
+      if (activePointerRef.current !== null) return; // single active pointer
+      activePointerRef.current = e.pointerId;
+      e.preventDefault();
+      sliderRef.current?.focus({ preventScroll: true });
+      try {
+        e.currentTarget.setPointerCapture(e.pointerId);
+      } catch {
+        /* ignore */
+      }
+      draggingRef.current = true;
+      setDragging(true);
+      burstFiredRef.current = false;
+      const rect = trackRef.current?.getBoundingClientRect();
+      if (rect) geomRef.current = { left: rect.left, width: rect.width };
+      stopSnap();
+      dragTo(e);
+    },
+    [dragTo, stopSnap]
+  );
+
+  const onPointerMove = useCallback(
+    (e: ReactPointerEvent<HTMLDivElement>) => {
+      if (draggingRef.current && e.pointerId === activePointerRef.current) dragTo(e);
+    },
+    [dragTo]
+  );
+
+  const release = useCallback(
+    (e: ReactPointerEvent<HTMLDivElement>) => {
+      if (!draggingRef.current || e.pointerId !== activePointerRef.current) return;
+      draggingRef.current = false;
+      activePointerRef.current = null;
+      geomRef.current = null;
+      setDragging(false);
+      const p = dragPosRef.current ?? index / LAST;
+      dragPosRef.current = null;
+      setDragPos(null);
+      const target = clamp(Math.round(p * LAST), 0, LAST);
+      // settle-then-pop: celebrate when the knob LANDS at Ultra, once per gesture
+      const celebrate = target === LAST && !burstFiredRef.current;
+      if (celebrate) burstFiredRef.current = true;
+      const farFromStop = Math.abs(p * LAST - target) * (span / LAST) > 2;
+      if (!prefersReducedMotion()) {
+        setSnapping(true);
+        clearTimeout(snapTimer.current);
+        snapTimer.current = window.setTimeout(() => setSnapping(false), 460);
+      }
+      if (EFFORT_LEVELS[target] !== value) selfCommitRef.current = true;
+      commit(target);
+      if (celebrate) maybeBurst(!farFromStop);
+    },
+    [commit, index, maybeBurst, span, value]
+  );
+
+  const onKeyDown = useCallback(
+    (e: ReactKeyboardEvent<HTMLDivElement>) => {
+      const step = { ArrowRight: 1, ArrowUp: 1, ArrowLeft: -1, ArrowDown: -1 }[e.key];
+      if (step !== undefined) {
+        e.preventDefault();
+        if (EFFORT_LEVELS[clamp(index + step, 0, LAST)] !== value) selfCommitRef.current = true;
+        commit(index + step);
+        if (clamp(index + step, 0, LAST) === LAST) maybeBurst(true);
+      } else if (e.key === "Home") {
+        e.preventDefault();
+        if (EFFORT_LEVELS[0] !== value) selfCommitRef.current = true;
+        commit(0);
+      } else if (e.key === "End") {
+        e.preventDefault();
+        if (EFFORT_LEVELS[LAST] !== value) selfCommitRef.current = true;
+        commit(LAST);
+        maybeBurst(true);
+      }
+    },
+    [commit, index, maybeBurst, value]
+  );
+
+  const meta = EFFORT_META[EFFORT_LEVELS[index]];
+  const springEase = "var(--effort-spring, cubic-bezier(0.32, 0.72, 0, 1))";
+  const knobTransition = `${snapping && !dragging ? `left 380ms ${springEase}, ` : ""}scale 140ms cubic-bezier(0.32, 0.72, 0, 1)`;
+
+  const slider = (
+    <div
+      ref={sliderRef}
+      role="slider"
+      tabIndex={0}
+      aria-label="Effort level"
+      aria-orientation="horizontal"
+      aria-valuemin={0}
+      aria-valuemax={LAST}
+      aria-valuenow={index}
+      aria-valuetext={`${meta.name} — ${meta.blurb}`}
+      className={cn(
+        "relative h-[38px] touch-none select-none rounded-full outline-none",
+        dragging ? "cursor-grabbing" : "cursor-grab",
+        "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary/60"
+      )}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={release}
+      onPointerCancel={release}
+      onKeyDown={onKeyDown}
+    >
+      {/* track */}
+      <div
+        ref={trackRef}
+        className="absolute left-0 right-0 top-1/2 h-7 -translate-y-1/2 overflow-hidden rounded-full bg-[#e1e1e4] dark:bg-white/10"
+      >
+        {/* ticks (visible on the unfilled portion, like the original) */}
+        <div className="pointer-events-none absolute inset-0">
+          {EFFORT_LEVELS.map((_, i) => (
+            <span
+              key={i}
+              className="absolute top-1/2 h-[5px] w-[5px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#c0c0c2] dark:bg-white/25"
+              style={{ left: min + (i / LAST) * span }}
+            />
+          ))}
+        </div>
+        {/* fill — the user's accent color */}
+        <div
+          className="absolute bottom-0 left-0 top-0 overflow-hidden rounded-full"
+          style={{ width: fillW, background: "rgb(var(--primary))" }}
+        >
+          {/* ultra gradient, crossfaded over the solid accent */}
+          <div
+            className="absolute inset-0 transition-opacity duration-300"
+            style={{ background: ultraGrad, opacity: isUltra ? 1 : 0 }}
+            aria-hidden
+          />
+          {/* sparkles stream (canvas sized to the full track, clipped by the fill) */}
+          <SparkleCanvas trackRef={trackRef} innerRef={sparkRef} trackW={trackW} />
+        </div>
+      </div>
+      {/* knob */}
+      <div
+        ref={knobRef}
+        className="pointer-events-none absolute top-1/2 h-[34px] w-[34px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-white"
+        style={{
+          left: knobCx,
+          boxShadow:
+            "0 0 0 0.5px rgba(26,29,33,0.03), 0 1px 2px rgba(26,29,33,0.10), 0 2px 6px rgba(26,29,33,0.14)",
+          transition: knobTransition,
+          scale: dragging ? "1.04" : "1",
+        }}
+      >
+        {/* deeper drag shadow, crossfaded via opacity (never animates box-shadow) */}
+        <div
+          className="absolute inset-0 rounded-full transition-opacity duration-150"
+          style={{
+            boxShadow: "0 2px 3px rgba(26,29,33,0.10), 0 4px 10px rgba(26,29,33,0.14)",
+            opacity: dragging ? 1 : 0,
+          }}
+        />
+      </div>
+      {/* celebration burst overlay (never intercepts input) */}
+      <canvas
+        ref={confettiRef}
+        className="pointer-events-none absolute z-10"
+        style={{ left: -32, top: -40 }}
+        aria-hidden
+      />
+    </div>
+  );
 
   const panel = (
     <div
@@ -218,113 +561,49 @@ export function EffortSlider({
       onPointerUp={e => e.stopPropagation()}
       onClick={e => e.stopPropagation()}
     >
-      {/* Header: animated level label */}
+      {/* Header: animated level label, tinted at Ultra like the original tier */}
       <div className="flex items-center justify-between gap-3">
         <p className="text-sm font-medium text-foreground" aria-live="polite">
           Effort
           <span
             key={labelName + String(labelAnim)}
             className={cn(
-              "ml-2 inline-block font-semibold text-foreground/90",
+              "ml-2 inline-block font-semibold",
               labelAnim === "in" && "effort-label-in",
               labelAnim === "out" && "effort-label-out"
             )}
+            style={isUltra ? { color: rgbStr(ultraText) } : undefined}
           >
             {labelName || meta.name}
           </span>
         </p>
         <span className="text-[10px] uppercase tracking-wider text-muted-foreground/60">Novella 5.0</span>
       </div>
-      <div className="mt-1 flex items-center justify-between text-[11px] text-muted-foreground">
-        <span>Faster</span>
-        <span>Smarter</span>
-      </div>
 
-      {/* Track: rounded 10px, thumb is a raised pill. At Ultra the fill
-          crossfades to a purple gradient and a pixel-field canvas runs. */}
-      <div className="relative mt-1.5 h-11">
-        {/* Base track */}
-        <div
-          className="absolute inset-x-0 inset-y-2 overflow-hidden rounded-[10px] border border-border/70"
-          style={{ backgroundColor: "var(--effort-track, #edeae8)" }}
-          aria-hidden
-        >
-          {/* Normal fill (primary-tinted) */}
-          <div
-            className="absolute inset-y-0 left-0 bg-primary-500/25 transition-opacity duration-300"
-            style={{
-              width: `calc(${fillPct}% + 3px)`,
-              opacity: isUltra ? 0 : 1,
-            }}
-          />
-          {/* Ultra gradient fill — crossfades in over the sweep */}
-          <div
-            className="absolute inset-y-0 left-0 transition-opacity duration-300"
-            style={{
-              width: `calc(${fillPct}% + 3px)`,
-              opacity: isUltra ? 1 : 0,
-              background: "linear-gradient(90deg, #8c73c9 0%, #a98fd6 55%, #cbbad8 100%)",
-            }}
-          />
-          {/* Ticks */}
-          <div className="absolute inset-0 flex items-center justify-between px-2">
-            {EFFORT_LEVELS.map(lv => (
-              <span
-                key={lv}
-                className={cn(
-                  "z-10 h-1 w-1 rounded-full",
-                  lv === "ultra"
-                    ? "bg-primary-500 dark:bg-primary-400"
-                    : isUltra
-                      ? "bg-white/70"
-                      : "bg-muted-foreground/40"
-                )}
-              />
-            ))}
-          </div>
-          {/* Ultra pixel field canvas — sits above the gradient fill,
-              clipped to the filled portion via width (matches the fill). */}
-          {isUltra && <PixelField fillPct={fillPct} />}
+      {/* Header labels layer: Faster/Smarter on hover-drag, Ultra warning at max */}
+      <div className="relative mt-1 h-4">
+        <div className={cn("effort-hdr justify-between", !isUltra && "is-active")}>
+          <span className="text-[11px] text-muted-foreground">Faster</span>
+          <span className="text-[11px] text-muted-foreground">Smarter</span>
         </div>
-
-        {/* Interaction surface: native range input, transparent thumb —
-            the visible pill below is pure presentation. */}
-        <input
-          type="range"
-          min={0}
-          max={LEVEL_COUNT - 1}
-          step={0.01}
-          value={clamp(pos, 0, LEVEL_COUNT - 1)}
-          onChange={onSliderInput}
-          onPointerDown={() => {
-            draggingRef.current = true;
-          }}
-          onPointerUp={onSliderPointerUp}
-          onPointerCancel={onSliderPointerUp}
-          onBlur={() => {
-            if (draggingRef.current) return;
-            settle();
-          }}
-          onKeyDown={onSliderKeyDown}
-          aria-label="Effort level"
-          aria-valuetext={meta.name}
-          className="absolute inset-0 h-full w-full cursor-pointer appearance-none bg-transparent
-            [&::-webkit-slider-thumb]:h-7 [&::-webkit-slider-thumb]:w-11 [&::-webkit-slider-thumb]:appearance-none
-            [&::-webkit-slider-thumb]:rounded-[9px] [&::-webkit-slider-thumb]:bg-transparent
-            [&::-moz-range-thumb]:h-7 [&::-moz-range-thumb]:w-11 [&::-moz-range-thumb]:rounded-[9px]
-            [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:bg-transparent"
-        />
-
-        {/* Visible thumb pill */}
-        <div
-          className="pointer-events-none absolute top-1/2 h-7 w-11 -translate-y-1/2 rounded-[9px] border border-border bg-background shadow-md transition-[left] duration-75"
-          style={{
-            left: `calc(${fillPct}% - 1.375rem + 2px)`,
-            backgroundColor: "var(--effort-thumb, #efefed)",
-          }}
-          aria-hidden
-        />
+        <div className={cn("effort-hdr justify-center", isUltra && "is-active")} aria-hidden={!isUltra}>
+          <span
+            className="text-xs font-semibold tracking-tight"
+            style={{
+              backgroundImage: `linear-gradient(90deg, ${rgbStr(mixRGB(ultraBase, BLACK, 0.12))}, ${rgbStr(
+                mixRGB(ultraBase, WHITE, 0.18)
+              )})`,
+              WebkitBackgroundClip: "text",
+              backgroundClip: "text",
+              color: "transparent",
+            }}
+          >
+            Consumes usage limits faster
+          </span>
+        </div>
       </div>
+
+      <div className="mt-1.5">{slider}</div>
 
       <p className="mt-1.5 text-xs text-muted-foreground">{meta.blurb}</p>
     </div>
@@ -333,143 +612,142 @@ export function EffortSlider({
   if (!standalone) return panel;
 
   return (
-    <div ref={wrapRef} className="relative">
-      <button
-        type="button"
-        onClick={() => setOpen(o => !o)}
-        aria-expanded={open}
-        className={cn(
-          "relative inline-flex min-h-9 items-center gap-1.5 rounded-lg px-3 text-xs font-medium transition-colors",
-          isUltra ? "text-[#1a1a1a]" : "bg-secondary text-foreground hover:bg-accent"
-        )}
-        style={isUltra ? { backgroundColor: "#efefed" } : undefined}
-      >
-        {label ? `${label} · ` : ""}
-        {EFFORT_META[value].name}
-      </button>
+    <div className="relative">
+      <StandaloneTrigger
+        open={open}
+        setOpen={setOpen}
+        label={label}
+        levelName={EFFORT_META[value].name}
+        isUltra={isUltra}
+      />
       {open && panel}
     </div>
   );
 }
 
 /**
- * Ultra pixel-field canvas: per-cell flow-field glitter that sweeps in
- * from the thumb side, flickers, and settles. Ported from the original
- * `_drawPixelField` (cells ~6px, flowDuration 4000, reveal ~1s, dpr ≤ 2,
- * static fallback under reduced motion).
+ * Sparkle stream inside the fill — ported from the original
+ * (`#seedParticles` / `#drawSparkles`): soft white dots streaming
+ * leftward at a constant fast pace with in-place twinkles. Sized to
+ * the FULL track so particles already exist where the fill expands.
  */
-function PixelField({ fillPct }: { fillPct: number }) {
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
-
+function SparkleCanvas({
+  trackRef,
+  innerRef,
+  trackW,
+}: {
+  trackRef: { current: HTMLDivElement | null };
+  innerRef: { current: HTMLCanvasElement | null };
+  trackW: number;
+}) {
   useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
+    const canvas = innerRef.current;
+    const track = trackRef.current;
+    if (!canvas || !track) return;
+    const w = track.clientWidth;
+    const h = track.clientHeight;
+    if (!w || !h) return;
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    canvas.width = w * dpr;
+    canvas.height = h * dpr;
+    canvas.style.width = w + "px";
+    canvas.style.height = h + "px";
+
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    const reduceMotion =
-      typeof window !== "undefined" &&
-      window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    // sparse field across the full track
+    const count = Math.max(6, Math.round(w / 24));
+    const parts = Array.from({ length: count }, () => ({
+      x: Math.random() * w,
+      y: 4 + Math.random() * (h - 8),
+      r: 0.8 + Math.random() * 0.9,
+      phase: Math.random() * Math.PI * 2,
+      twinkle: 2.5 + Math.random() * 4.5,
+      flow: 85 + Math.random() * 50,
+    }));
+
+    let visible = true;
+    const io = new IntersectionObserver(entries => {
+      visible = entries[0]?.isIntersecting ?? true;
+    });
+    io.observe(track);
 
     let raf = 0;
-    let last = 0;
-    const start = performance.now();
-
-    const resize = () => {
-      const rect = canvas.getBoundingClientRect();
-      const dpr = Math.min(window.devicePixelRatio || 1, 2);
-      canvas.width = Math.max(1, Math.round(rect.width * dpr));
-      canvas.height = Math.max(1, Math.round(rect.height * dpr));
+    let last = performance.now();
+    const draw = (t: number, staticFrame = false) => {
+      const dt = staticFrame ? 0 : clamp((t - last) / 1000, 0, 0.032);
+      last = t;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    };
-    resize();
-
-    const drawFrame = (now: number, staticFrame: boolean) => {
-      const rect = canvas.getBoundingClientRect();
-      const w = rect.width;
-      const h = rect.height;
-      const cols = Math.ceil(w / (CELL + GAP));
-      const rows = Math.ceil(h / (CELL + GAP));
-      const t = now - start;
-
-      // Reveal sweep: cells light up left → right over REVEAL_MS.
-      const sweep = staticFrame ? 1 : clamp(t / REVEAL_MS, 0, 1);
-      const sweepX = sweep * w;
-
-      // Flow field phase (original flowDuration 4000).
-      const flowPhase = (t % FLOW_DURATION) / FLOW_DURATION;
-
       ctx.clearRect(0, 0, w, h);
-
-      for (let gy = 0; gy < rows; gy++) {
-        for (let gx = 0; gx < cols; gx++) {
-          const x = gx * (CELL + GAP);
-          const y = gy * (CELL + GAP);
-          if (x > sweepX) continue; // not yet revealed by the sweep
-
-          const r = cellHash(gx, gy);
-
-          // Flicker: most cells steady, a few pulse per hash + time.
-          const flickerPhase = (flowPhase + r) % 1;
-          const flicker = r > 0.86 ? 0.5 + 0.5 * Math.sin(flickerPhase * Math.PI * 2) : 0;
-
-          // Flow-field-ish color pick across the violet palette.
-          const flow = 0.5 + 0.5 * Math.sin((gx / cols) * Math.PI * 2 + flowPhase * Math.PI * 2 + r * 6.28);
-          let color: [number, number, number];
-          if (flow < 0.22) color = mixRGB(ULTRA_DEEP_VIOLET, ULTRA_MID_PURPLE, flow / 0.22);
-          else if (flow < 0.46) color = mixRGB(ULTRA_MID_PURPLE, ULTRA_SOFT_LILAC, (flow - 0.22) / 0.24);
-          else if (flow < 0.68) color = mixRGB(ULTRA_SOFT_LILAC, ULTRA_PALE_COOL, (flow - 0.46) / 0.22);
-          else if (flow < 0.86) color = mixRGB(ULTRA_PALE_COOL, ULTRA_HIGHLIGHT, (flow - 0.68) / 0.18);
-          else color = mixRGB(ULTRA_HIGHLIGHT, ULTRA_PEAK, (flow - 0.86) / 0.14);
-
-          // Left edge blends toward the neutral ULTRA_LEFT tone.
-          const edgeMix = smoothstep(0, Math.max(w * 0.3, 24), x);
-          color = mixRGB(ULTRA_LEFT, color, edgeMix);
-
-          // Alpha: base field + flicker sparkle + sweep-in fade.
-          let alpha = 0.5 + 0.3 * flow;
-          alpha += flicker * 0.45;
-          // Fade cells in right behind the reveal-sweep edge.
-          alpha *= smoothstep(x - 18, x, sweepX);
-
-          ctx.fillStyle = rgbStr(color, clamp(alpha, 0, 1));
-          ctx.fillRect(x, y, CELL, CELL);
-        }
+      ctx.fillStyle = "#fff";
+      const sec = t / 1000;
+      for (const p of parts) {
+        p.x -= p.flow * dt;
+        if (p.x < -3) p.x += w + 6;
+        // squared sine: mostly invisible with brief bright pops
+        const s = 0.5 + 0.5 * Math.sin(staticFrame ? p.phase * 3 : sec * p.twinkle + p.phase);
+        ctx.globalAlpha = 0.06 + 0.74 * s * s;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+        ctx.fill();
       }
+      ctx.globalAlpha = 1;
     };
 
-    // Static fallback under reduced motion: one deterministic frame, no loop.
-    if (reduceMotion) {
-      drawFrame(performance.now(), true);
-      return () => {
-        cancelAnimationFrame(raf);
-      };
+    if (prefersReducedMotion()) {
+      draw(performance.now(), true);
+      return () => io.disconnect();
     }
-
-    const tick = (now: number) => {
-      raf = requestAnimationFrame(tick);
-      if (now - last < FRAME_MS) return;
-      last = now;
-      drawFrame(now, false);
+    const loop = (t: number) => {
+      raf = requestAnimationFrame(loop);
+      if (!visible) return; // pause while hidden (mirrored pickers)
+      draw(t);
     };
-    raf = requestAnimationFrame(tick);
-
-    const ro = typeof ResizeObserver !== "undefined" ? new ResizeObserver(resize) : null;
-    ro?.observe(canvas);
-
+    raf = requestAnimationFrame(loop);
     return () => {
       cancelAnimationFrame(raf);
-      ro?.disconnect();
+      io.disconnect();
     };
-  }, []);
+  }, [innerRef, trackRef, trackW]);
 
+  return <canvas
+    ref={el => {
+      innerRef.current = el;
+    }}
+    className="absolute inset-y-0 left-0 h-full"
+    aria-hidden
+  />;
+}
+
+function StandaloneTrigger({
+  open,
+  setOpen,
+  label,
+  levelName,
+  isUltra,
+}: {
+  open: boolean;
+  setOpen: (fn: (o: boolean) => boolean) => void;
+  label?: string;
+  levelName: string;
+  isUltra: boolean;
+}) {
   return (
-    <canvas
-      ref={canvasRef}
-      className="pointer-events-none absolute inset-y-0 left-0 h-full"
-      style={{ width: `calc(${fillPct}% + 3px)` }}
-      aria-hidden
-    />
+    <button
+      type="button"
+      onClick={() => setOpen(o => !o)}
+      aria-expanded={open}
+      aria-haspopup="dialog"
+      className={cn(
+        "relative inline-flex min-h-9 items-center gap-1.5 rounded-lg px-3 text-xs font-medium transition-colors",
+        isUltra ? "text-[#1a1a1a]" : "bg-secondary text-foreground hover:bg-accent"
+      )}
+      style={isUltra ? { backgroundColor: "#efefed" } : undefined}
+    >
+      {label ? `${label} · ` : ""}
+      {levelName}
+    </button>
   );
 }
 
