@@ -633,6 +633,31 @@ html[data-touch="true"] .touch-reveal {
   0% { transform: scale(0.78); opacity: 0.85; }
   100% { transform: scale(1.9); opacity: 0; }
 }
+
+/* EffortSlider (Ultra pixel field) — track crossfade + label swap */
+@keyframes effort-track-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes effort-label-in {
+  from { opacity: 0; filter: blur(4px); transform: translateX(14px); }
+  to { opacity: 1; filter: blur(0); transform: translateX(0); }
+}
+@keyframes effort-label-out {
+  from { opacity: 1; filter: blur(0); transform: translateX(0); }
+  to { opacity: 0; filter: blur(4px); transform: translateX(-14px); }
+}
+.effort-label-in {
+  animation: effort-label-in 180ms ease-out both;
+}
+.effort-label-out {
+  animation: effort-label-out 140ms ease-in both;
+}
+/* Dark theme: the original's warm paper tones need dark equivalents. */
+.dark {
+  --effort-track: #23222b;
+  --effort-thumb: #d6d3d1;
+}
 .orb-ring-soft {
   border-color: rgba(245,158,11,0.4);
   animation-duration: 3s;

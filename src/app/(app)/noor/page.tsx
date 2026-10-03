@@ -962,9 +962,11 @@ export default function AssistantPage() {
     refresh();
   };
 
-  const changeModel = (model: AIModel) => {
+  const changeModel = (model: AIModel, opts?: { keepOpen?: boolean }) => {
     setSelectedModel(model);
-    setShowModelPicker(false);
+    // Effort-slider changes keep the picker open — closing mid-drag
+    // kicked the user out of the picker while they were sliding.
+    if (!opts?.keepOpen) setShowModelPicker(false);
     const appData = storage.getData();
     appData.selectedModel = model;
     storage.saveData();
@@ -1820,7 +1822,7 @@ try {
                         <span className="text-xs font-semibold text-foreground">Novella 5.0</span>
                         <span className="text-[10px] text-muted-foreground/70">one brain, six efforts</span>
                       </div>
-                      <EffortSlider value={effortOf(selectedModel)} onChange={(lv) => changeModel(effortModelId(lv))} />
+                      <EffortSlider value={effortOf(selectedModel)} onChange={lv => changeModel(effortModelId(lv), { keepOpen: true })} />
                     </div>
                     <div className="my-1.5 h-px bg-border/60" />
                     {/* ---- Local AI (Ollama) — runs on this computer, no cap ---- */}
@@ -2446,7 +2448,7 @@ try {
                       </div>
                       {/* Novella 5.0 effort slider (embedded) */}
                       <div className="px-2 pb-1 pt-0.5">
-                        <EffortSlider value={effortOf(selectedModel)} onChange={(lv) => changeModel(effortModelId(lv))} />
+                        <EffortSlider value={effortOf(selectedModel)} onChange={lv => changeModel(effortModelId(lv), { keepOpen: true })} />
                       </div>
                       <div className="my-1.5 h-px bg-border/60" />
                       <button
