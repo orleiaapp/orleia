@@ -1,4 +1,4 @@
-const CACHE_NAME = "orleia-v41";
+const CACHE_NAME = "orleia-v42";
 const PRECACHE = ["/orleia-logo.png", "/manifest.json"];
 
 self.addEventListener("install", (e) => {

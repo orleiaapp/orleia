@@ -3,6 +3,7 @@
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { ChartBlock } from "./ChartBlock";
+import { compactUrl } from "@/lib/utils";
 
 // Strip the internal hast `node` prop before spreading onto DOM elements
 type MDProps = Record<string, any>;
@@ -31,9 +32,27 @@ export function Markdown({ content }: { content: string }) {
           ul: (props) => <ul className="list-disc pl-5 my-1.5 space-y-1 marker:text-foreground/40" {...dom(props)} />,
           ol: (props) => <ol className="list-decimal pl-5 my-1.5 space-y-1 marker:text-foreground/40" {...dom(props)} />,
           li: (props) => <li className="leading-relaxed" {...dom(props)} />,
-          a: (props) => (
-            <a className="text-primary-500 underline underline-offset-2 hover:opacity-80" target="_blank" rel="noopener noreferrer" {...dom(props)} />
-          ),
+          a: (props) => {
+            const { children, ...rest } = dom(props);
+            // GFM autolinks use the whole address as link text, which reads
+            // terribly for long source URLs: keep the href (and the full
+            // address on hover) but show the compact form. Authored link
+            // text is passed through untouched.
+            const one = Array.isArray(children) && children.length === 1 ? children[0] : children;
+            const raw = typeof one === "string" ? one.trim() : "";
+            const isRawUrl = /^https?:\/\/\S+$/.test(raw);
+            return (
+              <a
+                className="text-primary-500 underline underline-offset-2 break-all hover:opacity-80"
+                target="_blank"
+                rel="noopener noreferrer"
+                title={isRawUrl ? raw : undefined}
+                {...rest}
+              >
+                {isRawUrl ? compactUrl(raw) : children}
+              </a>
+            );
+          },
           img: (props) => (
             <img
               className="my-2.5 max-h-96 w-auto max-w-full rounded-2xl border border-border object-contain"
