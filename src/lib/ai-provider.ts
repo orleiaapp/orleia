@@ -24,9 +24,13 @@ function provider(): ProviderConfig {
 
 // Sibling fallbacks — same family, near-identical quality, different model.
 // If the primary is EOL'd/403'd, the sibling keeps the product alive.
+// (nvidia/nemotron-3-super-120b-a12b hit end-of-life on 2026-10-03 and
+// 410s every call — ultra-550b is the live sibling, lightning-30b the
+// second line.)
 const FALLBACKS: Record<string, string> = {
-  "nvidia/nemotron-3-super-120b-a12b": "nvidia/nemotron-3.5-lightning-30b-a3b",
-  "nvidia/nemotron-3.5-lightning-30b-a3b": "nvidia/nemotron-3-super-120b-a12b",
+  "nvidia/nemotron-3-super-120b-a12b": "nvidia/nemotron-3-ultra-550b-a55b",
+  "nvidia/nemotron-3-ultra-550b-a55b": "nvidia/nemotron-3.5-lightning-30b-a3b",
+  "nvidia/nemotron-3.5-lightning-30b-a3b": "nvidia/nemotron-3-ultra-550b-a55b",
 };
 
 const COOL_OFF_MS = 3 * 60 * 1000; // unhealthy window
@@ -82,9 +86,17 @@ export async function callChat(opts: ChatCallOptions): Promise<ChatCallResult> {
   const { key, base } = provider();
   if (!key) return { ok: false, status: 500, error: "AI is not configured." };
 
-  const candidates = [opts.model];
-  const fb = FALLBACKS[opts.model];
-  if (fb) candidates.push(fb);
+  // Walk the fallback CHAIN (primary -> sibling -> its sibling), not just
+  // one hop: when the primary is retired AND the sibling is overloaded the
+  // third live model still answers instead of 502ing the user.
+  const candidates: string[] = [];
+  const seen = new Set<string>();
+  let cursor: string | undefined = opts.model;
+  for (let hop = 0; cursor && hop < 4 && !seen.has(cursor); hop++) {
+    seen.add(cursor);
+    candidates.push(cursor);
+    cursor = FALLBACKS[cursor];
+  }
 
   // Skip models known to be down (but never skip the last candidate).
   const ordered = candidates.filter((m, i) => i === candidates.length - 1 || !isUnhealthy(m));

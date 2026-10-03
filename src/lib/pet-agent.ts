@@ -115,6 +115,23 @@ export async function availableSlots(): Promise<number> {
   return effectiveSlots(info);
 }
 
+/**
+ * Pick a name nobody else on the roster already answers to. Addressability
+ * wins over the pet nickname: employees are named after their pet (Blob,
+ * Swirl...), because chats address them with @name and two "Gem"s would
+ * make one of them unreachable. The custom pet name and a counter are the
+ * fallbacks.
+ */
+function uniqueAgentName(petName: string, preferred: string, roster: PetAgent[]): string {
+  const taken = new Set(roster.map((a) => a.name.trim().toLowerCase()).filter(Boolean));
+  const base = (petName || preferred || "Agent").trim();
+  if (!taken.has(base.toLowerCase())) return base;
+  if (preferred.trim() && !taken.has(preferred.trim().toLowerCase())) return preferred.trim();
+  let n = 2;
+  while (taken.has(`${base} ${n}`.toLowerCase())) n++;
+  return `${base} ${n}`;
+}
+
 export async function hireAgent(petId: string, role: PetAgentRole): Promise<HireResult> {
   const job = jobByRole(role);
   if (!job || !job.hireable) return { ok: false, reason: "not_hireable" };
@@ -131,7 +148,9 @@ export async function hireAgent(petId: string, role: PetAgentRole): Promise<Hire
     id: generateId(),
     petId,
     role,
-    name: petNameFor(petId),
+    // Employees must be individually addressable (@name in chats), so a
+    // name collision falls back to the pet's own name, then a counter.
+    name: uniqueAgentName(petById(petId)?.name || "", petNameFor(petId), state.roster),
     autonomy: "suggest",
     trust: 0,
     hiredAt: nowIso(),
@@ -495,6 +514,9 @@ export function petPersonaPrefix(agent: PetAgent): string {
   return (
     `You are speaking as "${agent.name}", the user's hired pet agent (role: ${agent.role}). ` +
     `Stay in character as the pet: first person, warm, playful, short sentences. ` +
+    `NEVER narrate actions, reactions or body language - no third-person action beats like ` +
+    `"${agent.name} waves a tiny paw", "Ears perk up", "tail wags", no asterisk emotes, no stage directions. ` +
+    `Open straight with the useful answer. ` +
     jobLine +
     (roleLine ? roleLine + "\n" : "") +
     `You run inside Orleia alongside Noor (the operator), confirm-first.\n\n` +
@@ -534,19 +556,20 @@ export type AgentMention =
   | { kind: "noor"; start: number; end: number };
 
 /**
- * Find the leftmost "@name" in text that resolves to a hired agent (or
- * "@noor" for the operator). Matching is case-insensitive; the char right
- * after the name must not be alphanumeric so "@Johnny" never triggers a
- * "John" mention.
+ * Find every "@name" in text that resolves to a hired agent (or "@noor"
+ * for the operator), left to right, non-overlapping and de-duplicated.
+ * Matching is case-insensitive; the char right after the name must not be
+ * alphanumeric so "@Johnny" never triggers a "John" mention. When two
+ * names start at the same index, the longer one wins ("@John" over "@Jo").
  */
-export function resolveMention(text: string, agents: PetAgent[]): AgentMention | null {
+export function resolveMentions(text: string, agents: PetAgent[]): AgentMention[] {
   const lower = text.toLowerCase();
   const candidates: { name: string; agent?: PetAgent; kind: "agent" | "noor" }[] = [
     ...agents.map((a) => ({ name: a.name.trim(), agent: a, kind: "agent" as const })),
     { name: "noor", kind: "noor" as const },
   ].filter((c) => c.name.length > 0);
 
-  let best: AgentMention | null = null;
+  const hits: AgentMention[] = [];
   for (const c of candidates) {
     const needle = "@" + c.name.toLowerCase();
     let from = 0;
@@ -560,16 +583,78 @@ export function resolveMention(text: string, agents: PetAgent[]): AgentMention |
       // (so "email@john" never counts as a mention of John).
       const boundaryOk =
         (!after || !/[a-z0-9]/i.test(after)) && (!beforeChar || !/[a-z0-9]/i.test(beforeChar));
-      if (boundaryOk && (!best || i < best.start)) {
-        best =
+      if (boundaryOk) {
+        hits.push(
           c.kind === "noor"
             ? { kind: "noor", start: i, end }
-            : { kind: "agent", agent: c.agent!, start: i, end };
+            : { kind: "agent", agent: c.agent!, start: i, end }
+        );
       }
       from = i + 1;
     }
   }
-  return best;
+
+  hits.sort((a, b) => a.start - b.start || b.end - a.end);
+  const out: AgentMention[] = [];
+  let lastEnd = -1;
+  for (const h of hits) {
+    if (h.start < lastEnd) continue; // overlaps an earlier (longer) match
+    out.push(h);
+    lastEnd = h.end;
+  }
+  return out;
+}
+
+/** The leftmost mention only - single-responder routing. */
+export function resolveMention(text: string, agents: PetAgent[]): AgentMention | null {
+  return resolveMentions(text, agents)[0] ?? null;
+}
+
+/**
+ * The slice of "text" that belongs to the mention at index i: from the end
+ * of its "@name" to the start of the next mention (last one runs to the
+ * end). Leading words before the FIRST mention go to that first agent, so
+ * "@Blob sweep my tasks and @Swirl research X" splits into "sweep my tasks
+ * and " / "research X".
+ */
+export function mentionSegment(text: string, mentions: AgentMention[], i: number): string {
+  const m = mentions[i];
+  if (!m) return text;
+  const next = mentions[i + 1];
+  const lead = i === 0 ? text.slice(0, m.start) : "";
+  const body = text.slice(m.end, next ? next.start : text.length);
+  const joined = (lead + " " + body).replace(/\s+/g, " ").trim();
+  // "@Blob @Swirl do this" - no words of its own, so share the request
+  // (with every @mention taken out of the leftovers).
+  if (!joined) {
+    const rest = (text.slice(0, m.start) + text.slice(m.end))
+      .replace(/@[a-z0-9_]+/gi, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+    return rest || text.trim();
+  }
+  return joined;
+}
+
+/**
+ * One turn per DISTINCT mentioned agent (a name said twice gets one reply
+ * carrying both slices), in the order they were named - the driving list
+ * behind "each @mention answers as its own employee".
+ */
+export function agentTurns(
+  text: string,
+  agents: PetAgent[]
+): { agent: PetAgent; clean: string }[] {
+  const mentions = resolveMentions(text, agents);
+  const turns: { agent: PetAgent; clean: string }[] = [];
+  mentions.forEach((m, i) => {
+    if (m.kind !== "agent") return;
+    const seg = mentionSegment(text, mentions, i);
+    const hit = turns.find((tt) => tt.agent.id === m.agent!.id);
+    if (hit) hit.clean = (hit.clean + " " + seg).replace(/\s+/g, " ").trim();
+    else turns.push({ agent: m.agent!, clean: seg });
+  });
+  return turns;
 }
 
 /** One shared "Team chat" thread where all hired agents hang out. */

@@ -19,11 +19,15 @@ import { storage } from "@/lib/storage";
 import { chatStream, NoorCapError } from "@/lib/ai-stream";
 import { sanitizeStoredReply, executeAction, type ProposedAction } from "@/lib/ai-actions";
 import {
+  agentTurns,
   ensureGroupConversation,
   ensurePetConversation,
   petPersonaPrefix,
-  resolveMention,
 } from "@/lib/pet-agent";
+import { assignScoutJob, kickScoutRunner } from "@/lib/scout-jobs";
+import { stripPetFlavor } from "@/lib/action-clean";
+import { skillForCommand, getSkills, type NoorSkill } from "@/lib/noor-skills";
+import { runResearchPipeline, wantsResearch } from "@/lib/research-run";
 import { petById, petSvg } from "@/lib/pets";
 import { PET_JOBS } from "@/lib/pet-jobs";
 import { novellaModelId } from "@/lib/ai-models";
@@ -86,12 +90,22 @@ export function PetChat({ agents, onChanged }: { agents: PetAgent[]; onChanged?:
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [streamText, setStreamText] = useState("");
+  // Which agent is writing right now (multi-mention replies take turns).
+  const [streamAgent, setStreamAgent] = useState<PetAgent | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const boxRef = useRef<HTMLTextAreaElement | null>(null);
   const [mentionToken, setMentionToken] = useState<string | null>(null);
   const [mentionIdx, setMentionIdx] = useState(0);
   const mentionPickedRef = useRef(false);
+  // /skill autocomplete (same UX as Noor's composer).
+  const [allSkills, setAllSkills] = useState<NoorSkill[]>([]);
+  const [slashToken, setSlashToken] = useState<string | null>(null);
+  const [slashIdx, setSlashIdx] = useState(0);
+  const skillPickedRef = useRef(false);
+  useEffect(() => {
+    setAllSkills(getSkills());
+  }, []);
 
   // openId is always the REAL conversation id (the group sentinel is
   // resolved at open time); group-ness comes from the conv flag.
@@ -136,6 +150,7 @@ export function PetChat({ agents, onChanged }: { agents: PetAgent[]; onChanged?:
     abortRef.current = null;
     setLoading(false);
     setStreamText("");
+    setStreamAgent(null);
     setInput("");
     setMentionToken(null);
     let realId = id;
@@ -154,6 +169,7 @@ export function PetChat({ agents, onChanged }: { agents: PetAgent[]; onChanged?:
     abortRef.current = null;
     setLoading(false);
     setStreamText("");
+    setStreamAgent(null);
     setOpenId(null);
   };
 
@@ -178,24 +194,31 @@ export function PetChat({ agents, onChanged }: { agents: PetAgent[]; onChanged?:
     if (!conv) return;
     const model = novellaModelId(storage.getData().selectedModel);
 
-    // Pick the responder: @mention wins in the group, otherwise
-    // round-robin so the whole team gets airtime. Private threads are
-    // always bound to their agent.
-    let agent: PetAgent | undefined;
-    let clean = text;
+    // Responders: every @mention answers as its own employee (one reply
+    // each, in order). No mentions -> round-robin in the group, bound
+    // agent in a private thread.
+    const skill = skillForCommand(text);
+    const skillText = skill
+      ? skill.rest
+        ? `${skill.skill.instructions}\n\n---\n${skill.rest}`
+        : skill.skill.instructions
+      : null;
+
+    let turns: { agent: PetAgent; clean: string }[] = [];
     if (isGroup) {
-      const mention = resolveMention(text, agents);
-      if (mention?.kind === "agent") agent = mention.agent;
-      if (mention) {
-        const stripped = (text.slice(0, mention.start) + text.slice(mention.end)).trim();
-        clean = stripped || text;
-      }
-      if (!agent && agents.length > 0) {
+      const mentioned = agentTurns(text, agents);
+      if (mentioned.length) {
+        turns = mentioned.map((tt) => ({
+          agent: tt.agent,
+          clean: skillText ? `${skillText}\n\n---\n${tt.clean}` : tt.clean,
+        }));
+      } else if (agents.length > 0) {
         const assistants = conv.messages.filter((m) => m.role === "assistant").length;
-        agent = agents[assistants % agents.length];
+        turns = [{ agent: agents[assistants % agents.length], clean: skillText ?? text }];
       }
     } else {
-      agent = agents.find((a) => a.id === conv.petAgentId);
+      const bound = agents.find((a) => a.id === conv.petAgentId);
+      if (bound) turns = [{ agent: bound, clean: skillText ?? text }];
     }
 
     setInput("");
@@ -204,7 +227,7 @@ export function PetChat({ agents, onChanged }: { agents: PetAgent[]; onChanged?:
     reload();
     onChanged?.();
 
-    if (!agent) {
+    if (!turns.length) {
       appendNote(
         isGroup
           ? t("pets.chatNoAgents", "No agents on the team yet — hire some from the Team tab and they'll show up here.")
@@ -213,32 +236,74 @@ export function PetChat({ agents, onChanged }: { agents: PetAgent[]; onChanged?:
       return;
     }
 
-    // Persona on the final query (same contract as Noor's pet threads).
-    const history = storage.getData().aiConversations.find((c) => c.id === convId)?.messages ?? [];
-    let prefix = petPersonaPrefix(agent);
-    if (isGroup) {
-      const others = agents.filter((a) => a.id !== agent!.id).map((a) => a.name);
-      prefix +=
-        `\n\nGROUP CHAT: you are chatting in a team group thread with ` +
-        `${others.length ? others.join(", ") + " and " : ""}the user. ` +
-        `Reply ONLY as yourself ("${agent.name}") — never write lines as another agent. ` +
-        `Keep it to 1-3 sentences. The user can @mention a teammate to address them directly.\n`;
-    }
-    const query = prefix + "\n\n---\nUser: " + clean;
-
     setLoading(true);
     setStreamText("");
     const controller = new AbortController();
     abortRef.current = controller;
-    const proposals: ProposedAction[] = [];
+    // Persona on the final query (same contract as Noor's pet threads).
+    const history = storage.getData().aiConversations.find((c) => c.id === convId)?.messages ?? [];
+
     try {
+    for (let ti = 0; ti < turns.length; ti++) {
+      const { agent, clean } = turns[ti];
+      setStreamAgent(turns.length > 1 ? agent : null);
+      setStreamText("");
+
+      // Scout job hand-off: "assign: <topic>" queues a real background
+      // web job (agent loop) instead of a chat reply - delivery lands here.
+      if (agent.role === "scout" && clean.toLowerCase().startsWith("assign:")) {
+        const topic = clean.slice(7).trim();
+        const res = topic ? assignScoutJob(agent.id, topic, convId) : { ok: false };
+        if (res.ok) {
+          kickScoutRunner();
+          appendNote(`\ud83d\udd0d ${agent.name} is on the job — findings will land in this thread.`);
+          continue;
+        }
+      }
+
+      // Scout research mode: same plan → search → read → synthesize pass
+      // as Noor's research mode, delivered as a cited reply.
+      if (agent.role === "scout" && wantsResearch(clean)) {
+        setStreamText("\ud83d\udd0d Planning research...");
+        const run = await runResearchPipeline(clean, { onStage: (s) => setStreamText("\ud83d\udd0d " + s) });
+        if (controller.signal.aborted) return;
+        storage.addMessage(convId, {
+          role: "assistant",
+          content: run.content,
+          model,
+          agentId: agent.id,
+          sources: run.sources,
+          research: run.research as never,
+        });
+        reload();
+        onChanged?.();
+        continue;
+      }
+
+      let prefix = petPersonaPrefix(agent);
+      if (isGroup) {
+        const others = agents.filter((a) => a.id !== agent.id).map((a) => a.name);
+        prefix +=
+          `\n\nGROUP CHAT: you are chatting in a team group thread with ` +
+          `${others.length ? others.join(", ") + " and " : ""}the user. ` +
+          `Reply ONLY as yourself ("${agent.name}") — never write lines as another agent. ` +
+          `Keep it to 1-3 sentences.` +
+          (turns.length > 1
+            ? ` The user addressed several teammates at once; the text below is YOUR part only — answer just that, do not cover the other parts.`
+            : ` The user can @mention a teammate to address them directly.`) +
+          `\n`;
+      }
+      const query = prefix + "\n\n---\nUser: " + clean;
+
+      const proposals: ProposedAction[] = [];
       let acc = "";
       const response = await chatStream(query, history, model, {
         signal: controller.signal,
         onToken: (delta) => {
           if (controller.signal.aborted) return;
           acc += delta;
-          setStreamText(acc);
+          const cleanAcc = stripPetFlavor(acc);
+          setStreamText(cleanAcc || acc);
         },
         onProposeAction: (proposal) => {
           proposals.push(proposal as ProposedAction);
@@ -247,27 +312,30 @@ export function PetChat({ agents, onChanged }: { agents: PetAgent[]; onChanged?:
       if (controller.signal.aborted) return;
       storage.addMessage(convId, {
         role: "assistant",
-        content: response,
+        content: stripPetFlavor(response),
         model,
         agentId: agent.id,
         proposal: proposals.length ? proposals[0] : undefined,
       });
       reload();
       onChanged?.();
+    }
     } catch (e) {
-      if (controller.signal.aborted) return;
-      if (e instanceof NoorCapError) {
-        appendNote(
-          "\u2b50 You've used all of today's free Noor messages. Your cap resets at midnight \u2014 or upgrade to Plus in Settings \u2192 Billing for 300 messages a day."
-        );
-      } else {
-        appendNote(t("pets.chatFailed", "I could not reach my models just now \u2014 try again in a moment."));
+      if (!controller.signal.aborted) {
+        if (e instanceof NoorCapError) {
+          appendNote(
+            "\u2b50 You've used all of today's free Noor messages. Your cap resets at midnight \u2014 or upgrade to Plus in Settings \u2192 Billing for 300 messages a day."
+          );
+        } else {
+          appendNote(t("pets.chatFailed", "I could not reach my models just now \u2014 try again in a moment."));
+        }
       }
     } finally {
       if (abortRef.current === controller) {
         abortRef.current = null;
         setLoading(false);
         setStreamText("");
+        setStreamAgent(null);
       }
     }
   };
@@ -315,6 +383,37 @@ export function PetChat({ agents, onChanged }: { agents: PetAgent[]; onChanged?:
           .slice(0, 5)
           .map((a) => ({ name: a.name, agent: a }));
 
+  // ---- /skill autocomplete ----
+  const skillSlug = (n: string) =>
+    n.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+  const slashMatches: NoorSkill[] =
+    slashToken === null
+      ? []
+      : allSkills
+          .filter(
+            (s) =>
+              s.enabled &&
+              (!slashToken ||
+                skillSlug(s.name).includes(slashToken.toLowerCase()) ||
+                s.name.toLowerCase().includes(slashToken.toLowerCase()))
+          )
+          .slice(0, 5);
+
+  const insertSkillSlug = (s: NoorSkill) => {
+    const v = "/" + skillSlug(s.name) + " ";
+    setInput(v);
+    setSlashToken(null);
+    setSlashIdx(0);
+    skillPickedRef.current = true;
+    requestAnimationFrame(() => {
+      const el = boxRef.current;
+      if (el) {
+        el.focus();
+        el.setSelectionRange(v.length, v.length);
+      }
+    });
+  };
+
   const insertMention = (name: string) => {
     const el = boxRef.current;
     const v = input;
@@ -348,6 +447,14 @@ export function PetChat({ agents, onChanged }: { agents: PetAgent[]; onChanged?:
       setMentionToken(seg !== null && !seg.includes("\n") ? seg : null);
       setMentionIdx(0);
     }
+    if (skillPickedRef.current) {
+      skillPickedRef.current = false;
+      setSlashToken(null);
+    } else {
+      const m = /^\/([^\s]*)$/.exec(v.trim());
+      setSlashToken(m ? m[1] : null);
+      setSlashIdx(0);
+    }
     if (boxRef.current) {
       boxRef.current.style.height = "auto";
       boxRef.current.style.height = Math.min(boxRef.current.scrollHeight, 120) + "px";
@@ -355,6 +462,17 @@ export function PetChat({ agents, onChanged }: { agents: PetAgent[]; onChanged?:
   };
 
   const composerKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (slashMatches.length > 0 && slashToken !== null) {
+      if (e.key === "ArrowDown") { e.preventDefault(); setSlashIdx((i) => (i + 1) % slashMatches.length); return; }
+      if (e.key === "ArrowUp") { e.preventDefault(); setSlashIdx((i) => (i - 1 + slashMatches.length) % slashMatches.length); return; }
+      if (e.key === "Enter" || e.key === "Tab") {
+        e.preventDefault();
+        const s = slashMatches[slashIdx] ?? slashMatches[0];
+        if (s) insertSkillSlug(s);
+        return;
+      }
+      if (e.key === "Escape") { e.preventDefault(); setSlashToken(null); return; }
+    }
     if (mentionMatches.length > 0 && mentionToken !== null) {
       if (e.key === "ArrowDown") { e.preventDefault(); setMentionIdx((i) => (i + 1) % mentionMatches.length); return; }
       if (e.key === "ArrowUp") { e.preventDefault(); setMentionIdx((i) => (i - 1 + mentionMatches.length) % mentionMatches.length); return; }
@@ -453,7 +571,11 @@ export function PetChat({ agents, onChanged }: { agents: PetAgent[]; onChanged?:
   }
 
   // ---- chat view ----
-  const openAgent = isGroup ? undefined : agents.find((a) => a.id === openId);
+  // openId is a CONVERSATION id; the thread's agent comes from the conv flag
+  // (openId only equals an agent id for legacy/edge threads).
+  const openAgent = isGroup
+    ? undefined
+    : agents.find((a) => a.id === (openConv?.petAgentId ?? openId));
   const headerTitle = isGroup ? t("pets.teamChat", "Team chat") : openAgent?.name ?? t("pets.chat", "Chat");
   const headerSub = isGroup
     ? t("pets.teamChatSub", "{{n}} agents in this chat").replace("{{n}}", String(agents.length))
@@ -512,6 +634,8 @@ export function PetChat({ agents, onChanged }: { agents: PetAgent[]; onChanged?:
         )}
         {msgs.map((m, i) => {
           const prev = msgs[i - 1];
+          // A reply that was pure flavor text strips to nothing - no ghost bubble.
+          if (!m.content && !m.proposal) return null;
           const mine = m.role === "user";
           const sender = mine ? undefined : senderOf(m);
           const showName = !mine && isGroup && m.agentId !== prev?.agentId;
@@ -579,9 +703,14 @@ export function PetChat({ agents, onChanged }: { agents: PetAgent[]; onChanged?:
         {loading && (
           <div className="flex items-end gap-2">
             <span className="w-6 shrink-0">
-              <Avatar agent={openAgent} size={24} />
+              <Avatar agent={streamAgent ?? openAgent} size={24} />
             </span>
             <div className="min-w-0">
+              {streamAgent && (
+                <p className="mb-0.5 px-1 text-[11px] font-semibold text-primary-500">
+                  {streamAgent.name}
+                </p>
+              )}
               {streamText ? (
                 <div className="whitespace-pre-wrap break-words rounded-2xl rounded-bl-sm bg-secondary px-3 py-2 text-sm leading-snug text-foreground">
                   {streamText}
@@ -601,6 +730,33 @@ export function PetChat({ agents, onChanged }: { agents: PetAgent[]; onChanged?:
 
       {/* composer */}
       <div className="relative border-t border-border/70 p-2.5">
+        {slashMatches.length > 0 && slashToken !== null && (
+          <div className="absolute bottom-full left-2.5 right-2.5 z-10 mb-2 max-h-44 overflow-y-auto rounded-2xl border border-border bg-popover p-1 shadow-xl">
+            <p className="px-3 pb-1 pt-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+              {t("assistant.skills", "Skills")}
+            </p>
+            {slashMatches.map((s, i) => (
+              <button
+                key={s.id}
+                type="button"
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  insertSkillSlug(s);
+                }}
+                onMouseEnter={() => setSlashIdx(i)}
+                className={cn(
+                  "flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm transition-colors",
+                  i === slashIdx ? "bg-secondary" : ""
+                )}
+              >
+                <span className="truncate font-medium">/{skillSlug(s.name)}</span>
+                <span className="ml-auto truncate text-xs text-muted-foreground">
+                  {s.instructions.slice(0, 44)}
+                </span>
+              </button>
+            ))}
+          </div>
+        )}
         {mentionMatches.length > 0 && mentionToken !== null && (
           <div className="absolute bottom-full left-2.5 right-2.5 z-10 mb-2 max-h-44 overflow-y-auto rounded-2xl border border-border bg-popover p-1 shadow-xl">
             <p className="px-3 pb-1 pt-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">

@@ -60,7 +60,7 @@ import { getGraph } from "@/lib/graph/engine";
 import { chat } from "@/lib/ai";
 import { sanitizeStoredReply, executeAction, type ProposedAction } from "@/lib/ai-actions";
 import { chatStream, NoorCapError } from "@/lib/ai-stream";
-import { getSkills, type NoorSkill } from "@/lib/noor-skills";
+import { getSkills, skillForCommand, type NoorSkill } from "@/lib/noor-skills";
 import { noorPresence, subscribeNoorBg, notifyNoorReply } from "@/lib/noor-background";
 import { isBlockedUpload, blockedUploadReason } from "@/lib/upload-guard";
 import { isLiveQuery } from "@/lib/web-search";
@@ -77,7 +77,9 @@ import { shareText } from "@/lib/share";
 import ImageLoader from "@/components/ui/image-loading";
 import { MiniCamera, type CapturedPhoto } from "@/components/noor/MiniCamera";
 import { PawPrint } from "lucide-react";
-import { roster as petRoster, petPersonaPrefix, ensurePetConversation, roleHasJob, runRoleNow, resolveMention } from "@/lib/pet-agent";
+import { roster as petRoster, petPersonaPrefix, ensurePetConversation, roleHasJob, runRoleNow, resolveMention, agentTurns } from "@/lib/pet-agent";
+import { stripPetFlavor } from "@/lib/action-clean";
+import { runResearchPipeline, wantsResearch } from "@/lib/research-run";
 import { jobByRole } from "@/lib/pet-jobs";
 import { petById, petSvg } from "@/lib/pets";
 import {
@@ -1194,10 +1196,12 @@ export default function AssistantPage() {
         body: JSON.stringify({
           model: "nvidia/nemotron-3-super-120b-a12b",
           messages: [
-            { role: "user", content: synthPrompt.slice(0, 40000) },
+            // Sized for the live fallback sibling: a 40k prompt + 4k output
+            // overran the 55s route timeout after the primary model's EOL.
+            { role: "user", content: synthPrompt.slice(0, 16000) },
           ],
           temperature: 0.4,
-          maxTokens: 4096,
+          maxTokens: 2600,
           situation: `RESEARCH OUTPUT FORMAT CONTRACT: Respond with ONLY the JSON deliverable object. No prose before or after.`,
         }),
       });
@@ -1217,12 +1221,11 @@ export default function AssistantPage() {
           method: "POST",
           headers: { "Content-Type": "application/json", "x-orleia-device": getDeviceId() },
           body: JSON.stringify({
-            model: "nvidia/nemotron-3-ultra-550b-a55b",
-            messages: [
-              { role: "user", content: [retryCtx, synthPrompt.slice(0, 36000)].join("\n\n") },
-            ],
-            temperature: 0.3,
-            maxTokens: 4096,
+            model: "nvidia/nemotron-3-ultra-550b-a55b",              messages: [
+                { role: "user", content: [retryCtx, synthPrompt.slice(0, 14000)].join("\n\n") },
+              ],
+              temperature: 0.3,
+              maxTokens: 2600,
             situation: `RESEARCH OUTPUT FORMAT CONTRACT: Respond with ONLY the JSON deliverable object. No prose before or after.`,
           }),
         });
@@ -1319,7 +1322,10 @@ export default function AssistantPage() {
     // to Noor. The bubble keeps the raw text; the model receives the
     // cleaned text plus the agent's persona prefix below.
     let activePetId = petAgentId;
-    const mention = resolveMention(text, petRoster());
+    // 2+ named agents in one message = a round-table: answer as each of
+    // them instead of binding this thread to the leftmost one.
+    const isRoundTable = agentTurns(text, petRoster()).length >= 2;
+    const mention = isRoundTable ? null : resolveMention(text, petRoster());
     if (mention) {
       const cleaned = (queryText.slice(0, mention.start) + queryText.slice(mention.end)).trim();
       queryText = cleaned || queryText;
@@ -1340,15 +1346,18 @@ export default function AssistantPage() {
         setPetAgentId(mention.agent.id);
       }
     }
+    let skillApplied = false;
     if (text.startsWith("/")) {
-      const m = /^\/([a-z0-9-]+)/i.exec(text);
-      const slug = (n: string) => n.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
-      const skill = m
-        ? getSkills().find((s) => s.enabled && slug(s.name) === m[1].toLowerCase())
-        : undefined;
-      if (m && skill) {
-        const rest = text.slice(m[0].length).trim();
-        queryText = rest ? `${skill.instructions}\n\n---\n${rest}` : skill.instructions;
+      // Skill instructions replace the command; mentions already stripped
+      // from queryText stay stripped ("/research @Blob topic" keeps both).
+      const parsed = skillForCommand(text);
+      if (parsed) {
+        const qm = /^\/([a-z0-9-]+)/i.exec(queryText);
+        const rest = qm ? queryText.slice(qm[0].length).trim() : queryText;
+        queryText = rest
+          ? `${parsed.skill.instructions}\n\n---\n${rest}`
+          : parsed.skill.instructions;
+        skillApplied = true;
       }
     }
     setInput("");
@@ -1435,11 +1444,188 @@ export default function AssistantPage() {
 
     storage.addMessage(currentConvId, userMsg);
 
+    // MULTI-MENTION: 2+ hired agents named in one message -> each one
+    // answers as its own employee, one reply after another, each reply
+    // carrying only the part of the request addressed to it.
+    const namedTurns = agentTurns(text, petRoster());
+    if (namedTurns.length >= 2) {
+      // A leading /skill-slug applies to the whole message (its instructions
+      // already replaced the command in queryText).
+      for (const turn of namedTurns) {
+        const agent = turn.agent;
+        const seg = skillApplied ? queryText : turn.clean;
+        setStreamText("");
+
+        // Scout turns get the same research pipeline as the pet-chat surface.
+        if (agent.role === "scout" && wantsResearch(seg)) {
+          setResearchState({ active: true, stage: "plan", stageDetail: "Planning research..." });
+          let aborted = false;
+          try {
+            const run = await runResearchPipeline(seg, {
+              onStage: (detail) => setResearchState({ active: true, stage: "search", stageDetail: detail }),
+            });
+            if (controller.signal.aborted || convDeleted(currentConvId)) {
+              aborted = true;
+            } else {
+              const scoutMsg: AIMessage = {
+                id: generateId(),
+                role: "assistant",
+                content: stripPetFlavor(run.content),
+                timestamp: new Date().toISOString(),
+                model: selectedModel,
+                agentId: agent.id,
+                sources: run.sources,
+                research: run.research as never,
+              };
+              storage.addMessage(currentConvId, scoutMsg);
+              setMessages((prev) => [...prev, scoutMsg]);
+              refresh();
+            }
+          } catch (e) {
+            if (controller.signal.aborted) {
+              aborted = true;
+            } else {
+              const failMsg: AIMessage = {
+                id: generateId(),
+                role: "assistant",
+                content:
+                  e instanceof Error && e.message === "no results"
+                    ? "I could not find usable sources for that. Try rephrasing or narrowing the question."
+                    : e instanceof NoorCapError
+                      ? "\u2b50 You've used all of today's free Noor messages. Your cap resets at midnight \u2014 or upgrade to Plus in Settings \u2192 Billing for 300 messages a day."
+                      : "The research run hit a snag partway through. Try again in a moment.",
+                timestamp: new Date().toISOString(),
+                model: selectedModel,
+                agentId: agent.id,
+              };
+              storage.addMessage(currentConvId, failMsg);
+              setMessages((prev) => [...prev, failMsg]);
+              refresh();
+            }
+          } finally {
+            setResearchState({ active: false, stage: "", stageDetail: "" });
+          }
+          if (aborted) break;
+          continue;
+        }
+
+        const q =
+          petPersonaPrefix(agent) +
+          `\n\nThe user addressed several teammates at once; the text below is YOUR part only - answer just that, do not cover the other parts.\n\n---\nUser: ` +
+          seg;
+        setStreamText("");
+        try {
+          let acc = "";
+          const props: ProposedAction[] = [];
+          const response = await chatStream(q, updatedMessages, selectedModel, {
+            ...sendOpts,
+            signal: controller.signal,
+            onToken: (delta) => {
+              if (controller.signal.aborted) return;
+              acc += delta;
+              setStreamText(acc);
+            },
+            onProposeAction: (proposal) => {
+              props.push(proposal as ProposedAction);
+            },
+          });
+          if (controller.signal.aborted || convDeleted(currentConvId)) break;
+          const replyMsg: AIMessage = {
+            id: generateId(),
+            role: "assistant",
+            content: stripPetFlavor(response),
+            timestamp: new Date().toISOString(),
+            model: selectedModel,
+            agentId: agent.id,
+            proposal: props.length ? props[0] : undefined,
+            sources: sources.length ? sources : undefined,
+          };
+          storage.addMessage(currentConvId, replyMsg);
+          setMessages((prev) => [...prev, replyMsg]);
+          refresh();
+        } catch (e) {
+          if (controller.signal.aborted) break;
+          const errMsg: AIMessage = {
+            id: generateId(),
+            role: "assistant",
+            content:
+              e instanceof NoorCapError
+                ? "\u2b50 You've used all of today's free Noor messages. Your cap resets at midnight \u2014 or upgrade to Plus in Settings \u2192 Billing for 300 messages a day."
+                : e instanceof Error && e.message === "no results"
+                  ? "I could not find usable sources for that. Try rephrasing or narrowing the question."
+                  : "I could not reach my models just now - try again in a moment.",
+            timestamp: new Date().toISOString(),
+            model: selectedModel,
+          };
+          storage.addMessage(currentConvId, errMsg);
+          setMessages((prev) => [...prev, errMsg]);
+          refresh();
+          break;
+        }
+      }
+      abortRef.current = null;
+      setLoading(false);
+      setStreamText("");
+      return;
+    }
+
     // Deep research branch: run the pipeline instead of a normal reply.
     if (researchMode) {
       setLoading(false);
       await runResearch(queryText, currentConvId, updatedMessages);
       return;
+    }
+
+    // SCOUT RESEARCH MODE: a hired Scout answering a research request gets
+    // the same plan -> search -> read -> synthesize pass as research mode,
+    // so scouting actually searches the web instead of guessing.
+    if (activePetId && wantsResearch(queryText)) {
+      const scoutAgent = petRoster().find((a) => a.id === activePetId);
+      if (scoutAgent?.role === "scout") {
+        setLoading(false);
+        setResearchState({ active: true, stage: "plan", stageDetail: "Planning research..." });
+        try {
+          const run = await runResearchPipeline(queryText, {
+            onStage: (detail) => setResearchState({ active: true, stage: "search", stageDetail: detail }),
+          });
+          if (controller.signal.aborted || convDeleted(currentConvId)) return;
+          const scoutMsg: AIMessage = {
+            id: generateId(),
+            role: "assistant",
+            content: stripPetFlavor(run.content),
+            timestamp: new Date().toISOString(),
+            model: selectedModel,
+            agentId: scoutAgent.id,
+            sources: run.sources,
+            research: run.research as never,
+          };
+          storage.addMessage(currentConvId, scoutMsg);
+          setMessages((prev) => [...prev, scoutMsg]);
+          refresh();
+        } catch (e) {
+          if (controller.signal.aborted) return;
+          const failMsg: AIMessage = {
+            id: generateId(),
+            role: "assistant",
+            content:
+              e instanceof Error && e.message === "no results"
+                ? "I could not find usable sources for that. Try rephrasing or narrowing the question."
+                : e instanceof NoorCapError
+                  ? "\u2b50 You've used all of today's free Noor messages. Your cap resets at midnight \u2014 or upgrade to Plus in Settings \u2192 Billing for 300 messages a day."
+                  : "The research run hit a snag partway through. Try again in a moment.",
+            timestamp: new Date().toISOString(),
+            model: selectedModel,
+          };
+          storage.addMessage(currentConvId, failMsg);
+          setMessages((prev) => [...prev, failMsg]);
+          refresh();
+        } finally {
+          setResearchState({ active: false, stage: "", stageDetail: "" });
+          abortRef.current = null;
+          setStreamText("");
+        }
+        return;
+      }
     }
 
 
@@ -1548,7 +1734,7 @@ try {
     const aiMsg: AIMessage = {
       id: generateId(),
       role: "assistant",
-      content: response,
+      content: stripPetFlavor(response),
       timestamp: new Date().toISOString(),
       model: selectedModel,
       actions: opts?.actions || undefined,

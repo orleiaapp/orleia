@@ -41,14 +41,66 @@ export function stripActionRemnants(text: string): string {
   return out.replace(/\n{3,}/g, "\n\n").trim();
 }
 
+// ============================================================
+// Pet flavor-text emotes ("Blob waves a tiny paw.", "Ears perk up at
+// the mention of friends").
+//
+// The model likes to narrate cute pet actions before/instead of
+// answering. Product decision: never show them - in new replies AND
+// in old stored ones, so every variant (any pet name, any verb, any
+// tense) is filtered at the one place both chat surfaces render from.
+// ============================================================
+
+/** Subject: a Capitalized noun phrase (a pet/agent name, or "Ears", "Tail"...). */
+const FLAVOR_SUBJ =
+  String.raw`(?:[A-Z][\w'’-]*(?:\s+(?:the\s+)?[a-z][\w'’-]*){0,3}|Ears|Tail|Whiskers|Paws|Eyes|Nose|Head|Fur)`;
+
+/** Motion/emote verbs pets get narrated with, plus common inflections. */
+const FLAVOR_VERB =
+  String.raw`(?:wav|perk|wag|bounc|tilt|nod|chatter|purr|squeak|chirp|nuzzl|pounc|stretch|yawn|blink|sniff|wriggl|squirm|leap|hop|spin|beam|grin|giggl|clap|zoom|glanc|dart|wiggl|swish|flick|twitch|droop|twirl|snuggl|cuddl|scamper|scuttl|paddl|bob|perk)(?:s|es|ed|ing)?`;
+
+/** Line starts with a third-person action beat (never first person). */
+const FLAVOR_START_RE = new RegExp(
+  String.raw`^(?!\s*(?:I|We|You|He|She|It|They)\b)[>*_\-•\s]*${FLAVOR_SUBJ}\s+${FLAVOR_VERB}\b`,
+  ""
+);
+
+/** The same beat, extended to a full sentence (so we can drop just that). */
+const FLAVOR_SENTENCE_RE = new RegExp(
+  String.raw`^\s*[>*_\-•\s]*${FLAVOR_SUBJ}\s+${FLAVOR_VERB}[^.!?\n]*[.!?]\s*`,
+  ""
+);
+
+/** A bare italic/dashed emote line: "*perks up*", "_tail wagging_". */
+const FLAVOR_EMOTE_LINE_RE = /^\s*[>*_\-]+\s*[^*\n]{1,60}\s*[*_\-]+\s*$/;
+
+/** Remove pet action-beat lines from a reply. Returns "" for pure flavor. */
+export function stripPetFlavor(text: string): string {
+  if (!text) return text;
+  const lines = text.split("\n").map((line) => {
+    const trimmed = line.trim();
+    if (!trimmed) return line;
+    if (FLAVOR_EMOTE_LINE_RE.test(trimmed)) return "";
+    if (!FLAVOR_START_RE.test(line)) return line;
+    // Full sentence beat -> drop just it and keep any real prose after it.
+    const rest = line.replace(FLAVOR_SENTENCE_RE, "");
+    if (rest !== line && rest.trim()) return rest.trimEnd();
+    // Beat with no terminator (or nothing left) -> drop the whole line.
+    return "";
+  });
+  return lines.join("\n").replace(/\n{3,}/g, "\n\n").trim();
+}
+
 /**
- * Cleans leaked action JSON out of a stored reply (used when loading old
- * conversations that may have been saved before the marker filters hardened).
- * Only rewrites the string when something actually needs cleaning, so loading
- * a conversation never rewrites healthy messages.
+ * Cleans leaked action JSON and pet flavor emotes out of a stored reply
+ * (used when loading conversations - including ones saved before these
+ * filters existed). Only rewrites the string when something actually needs
+ * cleaning, so loading a conversation never rewrites healthy messages.
  */
 export function sanitizeStoredReply(text: string): string {
   if (!text) return text;
-  if (!ACTION_MARKER_RE.test(text)) return text;
-  return stripActionRemnants(text);
+  let out = text;
+  if (ACTION_MARKER_RE.test(out)) out = stripActionRemnants(out);
+  const flavor = stripPetFlavor(out);
+  return flavor !== out ? flavor : out;
 }

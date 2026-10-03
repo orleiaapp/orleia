@@ -46,6 +46,22 @@ export function getSkills(): NoorSkill[] {
   }
 }
 
+/**
+ * Resolve a leading "/slug" command against the user's enabled skills.
+ * Returns the skill plus whatever followed the command, or null when the
+ * command doesn't match a skill (so the raw text reaches the model).
+ * Shared by Noor's composer and the pet chat composer.
+ */
+export function skillForCommand(text: string): { skill: NoorSkill; rest: string } | null {
+  const m = /^\/([a-z0-9-]+)/i.exec(text.trim());
+  if (!m) return null;
+  const slug = (n: string) =>
+    n.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+  const skill = getSkills().find((s) => s.enabled && slug(s.name) === m[1].toLowerCase());
+  if (!skill) return null;
+  return { skill, rest: text.trim().slice(m[0].length).trim() };
+}
+
 function persist(skills: NoorSkill[]): void {
   if (typeof window === "undefined") return;
   try {

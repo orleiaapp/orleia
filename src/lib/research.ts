@@ -89,6 +89,9 @@ export function buildPlannerPrompt(question: string, forceFormat?: ResearchForma
 
   return `You are a research planner. Break the user's question into parallel web searches.
 
+USER'S QUESTION (this is what the searches must cover):
+${question}
+
 Respond with ONLY a JSON object, no prose, no fences:
 {
   "query": "cleaned keyword search query (3-8 words, no filler)",
@@ -101,6 +104,7 @@ RULES:
 - Every subQuery and "query" MUST be keyword-style: product names, entities, version numbers, 3-8 words, no filler words like "the", "of", "what", "latest news about".
 - For questions about the newest version of a product, at least one subQuery must name the product + vendor + words like release / announcement / version (e.g. "OpenAI newest GPT model announcement", not "news about ChatGPT").
 - "query" is the single best search for the core question.
+- Never guess a year: for recency questions use keywords like "latest", "recent", "2026" only if the question names a year - an assumed year in a subQuery steers the search to stale results.
 - Never answer the question. Plan only.`;
 }
 

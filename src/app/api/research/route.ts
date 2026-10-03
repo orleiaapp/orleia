@@ -69,7 +69,9 @@ async function callPlanner(userPrompt: string): Promise<string | null> {
         { role: "user", content: userPrompt },
       ],
       temperature: 0.3,
-      max_tokens: 500,
+      // Nemotron siblings reason before answering - 500 tokens starved the
+      // JSON plan and dropped us on the fallback query more often than not.
+      max_tokens: 900,
       timeoutMs: 50_000,
     });
     if (!call.ok || !call.response) return null;

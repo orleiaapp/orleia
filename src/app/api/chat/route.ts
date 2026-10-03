@@ -11,7 +11,8 @@ export const maxDuration = 60;
 // Only the models Orleia actually uses may be requested - prevents the
 // endpoint from being used to probe/abuse arbitrary NVIDIA functions.
 const ALLOWED_MODELS = new Set([
-  "nvidia/nemotron-3-super-120b-a12b",     // Novella 5.0 (primary)
+  "nvidia/nemotron-3-super-120b-a12b",     // Novella 5.0 (primary; EOL'd 2026-10 - kept so old clients still pass the gate)
+  "nvidia/nemotron-3-ultra-550b-a55b",     // Novella 5.0 live sibling (research + fallback)
   "nvidia/nemotron-3.5-lightning-30b-a3b", // Novella 5.0 cold-start fallback
 ]);
 

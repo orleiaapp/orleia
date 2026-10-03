@@ -4,10 +4,14 @@ import { AIMessage, AIModel, AISource } from "@/types";
 import { chat, buildStatsBlock, buildProfileBlock, buildNoorBlock, ChatOpts, withAttachmentContext } from "./ai";
 import { getToday } from "./utils";
 
-// Novella 5.0 is one model: if the endpoint is cold, the smaller Nemotron
-// sibling answers instead of leaving the user hanging.
+// Novella 5.0 is one model: if the endpoint is cold (or retired — the
+// 120b primary hit EOL in Oct 2026), a live Nemotron sibling answers
+// instead of leaving the user hanging.
 const FALLBACK_MODELS: Record<string, string[]> = {
-  "nvidia/nemotron-3-super-120b-a12b": ["nvidia/nemotron-3.5-lightning-30b-a3b"],
+  "nvidia/nemotron-3-super-120b-a12b": [
+    "nvidia/nemotron-3-ultra-550b-a55b",
+    "nvidia/nemotron-3.5-lightning-30b-a3b",
+  ],
 };
 import { buildSearchBlock, isLiveQuery } from "./web-search";
 import { getSituationPayload } from "@/lib/graph/engine";
