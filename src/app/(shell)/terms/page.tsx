@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 
 export default function TermsPage() {
   return (
-    <LegalPage title="Terms of Service" lastUpdated="September 23, 2026">
+    <LegalPage title="Terms of Service" lastUpdated="October 4, 2026">
       <section>
         <h2 className="text-lg font-bold tracking-tight text-foreground mb-3">1. Acceptance of Terms</h2>
         <p>
@@ -23,7 +23,7 @@ export default function TermsPage() {
         <h2 className="text-lg font-bold tracking-tight text-foreground mb-3">2. Description of Service</h2>
         <p className="mb-3">
           The Orleia project provides two applications: the Orleia workspace (a browser-based productivity suite with
-          tools for habits tracking, mindfulness journaling, note-taking, task management, spreadsheet management, and
+          tools for habits tracking, mindfulness journaling, note-taking, task management, and
           AI-powered assistance) and Orleia Spark, a desktop web browser. Key characteristics:
         </p>
         <ul className="list-disc pl-6 space-y-1.5">

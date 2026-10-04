@@ -22,7 +22,6 @@ const ROUTES = [
   "/noor",
   "/projects",
   "/notes",
-  "/grid",
   "/deck",
   "/calendar",
   "/settings",

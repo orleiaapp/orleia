@@ -14,7 +14,7 @@ export default function GDPRPage() {
     <LegalPage
       title="GDPR & Data Processing"
       subtitle="General Data Protection Regulation compliance information for users in the European Economic Area."
-      lastUpdated="September 13, 2026"
+      lastUpdated="October 4, 2026"
     >
       <section>
         <h2 className="text-lg font-bold tracking-tight text-foreground mb-3">1. Data Controller</h2>
@@ -29,7 +29,7 @@ export default function GDPRPage() {
         <h2 className="text-lg font-bold tracking-tight text-foreground mb-3">2. Data We Collect</h2>
         <p>
           <strong>Your workspace data stays on your device.</strong> Orleia stores everything you create - habits,
-          journal entries, notes, tasks, spreadsheets, decks, and settings - exclusively in
+          journal entries, notes, tasks, decks, and settings - exclusively in
           your browser's IndexedDB and localStorage on your device. We do not build advertising profiles. The only
           data that leaves your device is what you deliberately send: Noor prompts (to NVIDIA), search queries
           (to keyless search providers), and optional sign-in identity (to Supabase for authentication only). The

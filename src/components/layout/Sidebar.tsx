@@ -17,7 +17,6 @@ import {
   Settings,
   ChevronLeft,
   Briefcase,
-  Grid3x3,
   Presentation,
   Flower2,
   PawPrint,
@@ -140,7 +139,7 @@ export function Sidebar() {
         <AnimatePresence initial={false}>
           {toolsOpen && (
             <motion.ul initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.2, ease: "easeInOut" }} className="space-y-0.5 overflow-hidden" role="list">
-              {[{ href: "/notes", label: t("nav.notes"), icon: FileText }, { href: "/grid", label: t("nav.grid"), icon: Grid3x3 }, { href: "/deck", label: t("nav.deck"), icon: Presentation }, { href: "/calendar", label: t("nav.calendar"), icon: CalendarDays }].map((item) => {
+              {[{ href: "/notes", label: t("nav.notes"), icon: FileText }, { href: "/deck", label: t("nav.deck"), icon: Presentation }, { href: "/calendar", label: t("nav.calendar"), icon: CalendarDays }].map((item) => {
                 const isActive = pathname === item.href;
                 return (<li key={item.href}><Link href={item.href} className={cn("group relative flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-xs font-medium", collapsed && "justify-center px-2", isActive ? "bg-primary-500/10 text-primary-500" : "text-muted-foreground/60 hover:text-muted-foreground hover:bg-sidebar-hover")}><item.icon className="h-5 w-5 shrink-0" />{!collapsed && <span className="flex-1">{item.label}</span>}</Link></li>);
               })}

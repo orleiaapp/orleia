@@ -14,7 +14,7 @@ export default function CcpaPage() {
     <LegalPage
       title="CCPA & California Privacy Rights"
       subtitle="California Consumer Privacy Act (CCPA) and California Privacy Rights Act (CPRA) information for users in California."
-      lastUpdated="September 13, 2026"
+      lastUpdated="October 4, 2026"
     >
       <section>
         <h2 className="text-lg font-bold tracking-tight text-foreground mb-3">1. Overview</h2>
@@ -35,7 +35,7 @@ export default function CcpaPage() {
           or anyone else. There are no advertising or cross-site tracking scripts, no tracking pixels, and no telemetry. The host (Vercel) receives basic anonymized visit metrics only, and optional sign-in (Supabase) is used to identify your session - never to sell data.
           Orleia is intended for users aged 16 and over, so no personal information relating to minors is
           collected.
-          The data you enter - habits, notes, journal entries, tasks, spreadsheets, widgets, and other workspace data - never leaves your device except
+          The data you enter - habits, notes, journal entries, tasks, widgets, and other workspace data - never leaves your device except
           in the limited AI-processing case described in section 5. The only other connections are standard
           CDN requests (such as loading fonts from Google Fonts), which do not involve your content.
         </p>

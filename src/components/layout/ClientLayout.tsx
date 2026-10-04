@@ -38,7 +38,8 @@ function isLandingDomain() {
 }
 
 // /deck intentionally NOT here: its mobile gate must sit at the same
-// height as Grid's (main gets the standard 4rem+safe-area top padding).
+// height as the other Office pages (main gets the standard 4rem+safe-area
+// top padding).
 const FULL_WIDTH_ROUTES = ["/noor", "/calendar"];
 
 export function ClientLayout({ children }: { children: React.ReactNode }) {

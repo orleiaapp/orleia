@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 
 export default function EulaPage() {
   return (
-    <LegalPage title="End User License Agreement" lastUpdated="September 23, 2026">
+    <LegalPage title="End User License Agreement" lastUpdated="October 4, 2026">
       <section>
         <h2 className="text-lg font-bold tracking-tight text-foreground mb-3">1. Grant of License</h2>
         <p>
@@ -27,7 +27,7 @@ export default function EulaPage() {
           This license does not grant you any ownership rights to the application itself.
         </p>
         <p>
-          Content you create within Orleia - including habits, journal entries, notes, tasks, spreadsheets, widgets, Noor chats, and settings - remains
+          Content you create within Orleia - including habits, journal entries, notes, tasks, widgets, Noor chats, and settings - remains
           your sole property. Orleia claims no ownership over your data or content.
         </p>
       </section>

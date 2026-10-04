@@ -10,7 +10,7 @@ export default function AccessibilityPage() {
     <LegalPage
       title={t("a11y.accessibility_statement")}
       subtitle={t("a11y.our_commitment_to_making_orleia_usable_f")}
-      lastUpdated="September 13, 2026"
+      lastUpdated="October 4, 2026"
     >
       <section>
         <h2 className="text-lg font-bold tracking-tight text-foreground mb-3">1. Our Commitment</h2>
@@ -71,7 +71,7 @@ export default function AccessibilityPage() {
         <h2 className="text-lg font-bold tracking-tight text-foreground mb-3">5. Ongoing Improvements</h2>
         <p>
           We are committed to improving accessibility with each update. Planned improvements include better screen
-          reader support for charts and analytics, improved focus management in modals and spreadsheets, and enhanced keyboard
+          reader support for charts and analytics, improved focus management in modals, and enhanced keyboard
           navigation for complex interfaces.
         </p>
       </section>

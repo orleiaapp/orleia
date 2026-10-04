@@ -18,7 +18,6 @@ import {
   ListTodo,
   CheckCircle2,
   Briefcase,
-  Grid3x3,
   Presentation,
   Flower2,
   PawPrint,
@@ -103,7 +102,6 @@ export function MobileNavScreen({ open, onClose }: { open: boolean; onClose: () 
 
   const officeItems = [
     { href: "/notes", label: t("nav.notes"), icon: FileText },
-    { href: "/grid", label: t("nav.grid"), icon: Grid3x3 },
     { href: "/deck", label: t("nav.deck"), icon: Presentation },
     { href: "/calendar", label: t("nav.calendar"), icon: CalendarDays },
   ];

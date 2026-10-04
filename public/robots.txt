@@ -8,7 +8,6 @@ Disallow: /notes/
 Disallow: /tasks/
 Disallow: /journal/
 Disallow: /documents/
-Disallow: /grid/
 Disallow: /migrate/
 
 Sitemap: https://www.orleia.app/sitemap.xml

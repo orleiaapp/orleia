@@ -435,43 +435,6 @@ export function TasksMock() {
 }
 
 /* ------------------------------------------------------------------ */
-/* 7. Grid (spreadsheet)                                               */
-/* ------------------------------------------------------------------ */
-
-export function GridMock() {
-  const rows = [
-    ["", "Q1", "Q2", "Q3", "Q4"],
-    ["Revenue", "$12k", "$18k", "$15k", "$22k"],
-    ["Costs", "$8k", "$10k", "$9k", "$11k"],
-    ["Profit", "$4k", "$8k", "$6k", "$11k"],
-  ];
-  return (
-    <Frame title="Grid">
-      <div className="overflow-hidden rounded-lg border border-border">
-        {/* Header row */}
-        <div className="flex border-b border-border bg-secondary/50">
-          {rows[0].map((cell, ci) => (
-            <div key={ci} className={cn("flex-1 px-2 py-1 text-[9px] font-semibold", ci === 0 ? "w-14" : "text-center text-muted-foreground/60")}>
-              {cell}
-            </div>
-          ))}
-        </div>
-        {/* Data rows */}
-        {rows.slice(1).map((row, ri) => (
-          <div key={ri} className={cn("flex border-b border-border last:border-b-0", ri === 2 && "bg-emerald-500/5")}>
-            {row.map((cell, ci) => (
-              <div key={ci} className={cn("px-2 py-1 text-[9px]", ci === 0 ? "w-14 font-medium" : "text-right tabular-nums text-muted-foreground/70")}>
-                {cell}
-              </div>
-            ))}
-          </div>
-        ))}
-      </div>
-    </Frame>
-  );
-}
-
-/* ------------------------------------------------------------------ */
 /* 8. Noor                                                             */
 /* ------------------------------------------------------------------ */
 

@@ -6,7 +6,6 @@ import { useRouter, usePathname } from "next/navigation";
 import {
   Search,
   FileText,
-  Sheet,
   ListTodo,
   BookOpen,
   CheckCircle2,
@@ -21,7 +20,6 @@ import { cn } from "@/lib/utils";
 
 const KIND_ICON = {
   note: FileText,
-  spreadsheet: Sheet,
   task: ListTodo,
   journal: BookOpen,
   habit: CheckCircle2,
