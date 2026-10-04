@@ -16,7 +16,14 @@ export const maxDuration = 30;
 export async function GET(req: Request) {
   const health = aiProviderHealth();
   const url = new URL(req.url);
-  const wantsProbe = url.searchParams.get("secret") === process.env.CRON_SECRET && !!process.env.CRON_SECRET;
+  // Probe armed two ways: ?secret=... for manual runs, or the
+  // Authorization: Bearer header Vercel Crons send automatically when
+  // CRON_SECRET is set (vercel.json polls /api/ai-health daily).
+  const cronSecret = process.env.CRON_SECRET;
+  const wantsProbe =
+    !!cronSecret &&
+    (url.searchParams.get("secret") === cronSecret ||
+      req.headers.get("authorization") === `Bearer ${cronSecret}`);
 
   let probe: { status: "ok" | "failing"; model: string; httpStatus?: number; detail?: string } | null = null;
 

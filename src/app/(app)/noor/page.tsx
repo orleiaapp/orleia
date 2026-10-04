@@ -1937,11 +1937,23 @@ try {
         </div>
         <div className="flex-1 overflow-y-auto space-y-1 pr-0.5">
           {sorted.map((conv) => (
-            <button
+            <div
               key={conv.id}
+              role="button"
+              tabIndex={0}
               onClick={() => { loadConversation(conv.id); setShowChats(false); }}
+              onKeyDown={(e) => {
+                // Only when the row itself is focused: keystrokes inside the
+                // rename <input> (space, enter) must keep native behavior.
+                if (e.target !== e.currentTarget) return;
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  loadConversation(conv.id);
+                  setShowChats(false);
+                }
+              }}
               className={cn(
-                "w-full text-left rounded-xl px-3 py-2.5 text-sm transition-all duration-200 group",
+                "w-full cursor-pointer text-left rounded-xl px-3 py-2.5 text-sm transition-all duration-200 group",
                 conversationId === conv.id
                   ? "bg-primary-500/10 text-primary-500"
                   : "hover:bg-secondary text-muted-foreground hover:text-foreground"
@@ -2006,7 +2018,7 @@ try {
                   </span>
                 )}
               </div>
-            </button>
+            </div>
           ))}
           {sorted.length === 0 && (
             <p className="text-xs text-muted-foreground text-center py-8">

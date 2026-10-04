@@ -24,13 +24,15 @@ function provider(): ProviderConfig {
 
 // Sibling fallbacks — same family, near-identical quality, different model.
 // If the primary is EOL'd/403'd, the sibling keeps the product alive.
-// (nvidia/nemotron-3-super-120b-a12b hit end-of-life on 2026-10-03 and
-// 410s every call — ultra-550b is the live sibling, lightning-30b the
-// second line.)
+// (nvidia/nemotron-3-super-120b-a12b hit end-of-life on 2026-10-03; probes
+// on 2026-10-04 were 8/8 HTTP 200 — flapping, so treat it as expendable.)
+// This map is a CYCLE (super → ultra → lightning → super), so the walk in
+// callChat (max 4 hops, seen-set) reaches ALL THREE models from any start
+// node — a request can never dead-end behind one dead endpoint.
 const FALLBACKS: Record<string, string> = {
   "nvidia/nemotron-3-super-120b-a12b": "nvidia/nemotron-3-ultra-550b-a55b",
   "nvidia/nemotron-3-ultra-550b-a55b": "nvidia/nemotron-3.5-lightning-30b-a3b",
-  "nvidia/nemotron-3.5-lightning-30b-a3b": "nvidia/nemotron-3-ultra-550b-a55b",
+  "nvidia/nemotron-3.5-lightning-30b-a3b": "nvidia/nemotron-3-super-120b-a12b",
 };
 
 // Per-model thinking mode, measured live against the endpoint:

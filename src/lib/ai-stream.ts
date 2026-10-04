@@ -13,8 +13,10 @@ const FALLBACK_MODELS: Record<string, string[]> = {
     "nvidia/nemotron-3-ultra-550b-a55b",
     "nvidia/nemotron-3.5-lightning-30b-a3b",
   ],
-  "nvidia/nemotron-3-ultra-550b-a55b": ["nvidia/nemotron-3-super-120b-a12b"],
-  "nvidia/nemotron-3.5-lightning-30b-a3b": ["nvidia/nemotron-3-ultra-550b-a55b"],
+  // Live model first on retry: super-120b is EOL'd/flapping (2026-10),
+  // so it's the LAST resort, not the first hop after a 503.
+  "nvidia/nemotron-3-ultra-550b-a55b": ["nvidia/nemotron-3.5-lightning-30b-a3b", "nvidia/nemotron-3-super-120b-a12b"],
+  "nvidia/nemotron-3.5-lightning-30b-a3b": ["nvidia/nemotron-3-ultra-550b-a55b", "nvidia/nemotron-3-super-120b-a12b"],
 };
 import { buildSearchBlock, isLiveQuery } from "./web-search";
 import { getSituationPayload } from "@/lib/graph/engine";
