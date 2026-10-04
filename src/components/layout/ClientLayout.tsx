@@ -294,10 +294,18 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
               (top bar + shell) slides right to reveal it. */}
           <MobileNavScreen open={mobileNavOpen} onClose={() => setMobileNavOpen(false)} />
 
-          {/* The main CARD: floating buttons + shell slide together. */}
-          <div className="orleia-card">
-            <MobileTopBar onToggleSidebar={toggleMobileNav} navOpen={mobileNavOpen} />
+          {/* Floating top-bar chrome lives OUTSIDE the card on purpose:
+              the card's nav-open transform re-bases every position:fixed
+              descendant, which pushed search/settings/reminders off-screen
+              (and above the viewport once the page was scrolled). Outside,
+              the buttons stay pinned at their viewport spots on BOTH
+              screens; z-70 keeps them above the card (z-50) and the nav
+              sheet (z-40). */}
+          <MobileTopBar onToggleSidebar={toggleMobileNav} navOpen={mobileNavOpen} />
 
+          {/* The main CARD: the shell slides right to reveal the nav
+              sheet underneath (page content inside re-bases with it). */}
+          <div className="orleia-card">
             <div className={`orleia-app-shell flex min-h-screen ${isFullWidth ? "max-md:h-dvh max-md:min-h-0 max-md:overflow-hidden" : ""}`}>
             <Sidebar />
             <ReminderCenter />
