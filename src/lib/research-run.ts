@@ -71,8 +71,9 @@ async function fetchWebSources(q: string): Promise<AISource[]> {
 function mdToPlain(md: string): string {
   return md
     .replace(/^#{1,6}\s+/gm, "")
-    .replace(/\*\*(.*?)\*\*/g, "$1")
-    .replace(/__(.*?)__/g, "$1")
+    // Keep **bold** markers: pet bubbles render them as real emphasis
+    // (splitLinks/renderLinks), so stripping here would lose the weight.
+    .replace(/__(.*?)__/g, "**$1**")
     .replace(/^\s*[-*+]\s+/gm, "• ")
     .replace(/\n{3,}/g, "\n\n")
     .trim();

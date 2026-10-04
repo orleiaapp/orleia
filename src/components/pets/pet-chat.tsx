@@ -80,6 +80,20 @@ function renderLinks(content: string, mine: boolean): React.ReactNode[] {
           {tok.label}
         </a>
       );
+    } else if (tok.type === "strong") {
+      // **bold** -> real weight (same treatment Noor's markdown gives it).
+      out.push(
+        <strong key={`stg${i}`} className="font-semibold">
+          {tok.text}
+        </strong>
+      );
+    } else if (tok.type === "em") {
+      // *x* markers drop; per Noor's style italics are never slanted.
+      out.push(
+        <em key={`em${i}`} className={mine ? "not-italic opacity-80" : "not-italic text-muted-foreground"}>
+          {tok.text}
+        </em>
+      );
     } else if (tok.text) {
       out.push(tok.text);
     }
@@ -218,6 +232,10 @@ export function PetChat({ agents, onChanged }: { agents: PetAgent[]; onChanged?:
     const conv = storage.getData().aiConversations.find((c) => c.id === convId);
     if (!conv) return;
     const model = novellaModelId(storage.getData().selectedModel);
+    // Pet replies are 1-3 in-character sentences: generate them on the
+    // default (fast, thinking-off) effort so Noor's Ultra slider - which
+    // now selects a slow reasoning model - never drags pet chats down.
+    const streamModel = "novella-medium";
 
     // Responders: every @mention answers as its own employee (one reply
     // each, in order). No mentions -> round-robin in the group, bound
@@ -290,19 +308,29 @@ export function PetChat({ agents, onChanged }: { agents: PetAgent[]; onChanged?:
       // as Noor's research mode, delivered as a cited reply.
       if (agent.role === "scout" && wantsResearch(clean)) {
         setStreamText("\ud83d\udd0d Planning research...");
-        const run = await runResearchPipeline(clean, { onStage: (s) => setStreamText("\ud83d\udd0d " + s) });
-        if (controller.signal.aborted) return;
-        storage.addMessage(convId, {
-          role: "assistant",
-          content: run.content,
-          model,
-          agentId: agent.id,
-          sources: run.sources,
-          research: run.research as never,
-        });
-        reload();
-        onChanged?.();
-        continue;
+        // Research can die mid-pipeline on a dead/stalled model. Never show
+        // the bare "could not reach" note for that: fall through to a normal
+        // chat reply so Scout still answers the question.
+        let researched = false;
+        try {
+          const run = await runResearchPipeline(clean, { onStage: (s) => setStreamText("\ud83d\udd0d " + s) });
+          if (controller.signal.aborted) return;
+          storage.addMessage(convId, {
+            role: "assistant",
+            content: run.content,
+            model,
+            agentId: agent.id,
+            sources: run.sources,
+            research: run.research as never,
+          });
+          reload();
+          onChanged?.();
+          researched = true;
+        } catch {
+          if (controller.signal.aborted) return;
+          // fall through to the regular reply path below
+        }
+        if (researched) continue;
       }
 
       let prefix = petPersonaPrefix(agent);
@@ -322,8 +350,11 @@ export function PetChat({ agents, onChanged }: { agents: PetAgent[]; onChanged?:
 
       const proposals: ProposedAction[] = [];
       let acc = "";
-      const response = await chatStream(query, history, model, {
+      const response = await chatStream(query, history, streamModel, {
         signal: controller.signal,
+        // Pet replies are 1-3 sentences: a small budget caps worst-case
+        // latency (measured ~2-3x faster to first token vs 4096).
+        maxTokens: 700,
         onToken: (delta) => {
           if (controller.signal.aborted) return;
           acc += delta;
@@ -550,7 +581,11 @@ export function PetChat({ agents, onChanged }: { agents: PetAgent[]; onChanged?:
       const last = conv?.messages[conv.messages.length - 1];
       row.last = last;
       row.preview = last
-        ? `${last.role === "user" ? t("pets.you", "You") + ": " : ""}${last.content.replace(/\s+/g, " ").slice(0, 70)}`
+        ? `${last.role === "user" ? t("pets.you", "You") + ": " : ""}${last.content
+            .replace(/\*\*([^*\n]+)\*\*/g, "$1")
+            .replace(/\*([^*\n]+)\*/g, "$1")
+            .replace(/\s+/g, " ")
+            .slice(0, 70)}`
         : row.id === GROUP
           ? t("pets.teamChatEmpty", "Tap to say hi to the whole team \u{1F44B}")
           : t("pets.chatEmpty", "No messages yet");
@@ -738,7 +773,7 @@ export function PetChat({ agents, onChanged }: { agents: PetAgent[]; onChanged?:
               )}
               {streamText ? (
                 <div className="whitespace-pre-wrap break-words rounded-2xl rounded-bl-sm bg-secondary px-3 py-2 text-sm leading-snug text-foreground">
-                  {streamText}
+                  {renderLinks(streamText, false)}
                   <span className="ml-0.5 inline-block h-3.5 w-[2px] animate-pulse bg-primary-500 align-middle" />
                 </div>
               ) : (

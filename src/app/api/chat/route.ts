@@ -148,13 +148,17 @@ export async function POST(req: Request) {
     }),
   };
 
-  // Optional chat-template kwargs (e.g. { enable_thinking: false } for
-  // Lightning-class models). Keys are whitelisted to prevent abuse.
+  // Optional chat-template kwargs (per-model thinking mode). Only the
+  // boolean enable_thinking flag is forwarded: false forces thinking off
+  // (super-120b answers reasoning-only with it on), true forces it on
+  // (ultra-550b stalls when it is forced off).
   const rawKwargs = body?.chatTemplateKwargs;
-  const chatTemplateKwargs: Record<string, unknown> | undefined =
+  const rawThinking =
     rawKwargs && typeof rawKwargs === "object" && !Array.isArray(rawKwargs)
-      ? { enable_thinking: (rawKwargs as Record<string, unknown>).enable_thinking === false ? false : undefined }
+      ? (rawKwargs as Record<string, unknown>).enable_thinking
       : undefined;
+  const chatTemplateKwargs: Record<string, unknown> | undefined =
+    rawThinking === true || rawThinking === false ? { enable_thinking: rawThinking } : undefined;
 
   const maxTokens = capInt(body?.maxTokens, MAX_TOKENS, 1024);
   const temp = capFloat(body?.temperature, 0, 2, 0.7);
@@ -167,10 +171,10 @@ export async function POST(req: Request) {
     temperature: temp,
     max_tokens: maxTokens,
     stream,
-    ...(chatTemplateKwargs && chatTemplateKwargs.enable_thinking === false
-      ? { chat_template_kwargs: { enable_thinking: false } }
-      : {}),
-    timeoutMs: 55_000,
+    ...(chatTemplateKwargs ? { chat_template_kwargs: chatTemplateKwargs } : {}),
+    // 30s per model attempt: matches the client's 25s TTFB budget and keeps
+    // a whole fallback chain inside the 60s function limit (3 x 55s never fit).
+    timeoutMs: 30_000,
   });
 
   if (!call.ok || !call.response) {

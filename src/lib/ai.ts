@@ -26,8 +26,12 @@ import { countFactInstruction } from "./count-guard";
 import { getDeviceId } from "./device-id";
 
 const FALLBACK_MODELS: Record<string, string[]> = {
+  "nvidia/nemotron-3-super-120b-a12b": [
+    "nvidia/nemotron-3-ultra-550b-a55b",
+    "nvidia/nemotron-3.5-lightning-30b-a3b",
+  ],
   "nvidia/nemotron-3-ultra-550b-a55b": ["nvidia/nemotron-3-super-120b-a12b"],
-  "nvidia/nemotron-3-super-120b-a12b": ["nvidia/nemotron-3-ultra-550b-a55b"],
+  "nvidia/nemotron-3.5-lightning-30b-a3b": ["nvidia/nemotron-3-ultra-550b-a55b"],
 };
 import { jailbreakOverride, jailbreakQueryReplacement } from "./jailbreak-guard";
 
@@ -1466,6 +1470,8 @@ export interface ChatOpts {
   extraSystem?: string;
   /** Streaming callback for the model's internal reasoning (thinking tokens). Never part of the visible reply. */
   onThinking?: (delta: string) => void;
+  /** Reply token-budget override (pet chats pass a small cap for snappy replies). */
+  maxTokens?: number;
 }
 
 async function callLLM(
@@ -1524,7 +1530,7 @@ async function callLLM(
         model: tryModel,
         messages: payloadMessages,
         temperature: model.temperature,
-        maxTokens: model.maxTokens,
+        maxTokens: opts?.maxTokens ?? model.maxTokens,
         ...(model.disableThinking ? { chatTemplateKwargs: { enable_thinking: false } } : {}),
         situation: getSituationPayload(),
         lang: (typeof document !== "undefined" ? document.documentElement.lang : "") || undefined,

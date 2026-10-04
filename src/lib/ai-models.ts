@@ -2,11 +2,13 @@
 // Model Profiles - Noor AI (Novella 5.0 + effort levels)
 // Powered by NVIDIA NIM (free tier)
 //
-// One model ("Novella 5.0": nvidia/nemotron-3-super-120b-a12b).
-// Effort presets only change sampling/context/prompt-depth knobs -
-// never the underlying model - so the user picks how hard Noor
-// thinks, not which brain it uses. Each effort has its own id so
-// the existing selectedModel plumbing stores it unchanged.
+// Effort presets differ in REAL knobs, not just prompt wording:
+// each level gets its own model, temperature, token budget, history
+// depth and thinking mode, so dragging the slider is felt immediately.
+//   - hyperfast..high run on the fast primary (think OFF, short budgets)
+//   - max/ultra run on the big sibling with thinking ON (real reasoning)
+// Each effort has its own id so the existing selectedModel plumbing
+// stores it unchanged.
 // ============================================================
 
 import type { AIModel } from "@/types";
@@ -166,20 +168,39 @@ export const EFFORT_META: Record<EffortLevel, { name: string; blurb: string }> =
   ultra: { name: "Ultra", blurb: "Maximum depth for the hardest jobs" },
 };
 
+// Per-effort sampling knobs. Timings measured against the live NVIDIA
+// endpoint (chat-shaped payload): the fast primary answers in ~0.6-1.2s
+// to first token with thinking OFF; the big sibling streams content at
+// ~0.5-0.9s with thinking ON but needs a token budget that fits deeper
+// answers. Token caps also bound worst-case latency - a 4096-token
+// budget on a "one short sentence" tier just invites rambling.
+const EFFORT_KNOBS: Record<
+  EffortLevel,
+  { model: string; temperature: number; maxTokens: number; context: number; thinking: boolean }
+> = {
+  hyperfast: { model: "nvidia/nemotron-3-super-120b-a12b", temperature: 0.95, maxTokens: 600, context: 8, thinking: false },
+  low: { model: "nvidia/nemotron-3-super-120b-a12b", temperature: 0.85, maxTokens: 900, context: 12, thinking: false },
+  medium: { model: "nvidia/nemotron-3-super-120b-a12b", temperature: 0.7, maxTokens: 2048, context: 18, thinking: false },
+  high: { model: "nvidia/nemotron-3-super-120b-a12b", temperature: 0.6, maxTokens: 2800, context: 24, thinking: false },
+  max: { model: "nvidia/nemotron-3-ultra-550b-a55b", temperature: 0.5, maxTokens: 3500, context: 28, thinking: true },
+  ultra: { model: "nvidia/nemotron-3-ultra-550b-a55b", temperature: 0.4, maxTokens: 4096, context: 32, thinking: true },
+};
+
 function buildProfile(level: EffortLevel): ModelProfile {
   const depth = effortDepth(level);
   const persona = personaFor(level);
   const id = effortModelId(level);
+  const k = EFFORT_KNOBS[level];
   return {
     id,
-    nvidiaModelId: "nvidia/nemotron-3-super-120b-a12b",
-    temperature: 0.7,
-    maxTokens: 4096,
-    maxContextMessages: 24,
+    nvidiaModelId: k.model,
+    temperature: k.temperature,
+    maxTokens: k.maxTokens,
+    maxContextMessages: k.context,
     systemPrompt: `${FAMILY}\n\n${depth}\n\n${persona}\n\n${SHARED_GUIDANCE}`,
     responseLength: level === "hyperfast" || level === "low" ? "short" : level === "medium" ? "medium" : "long",
-    analysisDepth: level === "hyperfast" || level === "low" || level === "medium" ? "moderate" : "deep",
-    disableThinking: true,
+    analysisDepth: level === "hyperfast" || level === "low" ? "shallow" : level === "medium" || level === "high" ? "moderate" : "deep",
+    disableThinking: !k.thinking,
     effort: { level, name: EFFORT_META[level].name, blurb: EFFORT_META[level].blurb },
   };
 }

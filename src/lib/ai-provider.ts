@@ -33,6 +33,24 @@ const FALLBACKS: Record<string, string> = {
   "nvidia/nemotron-3.5-lightning-30b-a3b": "nvidia/nemotron-3-ultra-550b-a55b",
 };
 
+// Per-model thinking mode, measured live against the endpoint:
+// - super-120b only ever answers with thinking OFF (think-ON returns
+//   reasoning_content only),
+// - ultra-550b answers fast WITH thinking ON and stalls/errs when it is
+//   forced OFF,
+// - lightning-30b keeps whatever the caller asked for.
+// Applied on every fallback hop so a sibling model is never sent the
+// primary's thinking flag - that mismatch caused 55s stalls -> 502s.
+const THINKING: Record<string, boolean> = {
+  "nvidia/nemotron-3-super-120b-a12b": false,
+  "nvidia/nemotron-3-ultra-550b-a55b": true,
+};
+
+function thinkingFor(model: string, caller?: Record<string, unknown>): Record<string, unknown> | undefined {
+  if (!(model in THINKING)) return caller;
+  return { ...(caller || {}), enable_thinking: THINKING[model] };
+}
+
 const COOL_OFF_MS = 3 * 60 * 1000; // unhealthy window
 const failures = new Map<string, { until: number; count: number }>();
 
@@ -104,7 +122,11 @@ export async function callChat(opts: ChatCallOptions): Promise<ChatCallResult> {
   let last: ChatCallResult = { ok: false, status: 0, error: "unreachable" };
   for (let i = 0; i < ordered.length; i++) {
     const model = ordered[i];
-    const res = await attempt({ ...opts, model }, key, base);
+    const res = await attempt(
+      { ...opts, model, chat_template_kwargs: thinkingFor(model, opts.chat_template_kwargs) },
+      key,
+      base
+    );
     if (res.ok) {
       markSuccess(model);
       return { ...res, usedModel: model, fellBack: model !== opts.model };

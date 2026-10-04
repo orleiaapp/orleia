@@ -71,8 +71,12 @@ const FLAVOR_SENTENCE_RE = new RegExp(
   ""
 );
 
-/** A bare italic/dashed emote line: "*perks up*", "_tail wagging_". */
-const FLAVOR_EMOTE_LINE_RE = /^\s*[>*_\-]+\s*[^*\n]{1,60}\s*[*_\-]+\s*$/;
+/**
+ * A bare italic/dashed emote line: "*perks up*", "_tail wagging_".
+ * Lines wrapped in **double asterisks** are markdown bold (rendered with
+ * real weight in bubbles), never flavor - so they are left alone.
+ */
+const FLAVOR_EMOTE_LINE_RE = /^\s*(?!\*\*)[>*_\-]+\s*[^*\n]{1,60}\s*[*_\-]+\s*$/;
 
 /** Remove pet action-beat lines from a reply. Returns "" for pure flavor. */
 export function stripPetFlavor(text: string): string {

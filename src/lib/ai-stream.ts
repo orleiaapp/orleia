@@ -4,14 +4,17 @@ import { AIMessage, AIModel, AISource } from "@/types";
 import { chat, buildStatsBlock, buildProfileBlock, buildNoorBlock, ChatOpts, withAttachmentContext } from "./ai";
 import { getToday } from "./utils";
 
-// Novella 5.0 is one model: if the endpoint is cold (or retired — the
-// 120b primary hit EOL in Oct 2026), a live Nemotron sibling answers
-// instead of leaving the user hanging.
+// Effort tiers pick their own primary model (see ai-models EFFORT_KNOBS).
+// If an endpoint is cold or retired — the 120b primary hit EOL in Oct
+// 2026 — a live Nemotron sibling answers instead of leaving the user
+// hanging. Every primary we ever send has an entry here.
 const FALLBACK_MODELS: Record<string, string[]> = {
   "nvidia/nemotron-3-super-120b-a12b": [
     "nvidia/nemotron-3-ultra-550b-a55b",
     "nvidia/nemotron-3.5-lightning-30b-a3b",
   ],
+  "nvidia/nemotron-3-ultra-550b-a55b": ["nvidia/nemotron-3-super-120b-a12b"],
+  "nvidia/nemotron-3.5-lightning-30b-a3b": ["nvidia/nemotron-3-ultra-550b-a55b"],
 };
 import { buildSearchBlock, isLiveQuery } from "./web-search";
 import { getSituationPayload } from "@/lib/graph/engine";
@@ -187,7 +190,7 @@ async function streamLLM(
         model: tryModel,
         messages: payloadMessages,
         temperature: model.temperature,
-        maxTokens: model.maxTokens,
+        maxTokens: opts?.maxTokens ?? model.maxTokens,
         stream: true,
         ...(model.disableThinking ? { chatTemplateKwargs: { enable_thinking: false } } : {}),
         situation: getSituationPayload(),
@@ -331,6 +334,8 @@ async function streamLLM(
  */
 export interface StreamOpts {
   onToken: (delta: string) => void;
+  /** Reply token-budget override (pet chats pass a small cap for snappy replies). */
+  maxTokens?: number;
   /** Streaming callback for the model's internal reasoning (thinking tokens). */
   onThinking?: (delta: string) => void;
   signal?: AbortSignal;
