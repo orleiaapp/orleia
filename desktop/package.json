@@ -1,7 +1,7 @@
 {
   "name": "orleia-desktop",
   "productName": "Orleia",
-  "version": "2.5.0",
+  "version": "2.6.0",
   "description": "Orleia - the local-first AI productivity suite, as a desktop app. Same app as the browser, all data stays on your device.",
   "main": "main.js",
   "author": "Orleia",

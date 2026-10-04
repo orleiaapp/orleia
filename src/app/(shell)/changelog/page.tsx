@@ -29,6 +29,10 @@ const RELEASES: Release[] = [
       "Scout takes web research jobs around the clock and delivers findings notes without spending Noor messages; the Planner greets every morning with a huddle; the Wrangler sweeps overdue tasks in rounds.",
       "No more slanted text: Noor's replies render emphasis upright, and Noor is now asked to never write italics at all.",
       "The Pets tab got simpler: fewer animations, tighter copy, plain dialogs.",
+      "Pets Chat in Noor: a WhatsApp-style team thread plus a private line to every employee, with @mentions to pull a specific pet into the reply.",
+      "Grid retires for now: the spreadsheet tool leaves the app, global search and Noor's navigation map — Notes, Deck and Calendar carry the Office.",
+      "Mobile top-bar buttons (menu, search, settings, reminders) stay pinned when the nav sheet opens instead of sliding off-screen.",
+      "Hardened under the hood: every Noor request now falls through all three models instead of dead-ending, and a daily health probe checks the AI provider before you notice it.",
     ],
   },
   {

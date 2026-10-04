@@ -1,7 +1,7 @@
 // Orleia update checker — polls /version.json periodically and fires events
 // when a newer version is detected. No kill, no restart — just a notification.
 
-const CURRENT_VERSION = "2.5.0";
+const CURRENT_VERSION = "2.6.0";
 const CHECK_INTERVAL_MS = 5 * 60_000; // every 5 minutes
 const VERSION_URL = "/version.json";
 

@@ -70,7 +70,7 @@ type SettingsCategory =
   | "import"
   | null;
 
-const ORLEIA_VERSION = "2.5.0";
+const ORLEIA_VERSION = "2.6.0";
 
 const legalLinks = [
   { href: "/privacy", tKey: "settings.linkPrivacy" },

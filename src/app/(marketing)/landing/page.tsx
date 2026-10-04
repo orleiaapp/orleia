@@ -739,10 +739,10 @@ export default function LandingPage() {
                 <a href="https://app.orleia.app" className="inline-flex items-center gap-2 px-6 py-3 text-sm font-medium rounded-full border border-border/60 hover:border-foreground/40 transition-colors">
                   Web app <ArrowUpRight className="h-3.5 w-3.5 text-muted-foreground" />
                 </a>
-                <a href="https://github.com/orleiaapp/orleia/releases/download/v2.5.0/Orleia-2.5.0-win-x64.exe" download className="inline-flex items-center gap-2 px-6 py-3 text-sm font-medium rounded-full border border-border/60 hover:border-foreground/40 transition-colors">
+                <a href="https://github.com/orleiaapp/orleia/releases/download/v2.6.0/Orleia-2.6.0-win-x64.exe" download className="inline-flex items-center gap-2 px-6 py-3 text-sm font-medium rounded-full border border-border/60 hover:border-foreground/40 transition-colors">
                   <WinIcon /> Windows
                 </a>
-                <a href="https://github.com/orleiaapp/orleia/releases/download/v2.5.0/Orleia-2.5.0-linux-x64.tar.gz" download className="inline-flex items-center gap-2 px-6 py-3 text-sm font-medium rounded-full border border-border/60 hover:border-foreground/40 transition-colors">
+                <a href="https://github.com/orleiaapp/orleia/releases/download/v2.6.0/Orleia-2.6.0-linux-x64.tar.gz" download className="inline-flex items-center gap-2 px-6 py-3 text-sm font-medium rounded-full border border-border/60 hover:border-foreground/40 transition-colors">
                   <LinuxIcon /> Linux
                 </a>
               </div>

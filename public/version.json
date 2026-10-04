@@ -1,6 +1,6 @@
 {
-  "version": "2.5.0",
-  "releaseDate": "2026-09-17",
-  "downloadUrl": "https://app.orleia.app/downloads",
-  "changelog": "Orleia 2.5.0 - Orleia Plus, Pro and Ultra launch. Optional subscriptions raise the daily Noor AI message limit (30 free / 300 Plus / 1,000 Pro / unlimited Ultra), managed in Settings - Billing. Yearly plans save 20%. Everything else stays free, forever."
+  "version": "2.6.0",
+  "releaseDate": "2026-10-04",
+  "downloadUrl": "https://app.orleia.app/#download",
+  "changelog": "Orleia 2.6.0 - Novella 5.0 with six effort levels, pets on duty 24/7, Pets Chat with @mentions, research replies with cited sources, and the mobile top-bar fix. Grid retires for now. Under the hood: model fallbacks hardened and a daily AI health probe."
 }
