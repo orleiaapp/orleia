@@ -29,6 +29,9 @@
     --ring: 0 0 0;
     --sidebar: 244 244 244;
     --sidebar-hover: 232 232 232;
+    /* Live width of the desktop app sidebar (Sidebar keeps it in sync on
+       collapse/expand). Full-screen takeovers inset by it on md+. */
+    --orleia-sidebar-w: 260px;
     --radius: 0.75rem;
   }
 
@@ -1429,6 +1432,22 @@ div[class*="fixed"][class*="inset-0"] {
        the main screen they ride with — not as chrome floating over
        the nav sheet. */
     filter: brightness(0.6) blur(2.5px);
+  }
+}
+
+/* ============================================================
+   Desktop full-screen takeovers (notes): start RIGHT of the app
+   sidebar instead of covering it. The sidebar (z-50) has no floating
+   top-bar sibling on desktop, so a full-bleed z-90 takeover hid every
+   nav link — users were softlocked inside notes with no way out.
+   --orleia-sidebar-w is published by Sidebar (260px default, 72px
+   collapsed) so the inset tracks live collapse toggles; the 300ms
+   matches the sidebar's own width transition.
+   ============================================================ */
+@media (min-width: 768px) {
+  .orleia-notes-root {
+    left: var(--orleia-sidebar-w, 260px);
+    transition: left 0.3s ease;
   }
 }
 

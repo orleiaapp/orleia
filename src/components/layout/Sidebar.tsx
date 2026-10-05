@@ -5,7 +5,7 @@
 // Mobile navigation is a separate full-screen page: MobileNavScreen.
 // ============================================================
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
@@ -35,6 +35,14 @@ export function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const [toolsOpen, setToolsOpen] = useState(false);
   const { t } = useI18n();
+
+  // Publish the rail width for full-screen takeovers (the notes page
+  // insets by it on md+ so THIS sidebar stays visible + clickable —
+  // it's the only way out of those pages on desktop, which has no
+  // floating top bar). Falls back to 260px in :root before mount.
+  useEffect(() => {
+    document.documentElement.style.setProperty("--orleia-sidebar-w", collapsed ? "72px" : "260px");
+  }, [collapsed]);
 
   const navItems = [
     { href: "/", label: t("nav.dashboard"), icon: Home },

@@ -401,7 +401,13 @@ export default function NotesPage() {
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="fixed inset-0 z-[90] flex flex-col bg-background"
+      /* Full-screen takeover. On desktop (md+) it starts RIGHT of the
+         app sidebar (see .orleia-notes-root in globals.css): the sidebar
+         is the only exit on desktop — there is no floating top bar there,
+         so covering it softlocked users inside notes. On mobile the card's
+         z-50 already caps this below the floating top bar, so inset-0
+         stays full-bleed. */
+      className="orleia-notes-root fixed inset-0 z-[90] flex flex-col bg-background"
     >
       {/* No page-level chrome: the top bar row belongs to the app
           (hamburger / search / settings / bell), compose is the glass
