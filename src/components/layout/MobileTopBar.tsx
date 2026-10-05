@@ -2,10 +2,14 @@
 
 // ============================================================
 // MobileTopBar — the floating mobile buttons.
-// Hamburger pinned top-left on BOTH screens; search pill center;
-// reminders + settings top-right on BOTH screens (they sit above
-// the nav-screen overlay, mirroring the top bar exactly as they
-// appear on the main screen).
+// All buttons live inside ONE fixed, viewport-sized .orleia-topbar
+// layer. When the nav sheet opens, the layer takes the exact same
+// translateX slide as .orleia-card (see globals.css), so the buttons
+// travel WITH the main screen: they never sit on top of the sidebar,
+// and the hamburger lands on the card's visible right-edge sliver.
+// The layer is fixed (viewport-anchored, scroll-proof) and only gets a
+// transform — re-basing its fixed children 1:1 since the box equals
+// the viewport.
 // Pure event dispatchers / navigation.
 // Safe-area aware: buttons sit below the notch / Dynamic Island.
 //
@@ -99,10 +103,10 @@ export function MobileTopBar({
   );
 
   return (
-    <>
-      {/* Hamburger — pinned above BOTH screens (z-70 > nav screen z-60).
-          md:hidden: tablets + landscape phones (≥768px) get the desktop
-          sidebar, so the floating mobile buttons are redundant there. */}
+    <div className="orleia-topbar md:hidden">
+      {/* Hamburger — rides the main card sliver while the nav sheet is
+          open (z-70 > nav screen z-40). md:hidden: tablets + landscape
+          phones (≥768px) get the desktop sidebar instead. */}
       {ios ? (
         <HitArea className="left-4 md:hidden">{hamburger}</HitArea>
       ) : (
@@ -165,6 +169,6 @@ export function MobileTopBar({
           )}
         </button>
       )}
-    </>
+    </div>
   );
 }

@@ -285,13 +285,16 @@ export function ReminderCenter() {
     <>
       {/* Panel - right drawer. Pure CSS slide: framer's touch-device
           animation kill-switch would otherwise snap it open/closed on
-          phones/tablets. Respects data-reduced-motion via the global CSS. */}
+          phones/tablets. Respects data-reduced-motion via the global CSS.
+          z-80 (not 70): the drawer renders OUTSIDE .orleia-card (its
+          z-50 stacking context used to cap it under the floating top-bar
+          buttons) and must paint OVER those z-70 icons. */}
       <aside
         aria-hidden={!open}
         role="dialog"
         aria-label={t("reminders.title")}
         className={cn(
-          "fixed inset-y-0 right-0 z-[70] flex w-80 max-w-[calc(100vw-1rem)] flex-col border-l border-border bg-card shadow-2xl",
+          "fixed inset-y-0 right-0 z-[80] flex w-80 max-w-[calc(100vw-1rem)] flex-col border-l border-border bg-card shadow-2xl",
           "transition-[transform,visibility] duration-300 ease-out will-change-transform",
           open
             ? "translate-x-0 visible"

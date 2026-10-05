@@ -1403,6 +1403,33 @@ div[class*="fixed"][class*="inset-0"] {
   html:not([data-nav-open]) .orleia-card {
     transition: transform 0.46s cubic-bezier(0.32, 0.72, 0, 1), filter 0.46s cubic-bezier(0.32, 0.72, 0, 1), border-radius 0.46s cubic-bezier(0.32, 0.72, 0, 1);
   }
+
+  /* ============================================================
+     Floating top-bar chrome (hamburger / search / settings /
+     reminders). The layer is a viewport-sized, zero-height fixed
+     strip at the top: its children keep their usual fixed coords
+     (identical box = no jump), and because the layer itself gets
+     the SAME nav-open slide as the card, the buttons travel WITH
+     the main screen instead of hovering over the nav sheet.
+     will-change keeps the layer the containing block for its fixed
+     children in both states, so nothing re-captures mid-toggle.
+     ============================================================ */
+  .orleia-topbar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 70;
+    will-change: transform;
+    transition: transform 0.46s cubic-bezier(0.32, 0.72, 0, 1), filter 0.46s cubic-bezier(0.32, 0.72, 0, 1);
+  }
+  html[data-nav-open] .orleia-topbar {
+    transform: translateX(min(82vw, 340px));
+    /* Same frosted push as the card, so the buttons read as part of
+       the main screen they ride with — not as chrome floating over
+       the nav sheet. */
+    filter: brightness(0.6) blur(2.5px);
+  }
 }
 
 /* ============================================================

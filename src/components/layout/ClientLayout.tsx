@@ -295,21 +295,25 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
               (top bar + shell) slides right to reveal it. */}
           <MobileNavScreen open={mobileNavOpen} onClose={() => setMobileNavOpen(false)} />
 
-          {/* Floating top-bar chrome lives OUTSIDE the card on purpose:
-              the card's nav-open transform re-bases every position:fixed
-              descendant, which pushed search/settings/reminders off-screen
-              (and above the viewport once the page was scrolled). Outside,
-              the buttons stay pinned at their viewport spots on BOTH
-              screens; z-70 keeps them above the card (z-50) and the nav
-              sheet (z-40). */}
+          {/* Floating top-bar chrome lives OUTSIDE the card and takes
+              the card's nav-open slide (see .orleia-topbar in
+              globals.css): fixed to the viewport (scroll-proof) yet
+              traveling WITH the main screen, so the buttons never hover
+              over the nav sheet. z-70 keeps them above the card (z-50)
+              and the nav sheet (z-40). */}
           <MobileTopBar onToggleSidebar={toggleMobileNav} navOpen={mobileNavOpen} />
+
+          {/* Reminder drawer + toast also OUTSIDE the card: inside it,
+              the card's z-50 stacking context capped the drawer below the
+              root-level z-70 buttons, so the inbox could never overlap
+              the top icons. Outside at z-80 the drawer paints over them. */}
+          <ReminderCenter />
 
           {/* The main CARD: the shell slides right to reveal the nav
               sheet underneath (page content inside re-bases with it). */}
           <div className="orleia-card">
             <div className={`orleia-app-shell flex min-h-screen ${isFullWidth ? "max-md:h-dvh max-md:min-h-0 max-md:overflow-hidden" : ""}`}>
             <Sidebar />
-            <ReminderCenter />
             <main id="main-content" className={`flex-1 ${isFullWidth ? "" : "pt-[calc(4rem+env(safe-area-inset-top,0px))] md:pt-0"} md:transition-[padding] md:duration-300 md:ease-in-out ${sidebarCollapsed ? "md:pl-[72px]" : "md:pl-[260px]"}`} tabIndex={-1}
               onTouchStart={handleTouchStart}
               onTouchEnd={handleTouchEnd}>
