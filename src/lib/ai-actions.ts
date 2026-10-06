@@ -621,7 +621,7 @@ export function detectAction(query: string): AIAction {
   }
 
   // --- SEARCH (excluding navigation pages) ---
-  const navPages = ['dashboard', 'habits', 'tasks', 'notes', 'noor', 'mindfulness', 'documents', 'settings', 'projects', 'deck', 'calendar', 'journal'];
+  const navPages = ['dashboard', 'habits', 'tasks', 'notes', 'noor', 'mindfulness', 'documents', 'settings', 'deck', 'calendar', 'journal'];
   if (
     /\b(?:search|find|look\s+(?:up|for)|show\s+me)\b\s+(.+?)(?:\s+(?:in|about|for))?\s*(?:$|\.)/i.test(q) &&
     !/(?:create|add|make|write|delete|remove|log)\b/i.test(q) &&
@@ -1432,13 +1432,12 @@ export function executeNavigate(params: Record<string, any>): ActionResult {
     "documents": "documents", "docs": "documents", "document": "documents",
     "deck": "deck", "decks": "deck", "presentations": "deck", "slides": "deck",
     "calendar": "calendar", "events": "calendar",
-    "projects": "projects", "project": "projects",
     "noor": "noor", "chat": "noor", "ai": "noor",
     "settings": "settings",
   };
   const norm = String(page).toLowerCase().trim();
   const target = validPages[norm];
-  if (!target) return { success: false, message: "I don't know where \"" + page + "\" is. Try: dashboard, habits, journal, tasks, notes, documents, deck, calendar, projects, noor, or settings." };
+  if (!target) return { success: false, message: "I don't know where \"" + page + "\" is. Try: dashboard, habits, journal, tasks, notes, documents, deck, calendar, noor, or settings." };
   if (typeof window !== "undefined") {
     window.location.href = target === "dashboard" ? "/" : "/" + target;
   }

@@ -100,7 +100,6 @@ const RELEASES: Release[] = [
     items: [
       "Web Search 2.0 — deep research pipeline for Noor: planning, parallel search, page reading, and cited deliverables (reports, briefs, action items).",
       "Deck export: research results can become presentation slides.",
-      "Projects: Noor now understands project context — files, conversations and work in one place.",
       "Voice mode removed in favor of a faster, more reliable Noor.",
       "Countless layout, speed and stability fixes across mobile and desktop.",
     ],

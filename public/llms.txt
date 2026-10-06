@@ -1,6 +1,6 @@
 # Orleia
 
-> Orleia is a free, local-first AI productivity suite: habits, tasks, notes, journal, a smart calendar, presentations (Deck), deep research with citations, projects, and Noor — a built-in AI assistant with three selectable models, vision, voice input, and image generation. All user data stays in the user's own browser; there are no accounts and no cloud storage.
+> Orleia is a free, local-first AI productivity suite: habits, tasks, notes, journal, a smart calendar, presentations (Deck), deep research with citations, and Noor — a built-in AI assistant with three selectable models, vision, voice input, and image generation. All user data stays in the user's own browser; there are no accounts and no cloud storage.
 
 Orleia requires no sign-up: open the app and start. It works offline after first load and installs as a PWA on iOS, Android, Windows, macOS, and Linux. A native-quality desktop build is also available for Windows and Linux.
 
@@ -13,7 +13,6 @@ Orleia requires no sign-up: open the app and start. It works offline after first
 - Journal (Mindfulness): mood tracking, guided breathing exercises, meditation timer
 - Calendar: month/week scheduling with reminders
 - Deck: AI-drafted presentations with themes, charts, images, and export
-- Projects: focused workspaces that bundle tasks, notes, files, and context for Noor
 - Noor AI assistant: web search, deep research reports with citations, image generation, vision (image understanding), voice input, and workspace actions (create/complete tasks, habits, notes, reminders)
 - Web Search 2.0: multi-step research that reads pages and produces cited briefs, deliverables, and Deck exports
 

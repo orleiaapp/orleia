@@ -4,27 +4,27 @@ import { SeoShell, Eyebrow, Faq, FaqSchema, ComparisonTable } from "@/components
 export const metadata: Metadata = {
   title: "What is Orleia? The Local-First AI Productivity App",
   description:
-    "Orleia is a local-first AI productivity app combining tasks, habits, mindfulness, notes, projects and calendar - with Noor, an AI assistant that knows you. Your data stays on your device.",
+    "Orleia is a local-first AI productivity app combining tasks, habits, mindfulness, notes and calendar - with Noor, an AI assistant that knows you. Your data stays on your device.",
   alternates: { canonical: "https://www.orleia.app/what-is-orleia" },
   openGraph: {
     type: "website",
     title: "What is Orleia? The Local-First AI Productivity App",
     description:
-      "Local-first AI productivity: tasks, habits, mindfulness, notes, projects and calendar, plus Noor - an AI assistant that knows you. Your data stays on your device.",
+      "Local-first AI productivity: tasks, habits, mindfulness, notes and calendar, plus Noor - an AI assistant that knows you. Your data stays on your device.",
     url: "https://www.orleia.app/what-is-orleia",
   },
   twitter: {
     card: "summary",
     title: "What is Orleia? The Local-First AI Productivity App",
     description:
-      "Local-first AI productivity: tasks, habits, mindfulness, notes, projects and calendar, plus an AI that knows you. Your data stays on your device.",
+      "Local-first AI productivity: tasks, habits, mindfulness, notes and calendar, plus an AI that knows you. Your data stays on your device.",
   },
 };
 
 const faq = [
   {
     q: "What is Orleia?",
-    a: "Orleia is a local-first productivity suite that combines tasks, habits, mindfulness (journal + breathing and meditation), notes, projects and a calendar in one app - with an AI assistant called Noor that can see all of it and act on it. Your data lives on your own device; there are no accounts and no ads or trackers.",
+    a: "Orleia is a local-first productivity suite that combines tasks, habits, mindfulness (journal + breathing and meditation), notes and a calendar in one app - with an AI assistant called Noor that can see all of it and act on it. Your data lives on your own device; there are no accounts and no ads or trackers.",
   },
   {
     q: "What can the Noor AI assistant do?",
@@ -32,7 +32,7 @@ const faq = [
   },
   {
     q: "Is Orleia free?",
-    a: "Every Orleia tool - tasks, habits, mindfulness, notes, projects, calendar, widgets and analytics - is free, with no feature paywalls. The only paid thing is heavier use of Noor: the free plan includes 30 Noor messages a day, and optional Plus, Pro or Ultra plans raise that daily limit.",
+    a: "Every Orleia tool - tasks, habits, mindfulness, notes, calendar, widgets and analytics - is free, with no feature paywalls. The only paid thing is heavier use of Noor: the free plan includes 30 Noor messages a day, and optional Plus, Pro or Ultra plans raise that daily limit.",
   },
   {
     q: "Where is my Orleia data stored?",
@@ -44,7 +44,7 @@ const faq = [
   },
   {
     q: "How is Orleia different from Notion or Obsidian?",
-    a: "Notion stores your data in its cloud; Obsidian stores local Markdown files but needs plugins for almost everything else. Orleia is local-first like Obsidian and structured like Notion, but it ships habits, mindfulness, projects, analytics and a built-in AI assistant out of the box - no plugins, no databases to configure, no account.",
+    a: "Notion stores your data in its cloud; Obsidian stores local Markdown files but needs plugins for almost everything else. Orleia is local-first like Obsidian and structured like Notion, but it ships habits, mindfulness, analytics and a built-in AI assistant out of the box - no plugins, no databases to configure, no account.",
   },
 ];
 
@@ -74,7 +74,7 @@ export default function WhatIsOrleiaPage() {
         </h1>
         <p className="mt-8 max-w-2xl text-base md:text-lg text-muted-foreground/70 font-body leading-relaxed">
           Orleia is a privacy-first productivity suite that brings tasks, habits, mindfulness,
-          notes, projects and a calendar together in one app - with an AI assistant called Noor
+          notes and a calendar together in one app - with an AI assistant called Noor
           that can see all of it and act on it. Unlike cloud tools, your data stays on your
           device: no accounts, no ads, no trackers.
         </p>
@@ -100,7 +100,7 @@ export default function WhatIsOrleiaPage() {
       <section className="py-16 border-t border-border/50">
         <Eyebrow>ONE PRIVATE APP, EVERY TOOL</Eyebrow>
         <h2 className="max-w-2xl text-2xl md:text-3xl font-bold tracking-tight">
-          Tasks, habits, mindfulness, notes, projects, calendar - and Noor, the AI that connects them
+          Tasks, habits, mindfulness, notes, calendar - and Noor, the AI that connects them
         </h2>
         <p className="mt-6 max-w-2xl text-base text-muted-foreground/70 font-body leading-relaxed">
           Orleia is built around one idea: productivity tools work better when they share a single
@@ -114,7 +114,6 @@ export default function WhatIsOrleiaPage() {
             ["Habits", "Daily tracking with streaks, freeze tokens, analytics and a personal stats page."],
             ["Mindfulness", "A private journal with mood tracking, plus guided breathing and meditation."],
             ["Notes", "Fast, searchable notes - your second brain without the setup."],
-            ["Projects", "Group tasks, files and notes per project, with deadlines and progress."],
             ["Calendar", "A clean month and day view that keeps tasks and events in one place."],
             ["Noor (AI)", "Two model tiers (Fast and Core), research mode with cited sources, image understanding, charts - and actions that create real items in your workspace."],
             ["Widgets & analytics", "A customizable dashboard with widget catalog, productivity score and weekly trends."],

@@ -42,7 +42,7 @@ TURN 2+ - Execute your plan step by step: emit ORLEIA_ACTION lines for each step
 FINISH - When every step is done, reply with a tight summary of what you did, then a final line ORLEIA_DONE. If the job is genuinely impossible, say why in one line, then ORLEIA_DONE.
 Never re-plan from scratch. Never repeat a step that already succeeded. Never emit ORLEIA_TOOL lines for tools that returned errors twice - adapt instead.
 
-WORD RULE: "my workspace", "my folder", "my files", "on my computer/device/disk" refer to the DEVICE FOLDER granted to you (see your context) - use ORLEIA_TOOL workspace_* tools for those. The Orleia app's own data (habits, tasks, journal, projects) is separate; only use it when the user clearly means the app itself.`;
+WORD RULE: "my workspace", "my folder", "my files", "on my computer/device/disk" refer to the DEVICE FOLDER granted to you (see your context) - use ORLEIA_TOOL workspace_* tools for those. The Orleia app's own data (habits, tasks, journal) is separate; only use it when the user clearly means the app itself.`;
 
 const DONE_RE = /\bORLEIA_DONE\b/;
 

@@ -48,7 +48,7 @@ const faqs = [
   },
   {
     q: "What's the catch if ORLEIA is free?",
-    a: "Every tool in ORLEIA is free: habits, tasks, notes, journal, calendar, projects and more. The only paid thing is the daily Noor AI message limit - optional Plus, Pro and Ultra plans raise it. Your data is never sold; local-first means there is no data-selling business model. The free tier includes 30 Noor messages a day, forever.",
+    a: "Every tool in ORLEIA is free: habits, tasks, notes, journal, calendar and more. The only paid thing is the daily Noor AI message limit - optional Plus, Pro and Ultra plans raise it. Your data is never sold; local-first means there is no data-selling business model. The free tier includes 30 Noor messages a day, forever.",
   },
 ];
 

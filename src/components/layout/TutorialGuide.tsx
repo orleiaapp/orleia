@@ -10,7 +10,6 @@ import {
   HabitsMock,
   JournalMock,
   TasksMock,
-  ProjectsMock,
   NoorMock,
 } from "./tutorial-mockups";
 
@@ -25,7 +24,6 @@ const steps: TutorialStep[] = [
   { key: "habits", Visual: HabitsMock },
   { key: "mindfulness", Visual: JournalMock },
   { key: "tasks", Visual: TasksMock },
-  { key: "projects", Visual: ProjectsMock },
   { key: "noor", Visual: NoorMock },
 ];
 

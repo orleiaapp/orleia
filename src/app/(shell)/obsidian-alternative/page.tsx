@@ -10,25 +10,25 @@ import {
 export const metadata: Metadata = {
   title: "The Best Obsidian Alternative with AI Built In - ORLEIA",
   description:
-    "Want Obsidian-style local note-taking with AI that actually works out of the box? ORLEIA is a local-first workspace with tasks, habits, mindfulness, notes, projects and built-in AI - no plugins, no sync services.",
+    "Want Obsidian-style local note-taking with AI that actually works out of the box? ORLEIA is a local-first workspace with tasks, habits, mindfulness, notes and built-in AI - no plugins, no sync services.",
   alternates: { canonical: "https://www.orleia.app/obsidian-alternative" },
   openGraph: {
     title: "The Best Obsidian Alternative with AI Built In - ORLEIA",
     description:
-      "Local-first tasks, habits, mindfulness, notes and projects with AI built in. No plugins to manage, no sync service required.",
+      "Local-first tasks, habits, mindfulness and notes with AI built in. No plugins to manage, no sync service required.",
     url: "https://www.orleia.app/obsidian-alternative",
   },
   twitter: {
     card: "summary",
     title: "The Best Obsidian Alternative with AI Built In - ORLEIA",
-    description: "Local-first tasks, habits, mindfulness, notes and projects with AI built in. No plugins to manage, no sync service required.",
+    description: "Local-first tasks, habits, mindfulness and notes with AI built in. No plugins to manage, no sync service required.",
   },
 };
 
 const faqs = [
   {
     q: "Is ORLEIA really an Obsidian alternative?",
-    a: "Yes, for most people. Obsidian is a powerful local-first knowledge base, but its core value comes from plugins and community setups - and AI integration especially requires significant tinkering. ORLEIA is local-first in the same spirit, but it ships tasks, habits, mindfulness, notes, projects, and a built-in AI assistant that already understands all of your data. If your Obsidian workflow is mostly collecting notes and connecting ideas, ORLEIA covers it with far less setup.",
+    a: "Yes, for most people. Obsidian is a powerful local-first knowledge base, but its core value comes from plugins and community setups - and AI integration especially requires significant tinkering. ORLEIA is local-first in the same spirit, but it ships tasks, habits, mindfulness, notes, and a built-in AI assistant that already understands all of your data. If your Obsidian workflow is mostly collecting notes and connecting ideas, ORLEIA covers it with far less setup.",
   },
   {
     q: "Does ORLEIA support Markdown like Obsidian?",
@@ -86,8 +86,8 @@ export default function ObsidianAlternativePage() {
         </h1>
         <p className="mt-6 text-base md:text-lg text-muted-foreground font-body leading-relaxed max-w-2xl">
           Obsidian proved that local-first knowledge management works. ORLEIA
-          takes that idea further: tasks, habits, mindfulness, notes, projects,
-          and an AI assistant that already understands everything - out of the
+          takes that idea further: tasks, habits, mindfulness, notes, and an AI
+          assistant that already understands everything - out of the
           box, with the tools free.
         </p>
         <div className="mt-10 flex flex-wrap items-center gap-4">

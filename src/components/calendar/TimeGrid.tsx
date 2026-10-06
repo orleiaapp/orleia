@@ -31,7 +31,7 @@ interface Props {
   onResize: (eventId: string, newEndMin: number) => void;
   onCreate: (day: string, startMin: number, endMin: number) => void;
   onOpen: (ev: CalendarEvent) => void;
-  /** Synced events (task/habit/project) move their source, not themselves. */
+  /** Synced events (task/habit) move their source, not themselves. */
   isSynced?: (ev: CalendarEvent) => boolean;
 }
 

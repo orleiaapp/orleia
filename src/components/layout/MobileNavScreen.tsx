@@ -23,14 +23,12 @@ import {
   Presentation,
   Flower2,
   PawPrint,
-  FolderOpen,
   CalendarDays,
 } from "lucide-react";
 
 import { NoorMark } from "@/components/NoorMark";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/i18n";
-import { storage } from "@/lib/storage";
 import { haptic } from "@/lib/haptics";
 
 const tick = (pattern: number | number[]) => {
@@ -86,12 +84,6 @@ export function MobileNavScreen({ open, onClose }: { open: boolean; onClose: () 
       document.documentElement.removeAttribute("data-nav-open");
     };
   }, [open]);
-
-  const data = storage.getData();
-  const recentProjects = data.projects
-    .filter((p) => p.status !== "archived")
-    .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
-    .slice(0, 3);
 
   const navItems = [
     { href: "/", label: t("nav.dashboard"), icon: Home },
@@ -161,33 +153,6 @@ export function MobileNavScreen({ open, onClose }: { open: boolean; onClose: () 
 
             <div className="my-8" />
 
-            {/* Projects */}
-            <div className="px-1">
-              <Link
-                href="/projects"
-                onClick={() => goTo("/projects")}
-                className="group flex items-center gap-4 rounded-2xl px-4 py-3.5 text-[15px] font-medium text-muted-foreground/60 hover:text-muted-foreground hover:bg-sidebar-hover transition-all"
-              >
-                <FolderOpen className="h-[18px] w-[18px] shrink-0" />
-                <span>{t("nav.projects")}</span>
-              </Link>
-              {recentProjects.length > 0 && (
-                <ul className="ml-5 mt-0.5 space-y-0.5">
-                  {recentProjects.map((project) => (
-                    <li key={project.id}>
-                      <Link
-                        href={`/projects/${project.id}`}
-                        onClick={() => goTo(`/projects/${project.id}`)}
-                        className="flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[14px] font-medium text-muted-foreground/60 hover:text-muted-foreground hover:bg-sidebar-hover transition-all"
-                      >
-                        <div className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: project.color }} />
-                        <span className="truncate">{project.name}</span>
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
           </nav>
 
           {/* Office tools */}

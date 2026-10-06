@@ -20,7 +20,6 @@ const ROUTES = [
   "/journal",
   "/tasks",
   "/noor",
-  "/projects",
   "/notes",
   "/deck",
   "/calendar",

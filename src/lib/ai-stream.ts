@@ -103,7 +103,7 @@ async function streamLLM(
   // questions with real numbers instead of inventing them).
   const usageBlock = usageLine();
   // Skills: user-authored standing instructions (local-only). Injected for
-  // every Noor surface that streams through here (main chat, projects, research).
+  // every Noor surface that streams through here (main chat, research).
   const skillsBlock = buildSkillsBlock();
   const systemPrompt = `${model.systemPrompt}\n\nToday is ${getToday()}.\n\n${stats}${profileBlock}${noorBlock}${searchBlock}${usageBlock}${skillsBlock}${extraContext}${agentContext}`;
 

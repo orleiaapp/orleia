@@ -33,7 +33,6 @@ const RIBBON = [
   "Habits & streaks",
   "Mindfulness journal",
   "Tasks",
-  "Projects",
   "Notes",
   "Deck presentations",
   "Calendar",
@@ -242,7 +241,6 @@ function NoorSpotlight() {
               <span className="text-muted-foreground">ship v2.3</span>. The nav bug blocks the release — want me to move it to tomorrow morning?
             </p>
             <div className="mt-2.5 flex flex-wrap gap-1.5">
-              <span className="rounded-full border border-border/50 px-2 py-0.5 text-[10px] font-mono text-muted-foreground/60">from Projects</span>
               <span className="rounded-full border border-border/50 px-2 py-0.5 text-[10px] font-mono text-muted-foreground/60">from Tasks</span>
             </div>
           </div>
@@ -464,20 +462,6 @@ export default function LandingPage() {
                   <DeckMock />
                 </div>
               </Reveal>
-              <Reveal delay={0.16}>
-                <div className="h-full rounded-2xl border border-border/50 bg-card/40 p-6 transition-colors hover:border-border">
-                  <h3 className="text-lg font-semibold text-center">Projects</h3>
-                  <div className="flex h-full flex-col items-center justify-center gap-2 py-6" aria-hidden>
-                    {["Website", "Apartment", "Podcast"].map((p, i) => (
-                      <div key={p} className="flex w-full max-w-[200px] items-center gap-2.5 rounded-lg border border-border/40 bg-secondary/40 px-3 py-2" style={{ opacity: 1 - i * 0.18 }}>
-                        <span className="h-1.5 w-1.5 rounded-full bg-foreground/50" />
-                        <span className="text-xs">{p}</span>
-                        <span className="ml-auto text-[10px] font-mono text-muted-foreground/40">{[7, 3, 12][i]} items</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </Reveal>
             </div>
 
             {/* ===== STATS ===== */}
@@ -503,7 +487,7 @@ export default function LandingPage() {
                 An AI that actually knows your workspace.
               </h2>
               <p className="mt-4 text-muted-foreground text-center max-w-lg mx-auto">
-                Noor reads your habits, tasks, and projects — and acts inside the app, not just chats about it.
+                Noor reads your habits and tasks — and acts inside the app, not just chats about it.
               </p>
             </Reveal>
             <Reveal delay={0.12} className="mt-10 md:mt-12">
@@ -541,7 +525,7 @@ export default function LandingPage() {
                 },
                 {
                   title: "AI without the privacy tax",
-                  body: "Noor reads your live workspace and acts on it — planning weeks, creating tasks, answering about your projects — through a guarded pipeline with model allowlists and daily caps.",
+                  body: "Noor reads your live workspace and acts on it — planning weeks, creating tasks, answering about your workspace — through a guarded pipeline with model allowlists and daily caps.",
                 },
                 {
                   title: "Built by someone who uses it",

@@ -21,7 +21,6 @@ import {
   Loader2,
   CalendarDays,
   Repeat,
-  FolderKanban,
 } from "lucide-react";
 import { storage } from "@/lib/storage";
 import { useI18n } from "@/lib/i18n";
@@ -143,7 +142,7 @@ export default function CalendarPage() {
     return Array.from({ length: 7 }, (_, i) => addDays(s, i));
   }, [cursor]);
 
-  /* ---- Two-way sync: tasks, habits and projects appear as calendar items; ----
+  /* ---- Two-way sync: tasks and habits appear as calendar items; ----
      calendar-created items flow back into their source tool so the tools
      (and Noor) stay the source of truth. All items are tagged via the marker
      suffix on description/notes so edits never create duplicates. */
@@ -152,7 +151,7 @@ export default function CalendarPage() {
     const today = getToday();
     let changed = false;
     const addOrSync = (
-      kind: "task" | "habit" | "project",
+      kind: "task" | "habit",
       id: string,
       title: string,
       day: string,
@@ -205,23 +204,6 @@ export default function CalendarPage() {
     }
     // Archived habits leave their mirrors behind; harmless history.
 
-    // Projects: deadline = 3 weeks out (projects have no due date field).
-    const horizon = (() => {
-      const d = new Date(today + "T00:00:00");
-      d.setDate(d.getDate() + 21);
-      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-    })();
-    for (const p of storage.getProjects()) {
-      if (p.status === "active") {
-        addOrSync("project", p.id, p.name, horizon, "17:00", p.color || "#f59e0b");
-      } else {
-        const existing = events.find((ev) => ev.notes === `sync:project:${p.id}`);
-        if (existing) {
-          storage.deleteCalendarEvent(existing.id);
-          changed = true;
-        }
-      }
-    }
 
     if (changed) refresh();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -396,7 +378,7 @@ export default function CalendarPage() {
     const ev = events.find((e) => e.id === drag.eventId);
     if (!ev) return;
     // Only user-authored events are reschedulable; synced mirrors follow
-    // their source tool (task due dates, habit schedules, project deadlines).
+    // their source tool (task due dates, habit schedules).
     if (ev.notes.startsWith("sync:")) return;
     storage.updateCalendarEvent(ev.id, { date: day, repeat: "none" });
     refresh();
@@ -433,14 +415,14 @@ export default function CalendarPage() {
     // Unified chip model, matching the time grid: timed events render as
     // solid color chips with their time; all-day/synced items as tinted
     // chips with a colored dot; tasks as tinted chips with a dashed dot.
-    interface Chip { key: string; color: string; time: string | null; title: string; kind: "event" | "task" | "habit" | "project"; ev?: CalendarEvent }
+    interface Chip { key: string; color: string; time: string | null; title: string; kind: "event" | "task" | "habit"; ev?: CalendarEvent }
     const chips: Chip[] = [
       ...evs.map((ev) => ({
         key: ev.id,
         color: ev.color,
         time: ev.time,
         title: ev.title,
-        kind: (ev.notes.startsWith("sync:habit:") ? "habit" : ev.notes.startsWith("sync:project:") ? "project" : "event") as Chip["kind"],
+        kind: (ev.notes.startsWith("sync:habit:") ? "habit" : "event") as Chip["kind"],
         ev,
       })),
       ...tks.map((tk) => ({ key: tk.id, color: tk.priority === "high" ? "#ef4444" : tk.priority === "low" ? "#22c55e" : "#6366f1", time: tk.dueTime, title: tk.title, kind: "task" as const })),
@@ -501,7 +483,6 @@ export default function CalendarPage() {
                 title={`${c.title}${c.time ? " · " + c.time : ""}${c.kind !== "event" ? " — " + c.kind : ""}`}
               >
                 {c.kind === "habit" && <Repeat className="h-2.5 w-2.5 shrink-0" />}
-                {c.kind === "project" && <FolderKanban className="h-2.5 w-2.5 shrink-0" />}
                 {c.kind === "task" && <ListTodo className="h-2.5 w-2.5 shrink-0" />}
                 {c.time && <span className="shrink-0 tabular-nums opacity-90">{c.time}</span>}
                 <span className="truncate">{c.title}</span>

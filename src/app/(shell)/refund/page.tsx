@@ -24,7 +24,7 @@ export default function RefundPolicyPage() {
       <section>
         <h2 className="text-lg font-bold tracking-tight text-foreground mb-3">2. The Free Product</h2>
         <p>
-          Every core feature in Orleia — habits, tasks, notes, journal, projects, Deck, Calendar and all Office
+          Every core feature in Orleia — habits, tasks, notes, journal, Deck, Calendar and all Office
           tools — is provided at no cost, and the free tier of Noor (30 messages a day) is free forever. We never
           see your payment card details; subscription payments are processed by Stripe.
         </p>

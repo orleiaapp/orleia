@@ -54,7 +54,7 @@ export default function DisclaimerPage() {
         <p>
           Orleia is local-first: all of your data is stored in your browser's IndexedDB and localStorage on your
           device. It is subject to deletion if you clear your browser data, switch devices, or use private
-          browsing modes. This includes habits, mindfulness journal entries, tasks, projects, decks, calendars,
+          browsing modes. This includes habits, mindfulness journal entries, tasks, decks, calendars,
           and all other workspace data. We strongly recommend using the built-in export feature to maintain
           regular backups. Orleia is not responsible for data loss.
         </p>

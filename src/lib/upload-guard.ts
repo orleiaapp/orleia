@@ -1,6 +1,6 @@
 // ============================================================
 // Upload guard — one denylist for every place a file can enter
-// Orleia (Noor attachments, Project files, editor images).
+// Orleia (Noor attachments, editor images).
 //
 // Orleia is local-first: attachments never leave the device, so
 // there is no server to attack. The threats are (1) prompt

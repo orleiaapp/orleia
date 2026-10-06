@@ -211,7 +211,7 @@ function detectIntent(
   )
     return "habits";
   if (
-    /(task|todo|deadline|overdue|priority|project|complete|assign|checklist|errand|grocery|shopping list)/i.test(q) &&
+    /(task|todo|deadline|overdue|priority|complete|assign|checklist|errand|grocery|shopping list)/i.test(q) &&
     !/(habit|note|journal)/i.test(q)
   )
     return "tasks";
@@ -1371,23 +1371,6 @@ export function buildStatsBlock(depth: "shallow" | "moderate" | "deep"): string 
     (function () {
       const lines: string[] = [];
       try {
-        const projs = storage.getProjects();
-        if (projs.length) {
-          const projLines = projs.slice(0, 8).map((p: any) => {
-            if (depth === "shallow") return `"${p.name}"`;
-            const bits: string[] = [];
-            try {
-              const pt = (p.taskIds || []).length, pn = (p.noteIds || []).length, pf = (p.files || []).length, pd = (p.deckIds || []).length;
-              if (pt || pn || pf || pd) bits.push(`(${pt} tasks, ${pn} notes, ${pf} files, ${pd} decks)`);
-            } catch { /* ignore */ }
-            return `"${p.name}"${bits.length ? " " + bits.join(" ") : ""}`;
-          });
-          lines.push(`- Projects: ${projs.length} total: ${projLines.join(", ")}`);
-        } else {
-          lines.push(`- Projects: none`);
-        }
-      } catch { lines.push(`- Projects: none`); }
-      try {
         const decks = storage.getDecks();
         lines.push(depth === "shallow"
           ? `- Decks: ${decks.length} total`
@@ -1468,7 +1451,7 @@ export function buildNoorBlock(): string {
 export interface ChatOpts {
   /** Numbered sources (workspace or web) injected into the system prompt. */
   sources?: AISource[];
-  /** Extra context appended to the system prompt (e.g. project-specific context). */
+  /** Extra context appended to the system prompt. */
   extraSystem?: string;
   /** Streaming callback for the model's internal reasoning (thinking tokens). Never part of the visible reply. */
   onThinking?: (delta: string) => void;
@@ -1544,8 +1527,8 @@ async function callLLM(
         throw new NoorCapError();
       }
       if (res.ok) {
-        // Keep the client usage cache fresh on this path too (Projects Noor
-        // uses non-streaming chat; the 5-left warning depends on this).
+        // Keep the client usage cache fresh on this path too (non-streaming
+        // chat callers; the 5-left warning depends on this).
         try {
           const usageRaw = res.headers.get("x-orleia-usage");
           if (usageRaw && typeof window !== "undefined") {

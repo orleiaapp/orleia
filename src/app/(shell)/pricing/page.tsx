@@ -11,7 +11,7 @@ export const metadata: Metadata = {
 };
 
 const FREE_PERKS = [
-  "Every tool: habits, tasks, notes, journal, calendar, projects, deck…",
+  "Every tool: habits, tasks, notes, journal, calendar, deck…",
   `${NOOR_DAILY_LIMIT.free} Noor AI messages every day`,
   "Local-first: your data stays on your device",
   "Free to start — no account required",

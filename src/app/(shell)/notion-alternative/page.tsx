@@ -10,25 +10,25 @@ import {
 export const metadata: Metadata = {
   title: "The Best Notion Alternative for Privacy - ORLEIA (Local-First)",
   description:
-    "Looking for a Notion alternative that respects your privacy? ORLEIA is a local-first productivity suite - tasks, habits, mindfulness, notes, projects and built-in AI - stored entirely on your device. No cloud, no accounts.",
+    "Looking for a Notion alternative that respects your privacy? ORLEIA is a local-first productivity suite - tasks, habits, mindfulness, notes and built-in AI - stored entirely on your device. No cloud, no accounts.",
   alternates: { canonical: "https://www.orleia.app/notion-alternative" },
   openGraph: {
     title: "The Best Notion Alternative for Privacy - ORLEIA (Local-First)",
     description:
-      "Tasks, habits, mindfulness, notes, projects and built-in AI - stored entirely on your device. No cloud, no accounts.",
+      "Tasks, habits, mindfulness, notes and built-in AI - stored entirely on your device. No cloud, no accounts.",
     url: "https://www.orleia.app/notion-alternative",
   },
   twitter: {
     card: "summary",
     title: "The Best Notion Alternative for Privacy - ORLEIA (Local-First)",
-    description: "Tasks, habits, mindfulness, notes, projects and built-in AI - stored entirely on your device. No cloud, no accounts.",
+    description: "Tasks, habits, mindfulness, notes and built-in AI - stored entirely on your device. No cloud, no accounts.",
   },
 };
 
 const faqs = [
   {
     q: "Is ORLEIA really a good Notion alternative?",
-    a: "If what you value about Notion is organizing notes, tasks and projects in one place, then yes - ORLEIA covers those needs with notes, tasks, habits, mindfulness, projects and analytics in one connected workspace. The trade-off is deliberate: ORLEIA trades Notion's infinite customization for simplicity, privacy and a built-in AI that understands all your data. For people who want a tool that works immediately and keeps everything on their device, ORLEIA is an upgrade in privacy - and the tools cost nothing.",
+    a: "If what you value about Notion is organizing notes and tasks in one place, then yes - ORLEIA covers those needs with notes, tasks, habits, mindfulness and analytics in one connected workspace. The trade-off is deliberate: ORLEIA trades Notion's infinite customization for simplicity, privacy and a built-in AI that understands all your data. For people who want a tool that works immediately and keeps everything on their device, ORLEIA is an upgrade in privacy - and the tools cost nothing.",
   },
   {
     q: "Can I import my Notion data into ORLEIA?",
@@ -82,7 +82,7 @@ export default function NotionAlternativePage() {
           The Notion alternative that respects your privacy.
         </h1>
         <p className="mt-6 text-base md:text-lg text-muted-foreground font-body leading-relaxed max-w-2xl">
-          ORLEIA gives you tasks, habits, mindfulness, notes, projects and a built-in AI -
+          ORLEIA gives you tasks, habits, mindfulness, notes and a built-in AI -
           all stored entirely on your device. No cloud, no accounts. Just a workspace
           that belongs to you.
         </p>
@@ -167,8 +167,7 @@ export default function NotionAlternativePage() {
         </h2>
         <p className="text-sm md:text-base text-muted-foreground/70 font-body leading-relaxed max-w-3xl mb-10">
           You don't switch tools to lose capability. ORLEIA keeps the essentials
-          of a Notion-style workspace - organized notes, structured tasks,
-          project tracking - and adds the parts Notion never had built in.
+          of a Notion-style workspace - organized notes, structured tasks - and adds the parts Notion never had built in.
         </p>
         <div className="grid gap-6 md:grid-cols-2">
           {[

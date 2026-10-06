@@ -20,7 +20,6 @@ import {
   Presentation,
   Flower2,
   PawPrint,
-  FolderOpen,
   CalendarDays,
 } from "lucide-react";
 
@@ -28,7 +27,6 @@ import { NoorMark } from "@/components/NoorMark";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/i18n";
 import { ReminderBell } from "./ReminderCenter";
-import { storage } from "@/lib/storage";
 
 export function Sidebar() {
   const pathname = usePathname();
@@ -52,12 +50,6 @@ export function Sidebar() {
     { href: "/noor", label: t("nav.noor"), icon: NoorMark },
     { href: "/pets", label: t("nav.pets"), icon: PawPrint },
   ];
-
-  const data = storage.getData();
-  const recentProjects = data.projects
-    .filter((p) => p.status !== "archived")
-    .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
-    .slice(0, 3);
 
   return (
     <aside
@@ -115,27 +107,6 @@ export function Sidebar() {
 
         <div className="my-8" />
 
-        {/* Projects */}
-        {!collapsed && (
-          <div className="px-1">
-            <Link href="/projects" className="group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-muted-foreground/60 hover:text-muted-foreground hover:bg-sidebar-hover transition-all">
-              <FolderOpen className="h-5 w-5 shrink-0" />
-              <span>{t("nav.projects")}</span>
-            </Link>
-            {recentProjects.length > 0 && (
-              <ul className="ml-5 mt-0.5 space-y-0.5">
-                {recentProjects.map((project) => (
-                  <li key={project.id}>
-                    <Link href={`/projects/${project.id}`} className="flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-xs font-medium text-muted-foreground/60 hover:text-muted-foreground hover:bg-sidebar-hover transition-all">
-                      <div className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: project.color }} />
-                      <span className="truncate">{project.name}</span>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        )}
       </nav>
 
       {/* Office tools */}
