@@ -19,10 +19,13 @@ export interface NoorSkill {
 const STORAGE_KEY = "orleia.skills.v1";
 
 // Guardrails so skills can never blow up Noor's context window.
+// (8k chars/skill, 32k active total - roughly 8k tokens for the whole
+// block: generous standing instructions, still bounded by the model's
+// context window.)
 export const MAX_SKILLS = 12;
 export const MAX_ACTIVE_SKILLS = 10;
-export const MAX_INSTRUCTION_CHARS = 500;
-const MAX_TOTAL_CHARS = 2_500;
+export const MAX_INSTRUCTION_CHARS = 8_000;
+const MAX_TOTAL_CHARS = 32_000;
 
 export function getSkills(): NoorSkill[] {
   if (typeof window === "undefined") return [];

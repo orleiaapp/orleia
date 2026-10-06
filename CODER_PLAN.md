@@ -1,143 +1,143 @@
-# Coder Plan — "Orleia's coding tool, its own tab"
+# Coder Plan — "Coder mode inside Noor"
 
 Status: PLAN ONLY — no code written yet.
-Date: Oct 6, 2026
-Analogy: ChatGPT ↔ Codex, Claude ↔ Claude Code — one product, a dedicated
-coding surface with its own model, quota, and (later) its own agent powers.
+Date: Oct 6, 2026 (rev 2 — replaces the separate-tab design)
+Direction change: Coder is **not its own tab**. It is a **mode inside Noor**
+(like ChatGPT ↔ Codex under one roof): same chat surface, a mode switch, a
+**completely different UI/UX** while active, a **foggy fade** crossing
+between the two modes, and **desktop only** (blocked on mobile and tablet).
 
 ---
 
 ## 1. What we're building
 
-A first-class **Coder** tab in the Orleia app shell (same nav group as
-Tasks / Notes / Mindfulness), gated to **Plus, Pro, Ultra**, with daily usage
-limits mirroring Noor's, powered by a coding model from NVIDIA NIM.
+A **Coder mode** the user flips into from inside Noor:
 
-User decisions (given):
-- Separate tool in the nav — NOT a mode inside Noor.
-- Name: **Coder**.
-- Tiers: Plus / Pro / Ultra only (Free does not get it).
-- Limits: "the same usage limits as Noor in billing" → same per-tier numbers.
-- Model: a coder model from the NVIDIA NIM catalog (for now; plan only).
+- **Entry:** a segmented mode switch in Noor's header — `Noor | Coder`.
+- **Gated to Plus / Pro / Ultra** (Free never sees the switch).
+- **Daily usage limits identical in size to Noor's** (`CODER_DAILY_LIMIT`:
+  free 0 / plus 300 / pro 1000 / ultra ∞).
+- **Desktop only:** the switch and the mode itself exist at `lg+`
+  (min-width 1024px) only. On mobile and tablet Noor is untouched — no
+  switch, no Coder route, no deep-state activation. Enforced twice:
+  CSS (`hidden lg:flex` on the switch) **and** a `matchMedia("(min-width:
+  1024px)")` guard in the mode hook so nothing leaks below `lg`.
+- **Completely different UI/UX while active:** dark editor canvas,
+  monospace type, gutter-less code-first transcript, file/snippet blocks
+  with copy buttons, "Run / Explain / Debug / Test" quick actions, token
+  counter, no pet/wellness chrome. Same shell, unmistakably a different
+  tool.
+- **Foggy fade transition:** switching modes is a ~500ms crossfade through
+  fog — outgoing surface fades + `blur(0→14px)`, a veil layer peaks at
+  mid-transition (`backdrop-filter: blur(14px)` + white/dark wash), then
+  the incoming surface resolves `blur(14px→0)`. Implemented with the
+  already-installed framer-motion (`AnimatePresence`, mode="wait") plus a
+  CSS veil element. `prefers-reduced-motion` → plain 150ms opacity fade.
 
 ---
 
-## 2. What already exists (everything expensive is already built)
+## 2. What already exists (the expensive parts are built)
 
 | Piece | Where | Reused how |
 |---|---|---|
-| Nav rail + mobile nav | `src/components/layout/Sidebar.tsx` `navItems`, `MobileNavScreen.tsx` | One new entry + i18n keys |
-| App route shell | `src/app/(app)/…` (tasks, noor, notes…) | New `src/app/(app)/coder/page.tsx` |
-| Daily-cap billing | `src/lib/plans.ts` `NOOR_DAILY_LIMIT`, `src/lib/billing-store.ts` `checkLimit()` (UTC date key, `billingConfigured()` gate) | Add `CODER_DAILY_LIMIT` + a `channel` param |
-| Tier source of truth | `billing-store.ts` license (free/plus/pro/ultra) | Same license, gate in UI + API |
-| Chat SSE streaming | `src/lib/ai-stream.ts` + `/api/chat` | Point at coder model + coder system prompt |
-| NIM provider fallback | `src/lib/ai-provider.ts` (sibling chain, health marks, 4-hop retry) | Add coder model + one sibling fallback |
-| Model allowlist | `/api/chat` `ALLOWED_MODELS` | Add coder model id (or new allowlist in `/api/coder`) |
-| Cap UX | Noor "messages left today" banner, `NoorCapError` | Same banner, coder channel |
-| Security posture | `SECURITY.md`, `jailbreak-guard.ts`, react-markdown without `rehype-raw` | Applies unchanged |
+| Noor page as host | `src/app/(app)/noor/page.tsx` (3,281 lines) | Mode state + header switch live here; Coder mode is a sibling view, not a route |
+| Chat SSE streaming | `src/lib/ai-stream.ts`, `/api/chat` | Same plumbing, coder model + coder system prompt |
+| Daily-cap billing | `src/lib/plans.ts`, `billing-store.ts` `checkLimit()` | Add `CODER_DAILY_LIMIT` + `channel: "coder"` |
+| Tier license (free/plus/pro/ultra) | `billing-store.ts` | Gate the switch (UI) and the route (API) |
+| NIM provider fallback | `src/lib/ai-provider.ts` | Coder model + sibling fallback chain |
+| Model allowlist | `/api/chat` `ALLOWED_MODELS` | Add coder ids (or new `/api/coder`) |
+| Cap UX | "messages left today" banner, `NoorCapError` | Same banner, coder channel |
+| Animation stack | framer-motion 11 / motion 13, existing nav transitions | Foggy fade |
+| Security posture | `SECURITY.md`, `jailbreak-guard.ts`, markdown w/o `rehype-raw` | Applies unchanged |
 
 Explicitly **not** in v1: agent execution (workspace tools), file upload,
-local Ollama coder — phases 3–4 below.
+local Ollama coder models — phases 3–4.
 
 ---
 
-## 3. Decisions (recommended)
+## 3. UX spec (the "completely different" part)
 
-### 3.1 Nav & route
-- New route `src/app/(app)/coder/page.tsx`; entry in Sidebar `navItems`
-  (icon `Code2` from lucide) placed right after Noor; same entry in
-  `MobileNavScreen`; secondary group on collapsed rail mirrors Noor's.
-- i18n: add `nav.coder` + page copy to all languages in `src/lib/i18n.ts`
-  (en/es/fr/de/pt).
-- `.orleia-notes-root`-style takeovers: Coder is a normal page inside the
-  card — no full-screen takeover, so the desktop-softlock class of bug
-  doesn't apply.
+| | Noor mode | Coder mode |
+|---|---|---|
+| Canvas | light/dark app theme, card surface | deep editor dark, `bg-zinc-950` feel, code-green/amber accents |
+| Type | app sans | JetBrains Mono (already bundled) for transcript chrome; prose stays readable |
+| Composer | rounded pill, voice, images | square editor input, language tag, `⏎ to run` hint |
+| Messages | chat bubbles, pets, warmth | terminal-style blocks: prompt `›`, responses in panes, code blocks with line numbers + copy |
+| Quick actions | suggestions chips | Run / Explain / Debug / Write test |
+| Empty state | Noor greeting | "Paste an error, a function, or a repo question" |
+| Billing chip | N messages left today | same counter, coder channel |
 
-### 3.2 Billing gate
-- `CODER_DAILY_LIMIT: Record<Tier, number>` in `plans.ts`:
-
-  | tier | Noor (today) | Coder (planned) |
-  |---|---|---|
-  | free | 30 | **0 (no access)** |
-  | plus | 300 | 300 |
-  | pro | 1000 | 1000 |
-  | ultra | ∞ | ∞ |
-
-- **Recommendation: separate counter, identical numbers.** Sharing Noor's
-  counter would mean a coding session silently drains chat quota; a separate
-  `channel: "noor" | "coder"` key in `checkLimit()` keeps the story simple
-  ("Coder has its own daily limit, same sizes as Noor"). One-line change
-  later if we ever want a shared pool.
-- Server-enforced in the coder API route (same pattern as `/api/chat`);
-  `billingConfigured()` still skips enforcement pre-launch.
-- Free tier UX: **show the tab with a lock** → opens the existing plan intro
-  dialog (keeps Coder discoverable as an upgrade hook).
-- Pricing copy: `plans.ts` perks say "300 Noor messages" — add one perk line
-  per tier ("N Coder messages") when we ship, or generalize to "AI messages".
-  Landing/pricing pages must stay in sync (single source is `PAID_PLANS`).
-
-### 3.3 Model (NVIDIA NIM)
-- Candidates from the live NIM catalog (verify exact IDs on
-  build.nvidia.com the day we implement — IDs change; forum reports
-  K2.6 removals/removals happen):
-  - Primary: **Kimi K2.5/K2.7-class instruct** (`moonshotai/kimi-*`) —
-    strongest open coding/agentic model on NIM per current reports.
-  - Sibling fallback: **Qwen3-Coder-480B** (`qwen/qwen3-coder-480b-a35b-instruct`).
-  - Secondary fallback: existing Novella model (degraded but alive — matches
-    the "one dead model must not kill the feature" rule in `ai-provider.ts`).
-- Env-driven: `CODER_MODEL_PRIMARY` / `CODER_MODEL_FALLBACK` so model swaps
-  never need a redeploy (matches existing env-price-ID philosophy).
-- Add chosen ids to the server allowlist; extend the `THINKING` map only if
-  the endpoint supports `enable_thinking` (measured live, per ai-provider).
-
-### 3.4 API shape
-- **New `/api/coder` route** (mirror `/api/chat`): coder allowlist, tier
-  gate (403 `coder_tier_locked` for free), coder channel cap
-  (`NoorCapError`-style error code reused), server-side coding system prompt,
-  then the same `ai-provider` call + SSE.
-- Alternative considered: `mode: "coder"` inside `/api/chat` — rejected;
-  separate route keeps the Noor gate untouched and lets Coder evolve
-  (context files, agent tools) without touching Noor's hot path.
-
-### 3.5 Client / UX
-- New page modeled on Noor's chat structure (transcript, composer,
-  streaming, effort slider) but distinct identity: Code2 icon, code-first
-  empty states ("Debug this error", "Explain this function", "Write a test"),
-  language-tagged code blocks (renderer already exists), copy-code button.
-- Reuse `ai-stream.ts` SSE plumbing with the coder model + cap banner
-  ("N Coder messages left today").
-- Conversation storage: separate local key (e.g. `orleia.coderChat.v1`) so
-  Coder history never collides with Noor's.
+Transcript histories stay separate (`orleia.coderChat.v1` vs Noor's key).
 
 ---
 
-## 4. Phases
+## 4. Billing (decided: same numbers as Noor, separate counter)
 
-- **P1 — the tab (shippable v1):** route + nav + i18n, `/api/coder`,
-  `CODER_DAILY_LIMIT` + channel cap, NIM coder model + fallback, chat UI,
-  lock UX for free tier, SW bump → tsc gate → commit → deploy.
-- **P2 — code-native UX:** attach file/selection as context (copy-paste →
-  structured snippet blocks), "save snippet to Notes" action, effort
-  presets per coder model, prompt library per language.
-- **P3 — Coder Agent:** reuse `agent-loop.ts` with `workspace_*` tools
-  scoped to a user-granted folder (plan → read → edit → observe), confirm
-  chips for writes, receipts. This is where Coder stops being a chat and
-  starts being Codex-like.
-- **P4 — everywhere:** local Ollama coder models (`qwen2.5-coder`) as a free
-  Local-AI option, and desktop `workspace_exec` (run tests) via the Electron
-  bridge — the local-first wedge from the agent discussion.
+| tier | Noor | Coder |
+|---|---|---|
+| free | 30/day | **0 — switch hidden, API 403 `coder_tier_locked`** |
+| plus | 300/day | 300/day |
+| pro | 1000/day | 1000/day |
+| ultra | ∞ | ∞ |
+
+- Separate `channel: "coder"` counter in `checkLimit()` — a coding session
+  must not silently drain chat quota. Server-enforced; `billingConfigured()`
+  still skips enforcement pre-launch (same as Noor).
+- Pricing copy: add one perk line per tier when shipping ("N Coder messages
+  daily"), or generalize "Noor messages" → "AI messages" in `PAID_PLANS`.
 
 ---
 
-## 5. Open questions (small, need user call before P1)
+## 5. Model (NVIDIA NIM)
 
-1. Shared counter with Noor vs separate (recommend: separate, same sizes).
-2. Free tier: locked-visible tab (recommended) vs hidden entirely.
-3. Coder messages in marketing copy: "N Noor messages" → generalize?
-4. Final model pick after probing build.nvidia.com live catalog.
+- Candidates (verify exact ids on build.nvidia.com at implementation —
+  NIM ids churn):
+  - Primary: **Kimi K2.5/K2.7-class instruct** (`moonshotai/kimi-*`).
+  - Sibling fallback: **Qwen3-Coder-480B**.
+  - Last-resort fallback: existing Novella model (degraded but alive).
+- Env-driven: `CODER_MODEL_PRIMARY` / `CODER_MODEL_FALLBACK` — model swaps
+  must never need a redeploy.
+- Add ids to the server allowlist; extend the `THINKING` map only if the
+  endpoint supports `enable_thinking` (measured live).
 
-## 6. Kill metrics (borrowed from PET_AGENT_PLAN discipline)
+---
 
-- P1 success: Coder DAU among paid tiers + messages/day vs cap usage.
-- If <5% of paid users touch Coder in 2 weeks post-launch → rework entry
-  points (empty states, prompt library) before investing in P3.
+## 6. API shape
+
+- **New `/api/coder`** (mirrors `/api/chat`): coder allowlist, tier gate
+  (403 for free), `CODER_DAILY_LIMIT` on the coder channel, coder system
+  prompt, same `ai-provider` call + SSE.
+- Rejected: `mode:` flag inside `/api/chat` — keeps Noor's hot path and
+  caps untouched while Coder evolves.
+
+---
+
+## 7. Phases
+
+- **P1 — the mode (shippable v1):** mode state + header switch in Noor,
+  foggy-fade transition (framer-motion + veil, reduced-motion fallback),
+  `lg`-only gating (CSS + matchMedia), Coder UI/UX surface, `/api/coder`,
+  `CODER_DAILY_LIMIT`, NIM coder model + fallback, separate transcript
+  store, i18n, SW bump → tsc gate → commit → deploy.
+- **P2 — code-native depth:** file/selection context attach, snippet →
+  Notes, effort presets, prompt library per language.
+- **P3 — Coder Agent:** `agent-loop.ts` with `workspace_*` tools scoped to
+  a user-granted folder, confirm chips, receipts (Codex-like).
+- **P4 — everywhere:** local Ollama coder models as a free Local-AI option;
+  desktop `workspace_exec` via the Electron bridge.
+
+---
+
+## 8. Open questions
+
+1. Desktop gate: `lg` (1024px) — is that the line you want, or `xl`?
+2. Separate counter (recommended) vs shared pool with Noor.
+3. Coder mode persists across sessions (reopen in Coder) vs always opens
+   in Noor mode?
+4. Final model pick after probing build.nvidia.com.
+
+## 9. Kill metrics (pre-registered, PET_AGENT_PLAN discipline)
+
+- P1: mode-switch rate among paid users + coder messages/day vs cap usage.
+- If <5% of paid users flip to Coder within 2 weeks → rework entry point
+  and empty states before investing in P3.
