@@ -47,6 +47,7 @@ export const PAID_PLANS: PlanDef[] = [
     blurb: "For daily drivers who live in Noor.",
     perks: [
       "300 Noor messages every day",
+      "Noor Coder (beta) access",
       "Everything in the free plan",
       "All tools stay unlimited",
       "Cancel anytime",
@@ -61,6 +62,7 @@ export const PAID_PLANS: PlanDef[] = [
     blurb: "For power users running Noor all day.",
     perks: [
       "1,000 Noor messages every day",
+      "Noor Coder (beta) access",
       "Everything in Plus",
       "Cancel anytime",
     ],
@@ -75,6 +77,7 @@ export const PAID_PLANS: PlanDef[] = [
     blurb: "For the ones who push Noor to its limits.",
     perks: [
       "Unlimited Noor messages (fair use)",
+      "Noor Coder (beta) access",
       "Everything in Pro",
       "Cancel anytime",
     ],

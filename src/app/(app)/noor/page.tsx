@@ -50,6 +50,7 @@ import {
   ImagePlus,
   Paperclip,
   Laptop,
+  Lock,
 } from "lucide-react";
 import { LOCAL_MODELS, probeOllama, isModelInstalled, ollamaSetupHint, type OllamaStatus, type LocalModelDef } from "@/lib/local-ai";
 import { EFFORT_LEVELS, effortModelId, type EffortLevel } from "@/lib/ai-models";
@@ -67,6 +68,8 @@ import { isLiveQuery } from "@/lib/web-search";
 import { cn, generateId } from "@/lib/utils";
 import { useMobile } from "@/hooks/useMobile";
 import { getDeviceId } from "@/lib/device-id";
+import { getLicense } from "@/lib/billing-store";
+import { billingConfigured } from "@/lib/plans";
 import { AIMessage, AIModel, AI_MODELS, MODEL_ALIASES, BriefAction, AISource, PetAgent } from "@/types";
 import { Markdown } from "@/components/chat/Markdown";
 import { useI18n } from "@/lib/i18n";
@@ -366,6 +369,9 @@ export default function AssistantPage() {
   const [loading, setLoading] = useState(false);
   const [selectedModel, setSelectedModel] = useState<AIModel>(getSafeModel(data.selectedModel));
   const [showModelPicker, setShowModelPicker] = useState(false);
+  // Noor Coder (beta): mode-switch popover + resolved tier (null = loading).
+  const [coderOpen, setCoderOpen] = useState(false);
+  const [coderPaid, setCoderPaid] = useState<boolean | null>(null);
   // Local AI (Ollama): sub-list expansion + live install probe.
   const [localOpen, setLocalOpen] = useState(false);
   const [ollama, setOllama] = useState<OllamaStatus | null>(null);
@@ -377,6 +383,7 @@ export default function AssistantPage() {
   const messagesBoxRef = useRef<HTMLDivElement>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   const modelPickerRef = useRef<HTMLDivElement>(null);
+  const coderRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const plusRef = useRef<HTMLDivElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
@@ -651,9 +658,35 @@ export default function AssistantPage() {
       if (plusRef.current && !plusRef.current.contains(e.target as Node)) {
         setPlusOpen(false);
       }
+      if (coderRef.current && !coderRef.current.contains(e.target as Node)) {
+        setCoderOpen(false);
+      }
     };
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
+
+  // Noor Coder (beta): resolve the device's tier so free users see the
+  // switch locked behind an upgrade while paid tiers see beta access.
+  // Billing not configured yet -> treat as paid (same pre-launch rule as
+  // the daily caps: nothing is paywalled until Stripe env exists).
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      let paid = true;
+      try {
+        if (billingConfigured()) {
+          const lic = await getLicense(getDeviceId());
+          paid = lic.tier === "plus" || lic.tier === "pro" || lic.tier === "ultra";
+        }
+      } catch {
+        paid = false;
+      }
+      if (alive) setCoderPaid(paid);
+    })();
+    return () => {
+      alive = false;
+    };
   }, []);
 
 
@@ -2048,6 +2081,74 @@ try {
                 className="h-8 w-8 object-contain invert dark:invert-0 sm:h-9 sm:w-9"
               />
             )}
+          </div>
+          {/* Coder mode switch — desktop only (lg+). Free sees it locked
+              behind an upgrade; paid tiers see the beta-access card. */}
+          <div className="hidden lg:block relative" ref={coderRef}>
+            <div className="flex items-center rounded-full border border-border/60 bg-secondary/40 p-0.5 text-xs font-semibold">
+              <span className="px-3 py-1.5 rounded-full bg-background text-foreground shadow-sm">Noor</span>
+              <button
+                onClick={() => setCoderOpen((v) => !v)}
+                className={cn(
+                  "flex items-center gap-1.5 px-3 py-1.5 rounded-full transition-colors",
+                  coderOpen ? "text-foreground" : "text-muted-foreground hover:text-foreground"
+                )}
+                aria-haspopup="dialog"
+                aria-expanded={coderOpen}
+              >
+                Coder
+                <span className="text-[8px] font-mono uppercase tracking-wider rounded bg-primary-500/15 text-primary-500 px-1 py-px">
+                  {t("coder.beta")}
+                </span>
+                {coderPaid === false && <Lock className="h-3 w-3" />}
+              </button>
+            </div>
+            <AnimatePresence>
+              {coderOpen && (
+                <motion.div
+                  initial={{ opacity: 0, y: -6, scale: 0.97 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -6, scale: 0.97 }}
+                  transition={{ duration: 0.15 }}
+                  className="absolute left-1/2 top-full z-50 mt-2 w-72 -translate-x-1/2 rounded-2xl border border-border bg-background p-4 shadow-2xl"
+                >
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <span className="text-sm font-bold text-foreground">{t("coder.title")}</span>
+                    <span className="text-[8px] font-mono uppercase tracking-wider rounded bg-primary-500/15 text-primary-500 px-1 py-px">
+                      {t("coder.beta")}
+                    </span>
+                  </div>
+                  <p className="text-xs leading-relaxed text-muted-foreground mb-3">
+                    {coderPaid === null ? "..." : coderPaid ? t("coder.soonBody") : t("coder.lockedBody")}
+                  </p>
+                  <div className="flex items-center gap-2">
+                    {coderPaid === false ? (
+                      <>
+                        <button
+                          onClick={() => router.push("/pricing")}
+                          className="rounded-lg bg-primary-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-primary-600 transition-colors"
+                        >
+                          {t("coder.viewPlans")}
+                        </button>
+                        <button
+                          onClick={() => setCoderOpen(false)}
+                          className="rounded-lg px-2 py-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                        >
+                          {t("coder.notNow")}
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        onClick={() => setCoderOpen(false)}
+                        className="rounded-lg border border-border px-3 py-1.5 text-xs font-semibold hover:bg-secondary transition-colors"
+                      >
+                        {t("coder.ok")}
+                      </button>
+                    )}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
           <div className="flex items-center gap-2 shrink-0">
             {/* Model picker — desktop only on this bar; mobile picks the model

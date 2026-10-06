@@ -132,7 +132,8 @@ export default function TermsPage() {
         <h2 className="text-lg font-bold tracking-tight text-foreground mb-3">11. Subscriptions and Billing</h2>
         <p>
           Orleia's core tools are free of charge. Optional paid subscriptions (Plus, Pro, Ultra) raise the daily
-          limit of Noor AI messages. Billing is handled by Stripe Payments Europe Ltd.; we never see or store your
+          limit of Noor AI messages and unlock Noor Coder (beta) — a coding mode still in beta that may change,
+          be limited, or be withdrawn while in beta. Billing is handled by Stripe Payments Europe Ltd.; we never see or store your
           payment card details.
         </p>
         <p>

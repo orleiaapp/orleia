@@ -32,7 +32,7 @@ const faq = [
   },
   {
     q: "Is Orleia free?",
-    a: "Every Orleia tool - tasks, habits, mindfulness, notes, calendar, widgets and analytics - is free, with no feature paywalls. The only paid thing is heavier use of Noor: the free plan includes 30 Noor messages a day, and optional Plus, Pro or Ultra plans raise that daily limit.",
+    a: "Every Orleia tool - tasks, habits, mindfulness, notes, calendar, widgets and analytics - is free, with no feature paywalls. The only paid thing is heavier use of Noor: the free plan includes 30 Noor messages a day, and optional Plus, Pro or Ultra plans raise that daily limit and unlock Noor Coder (beta), a coding mode built into Noor.",
   },
   {
     q: "Where is my Orleia data stored?",

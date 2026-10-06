@@ -1,7 +1,7 @@
 # Coder Plan — "Coder mode inside Noor"
 
 Status: PLAN ONLY — no code written yet.
-Date: Oct 6, 2026 (rev 2 — replaces the separate-tab design)
+Date: Oct 6, 2026 (rev 3 — free sees the switch but locked; labeled beta everywhere)
 Direction change: Coder is **not its own tab**. It is a **mode inside Noor**
 (like ChatGPT ↔ Codex under one roof): same chat surface, a mode switch, a
 **completely different UI/UX** while active, a **foggy fade** crossing
@@ -13,8 +13,14 @@ between the two modes, and **desktop only** (blocked on mobile and tablet).
 
 A **Coder mode** the user flips into from inside Noor:
 
-- **Entry:** a segmented mode switch in Noor's header — `Noor | Coder`.
-- **Gated to Plus / Pro / Ultra** (Free never sees the switch).
+- **Entry:** a segmented mode switch in Noor's header — `Noor | Coder β`.
+- **Everyone sees the switch, free included — but free is locked.** The
+  `Coder β` segment is visible to all desktop users; free users get a
+  gate card ("Noor Coder is in beta and needs a paid plan") with a View
+  plans button → `/pricing`. Paid tiers see the beta-access card. Beta
+  messaging ships everywhere: plan perks (`PAID_PLANS` → in-app billing,
+  pricing page, plan intro), landing ribbon + Noor card, what-is-orleia
+  FAQ, refund + terms policies.
 - **Daily usage limits identical in size to Noor's** (`CODER_DAILY_LIMIT`:
   free 0 / plus 300 / pro 1000 / ultra ∞).
 - **Desktop only:** the switch and the mode itself exist at `lg+`

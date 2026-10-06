@@ -16,8 +16,9 @@ export default function RefundPolicyPage() {
         <h2 className="text-lg font-bold tracking-tight text-foreground mb-3">1. Summary</h2>
         <p>
           Orleia&apos;s tools are free. The only paid products are the optional Noor subscriptions — Plus, Pro and
-          Ultra — which raise your daily Noor AI message limit. This policy explains cancellations and refunds for
-          those subscriptions.
+          Ultra — which raise your daily Noor AI message limit and unlock Noor Coder (beta). While in beta, Noor
+          Coder may change, be limited, or be withdrawn at any time. This policy explains cancellations and refunds
+          for those subscriptions.
         </p>
       </section>
 
