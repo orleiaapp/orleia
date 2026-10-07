@@ -75,7 +75,7 @@ export const PAID_PLANS: PlanDef[] = [
     blurb: "For daily drivers who live in Noor.",
     perks: [
       "300 Noor messages every day",
-      "300 Coder messages every day",
+      `${CODER_DAILY_TOKENS.plus.toLocaleString("en-US")} Coder tokens every day`,
       "Noor Coder (beta) access",
       "Everything in the free plan",
       "All tools stay unlimited",
@@ -91,7 +91,7 @@ export const PAID_PLANS: PlanDef[] = [
     blurb: "For power users running Noor all day.",
     perks: [
       "1,000 Noor messages every day",
-      "1,000 Coder messages every day",
+      `${CODER_DAILY_TOKENS.pro.toLocaleString("en-US")} Coder tokens every day`,
       "Noor Coder (beta) access",
       "Everything in Plus",
       "Cancel anytime",
@@ -107,7 +107,7 @@ export const PAID_PLANS: PlanDef[] = [
     blurb: "For the ones who push Noor to its limits.",
     perks: [
       "Unlimited Noor messages (fair use)",
-      "Unlimited Coder messages (fair use)",
+      "Unlimited Coder tokens (fair use)",
       "Noor Coder (beta) access",
       "Everything in Pro",
       "Cancel anytime",
