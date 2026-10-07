@@ -2,6 +2,7 @@
 
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { Copy } from "lucide-react";
 import { ChartBlock } from "./ChartBlock";
 import { compactUrl } from "@/lib/utils";
 
@@ -12,7 +13,7 @@ function dom(props: MDProps) {
   return rest;
 }
 
-export function Markdown({ content }: { content: string }) {
+export function Markdown({ content, codeCopy }: { content: string; codeCopy?: boolean }) {
   return (
     <div className="markdown-body">
       <ReactMarkdown
@@ -94,8 +95,24 @@ export function Markdown({ content }: { content: string }) {
             if (lang === "chart" && raw.trim()) {
               return <ChartBlock code={raw.trim()} />;
             }
-            return (
+            const pane = (
               <pre className="my-2.5 rounded-xl bg-zinc-900 dark:bg-black/60 border border-border p-3 overflow-x-auto text-xs font-mono leading-relaxed text-zinc-100" {...dom(props)} />
+            );
+            // Opt-in (Coder): one-click copy on every code block. Default
+            // off so Noor's hot path renders byte-identical.
+            if (!codeCopy || !raw) return pane;
+            return (
+              <div className="group/pre relative">
+                {pane}
+                <button
+                  type="button"
+                  title="Copy code"
+                  onClick={() => void navigator.clipboard?.writeText(raw)}
+                  className="absolute right-2 top-2 rounded-md border border-border bg-background/90 p-1.5 text-muted-foreground opacity-0 transition-all hover:text-foreground group-hover/pre:opacity-100"
+                >
+                  <Copy className="h-3.5 w-3.5" />
+                </button>
+              </div>
             );
           },
           code: (props) => {

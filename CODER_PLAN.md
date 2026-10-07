@@ -28,6 +28,42 @@ Date: Oct 6, 2026 (rev 3 — free sees the switch but locked; labeled beta every
   motion → 150ms opacity-only); free click = lock popover. Always opens in
   Noor mode next session (open question 3 resolved: no persistence for v1).
 - Transcript: `orleia.coderChat.v1` (localStorage, last 80 messages).
+- **Rev 5 (2026-10-07, later):** visuals rebuilt on Noor's design tokens
+  (forced mono/zinc/green dropped — same pill composer, bubbles, chips);
+  the shared model + effort picker now drives Coder (allowlisted
+  server-side, effort knobs = temperature/maxTokens/context); competitor
+  feature pass (Claude Code / Codex / Antigravity / Freebuff):
+  slash-command skills menu, thinking disclosure, retry-last-reply
+  (/rewind-lite), starter cards, Esc = stop, conversation copy,
+  one-click code-block copy, history capped to the effort profile.
+  Default coding skills seeded once per device: Code review, Debug,
+  Refactor, Write tests (editable/deletable like any skill).
+  Deferred: plan mode, diffs, artifacts/preview, agent manager,
+  local Ollama coder models (P2-P4).
+- **Rev 6 (2026-10-07, later):** token economy + agency.
+  - **Token budget replaces messages** (`CODER_DAILY_TOKENS`: free 0 /
+    plus 500k / pro 2M / ultra ∞, counter `#coder`), checked pre-request
+    (402 `coder_token_cap`) and charged post-reply from real usage;
+    completion tokens are weighted by effort
+    (`CODER_EFFORT_WEIGHT`, hyperfast 0.5 → ultra 2.5) so cost scales
+    with effort/difficulty. Surface shows **% of today's tokens**.
+  - **Web research:** a Web chip forces a server-side search for the
+    prompt (also auto-fired for live queries); results are injected into
+    the system prompt and returned as clickable **source chips** via an
+    `orleia.sources` SSE frame (`orleia.usage` frame updates the % chip
+    right after the charge).
+  - **Multi-task queue:** prompts typed while a reply streams are queued
+    (chip + clear) and drain in order when the reply settles; Stop/Esc
+    aborts the stream AND empties the queue.
+  - **Branches:** transcript store v2 (`orleia.coderChat.v2`) holds a
+    thread tree — branch-from-any-message, thread switcher menu,
+    per-thread delete; v1 migrates to a single thread.
+  - **PC writes + terminal:** the model emits `orleia-action` fences
+    (write_file / mkdir / shell) which render as action cards; the user
+    connects ONE workspace folder (File System Access API, persisted
+    handle) and applies writes directly to disk. Shell cards copy the
+    command (browser can't execute) and every action lands in a
+    terminal-style log panel.
 Direction change: Coder is **not its own tab**. It is a **mode inside Noor**
 (like ChatGPT ↔ Codex under one roof): same chat surface, a mode switch, a
 **completely different UI/UX** while active, a **foggy fade** crossing
@@ -47,8 +83,9 @@ A **Coder mode** the user flips into from inside Noor:
   messaging ships everywhere: plan perks (`PAID_PLANS` → in-app billing,
   pricing page, plan intro), landing ribbon + Noor card, what-is-orleia
   FAQ, refund + terms policies.
-- **Daily usage limits identical in size to Noor's** (`CODER_DAILY_LIMIT`:
-  free 0 / plus 300 / pro 1000 / ultra ∞).
+- **Daily usage limits** — now TOKEN budgets, not message counts:
+  `CODER_DAILY_TOKENS` (rev 6) replaced `CODER_DAILY_LIMIT` because
+  message caps were trivially gameable with tiny prompts.
 - **Desktop only:** the switch and the mode itself exist at `lg+`
   (min-width 1024px) only. On mobile and tablet Noor is untouched — no
   switch, no Coder route, no deep-state activation. Enforced twice:

@@ -1,9 +1,11 @@
 import { NextResponse } from 'next/server';
 import { guardApi, capInt, capFloat, bodyTooLarge } from '@/lib/apiGuard';
-import { consumeNoorTurn, getLicenseWithHealth } from '@/lib/billing-store';
-import { billingConfigured, CODER_DAILY_LIMIT } from '@/lib/plans';
+import { checkCoderBudget, addCoderUsage, getLicenseWithHealth } from '@/lib/billing-store';
+import { billingConfigured, CODER_EFFORT_WEIGHT } from '@/lib/plans';
 import { detectCrisis, MENTAL_HEALTH_SYSTEM_NOTE } from '@/lib/safety-guard';
 import { callChat } from '@/lib/ai-provider';
+import { webSearch, buildSearchBlock, isLiveQuery } from '@/lib/web-search';
+import type { AISource } from '@/types';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -24,13 +26,30 @@ export const maxDuration = 60;
 // Coder with a redeploy only. callChat's fallback cycle still wraps it.
 const CODER_MODEL = process.env.CODER_MODEL_PRIMARY || 'nvidia/nemotron-3-ultra-550b-a55b';
 
+// The client's model/effort picker may only select models we actually use
+// (same posture as /api/chat's ALLOWED_MODELS — no probing arbitrary NIM
+// functions). Unknown/missing ids coerce to the coder default.
+const ALLOWED_MODELS = new Set([
+  'nvidia/nemotron-3-super-120b-a12b',
+  'nvidia/nemotron-3-ultra-550b-a55b',
+  'nvidia/nemotron-3.5-lightning-30b-a3b',
+]);
+if (process.env.CODER_MODEL_PRIMARY) ALLOWED_MODELS.add(process.env.CODER_MODEL_PRIMARY);
+
 const CODER_SYSTEM = `You are Noor Coder, the coding mode of Orleia — a local-first AI productivity suite.
 - Answer programming questions directly and precisely. Lead with the code.
 - Use fenced code blocks with the correct language tag; examples must be complete and runnable.
 - Prefer modern, idiomatic code. State language/framework assumptions when they matter.
 - When debugging: identify the root cause first, show the minimal fix, then note edge cases.
 - You cannot execute code or see files the user has not pasted — never pretend to have run something.
-- Keep prose short: on this surface the code is the answer. No office/product chatter — that belongs in Noor mode.`;
+- Keep prose short: on this surface the code is the answer. No office/product chatter — that belongs in Noor mode.
+
+LOCAL WORKSPACE ACTIONS (real writes to the user's machine):
+When the user asks you to create, scaffold or modify files/folders on their computer (project, config, script, boilerplate), output every change as its own fenced block tagged \`orleia-action\` containing exactly ONE JSON object:
+  \`\`\`orleia-action
+  {"op":"write_file","path":"src/app.ts","content":"…full file content…"}
+  \`\`\`
+Supported ops: write_file (path + content), mkdir (path), shell (command). The user picks a workspace folder; your paths are RELATIVE to it — never absolute, never containing '..'. Emit only the files that actually change and explain them in prose around the blocks; keep each file focused. For commands the user must run themselves (npm install, git, docker), emit {"op":"shell","command":"…"} — you cannot execute anything. Never wrap a write_file block's content in other fences, and never mention orleia-action inside file content. If the user just asks a question, do NOT emit action blocks.`;
 
 const MAX_MESSAGES = 60;
 const MAX_MESSAGE_CHARS = 40_000;
@@ -57,10 +76,14 @@ export async function POST(req: Request) {
 
   let body: {
     messages?: { role: string; content: string }[];
+    model?: string;
     temperature?: number;
     maxTokens?: number;
     stream?: boolean;
     lang?: unknown;
+    skills?: unknown;
+    effort?: unknown;
+    research?: unknown;
   };
   try {
     body = await req.json();
@@ -73,6 +96,13 @@ export async function POST(req: Request) {
   }
 
   const { messages, temperature = 0.4, stream = false } = body ?? {};
+
+  // Model from the shared picker — allowlisted, never arbitrary.
+  const model =
+    typeof body.model === 'string' && ALLOWED_MODELS.has(body.model) ? body.model : CODER_MODEL;
+  // User's standing skills (client-computed like Noor's situation block):
+  // capped so they can never crowd out the coding prompt.
+  const skills = typeof body.skills === 'string' ? body.skills.slice(0, 32_000) : '';
 
   // ---- validation caps (quota abuse / DoS protection) ----
   if (!Array.isArray(messages) || messages.length === 0 || messages.length > MAX_MESSAGES) {
@@ -124,40 +154,83 @@ export async function POST(req: Request) {
   const rawLang = body?.lang;
   const lang = typeof rawLang === "string" && LANG_NAMES[rawLang.slice(0, 2).toLowerCase()] ? rawLang.slice(0, 2).toLowerCase() : "";
 
-  // ---- Coder daily cap — SEPARATE counter from chat (channel "coder").
-  // Server-enforced; fails open on storage outage like /api/chat. ----
-  let cap: Awaited<ReturnType<typeof consumeNoorTurn>>;
+  // ---- Effort (Codex-style reasoning effort): drives the token COST, not
+  // just the knobs — higher effort burns proportionally more budget per
+  // completion token (CODER_EFFORT_WEIGHT), so the daily budget scales
+  // with effort and difficulty instead of being gameable by tiny prompts.
+  const effort =
+    typeof body.effort === "string" &&
+    Object.prototype.hasOwnProperty.call(CODER_EFFORT_WEIGHT, body.effort)
+      ? body.effort
+      : "medium";
+  const effortWeight = CODER_EFFORT_WEIGHT[effort] ?? 1;
+
+  // ---- Coder daily TOKEN budget — own counter (`#coder`), never chat's.
+  // Checked before the call, charged after from the real token cost.
+  // Fails open on storage outage (402 only on a healthy store).
+  let budget: Awaited<ReturnType<typeof checkCoderBudget>>;
   try {
-    cap = await consumeNoorTurn(deviceId, "coder");
+    budget = await checkCoderBudget(deviceId);
   } catch (err) {
-    console.error("[coder] usage tracking unavailable, failing open:", err);
-    cap = { ok: true, used: 0, limit: CODER_DAILY_LIMIT.free, tier: "free" };
+    console.error("[coder] budget check unavailable, failing open:", err);
+    budget = { ok: true, used: 0, limit: Number.POSITIVE_INFINITY, healthy: false };
   }
-  if (!cap.ok) {
+  if (!budget.ok) {
     return NextResponse.json(
-      { error: "coder_daily_cap", overCap: true, limit: cap.limit, used: cap.used, tier: cap.tier },
+      { error: "coder_token_cap", overCap: true, used: budget.used, limit: budget.limit },
       { status: 402 }
     );
   }
   const usageHeaders = {
     "x-orleia-usage": JSON.stringify({
-      used: cap.used,
-      limit: Number.isFinite(cap.limit) ? cap.limit : null,
+      used: budget.used,
+      limit: Number.isFinite(budget.limit) ? budget.limit : null,
     }),
   };
 
-  const maxTokens = capInt(body?.maxTokens, MAX_TOKENS, 1024);
+  // Prompt-side token estimate (system + transcript) — charged together
+  // with the weighted completion when the reply settles.
+  const promptTokens = Math.ceil(totalChars / 4) + 150;
+
+  const maxTokens = capInt(body?.maxTokens, MAX_TOKENS, 256);
   const temp = capFloat(body?.temperature, 0, 2, 0.4);
 
   // System prompt first, then the interface-language rule, then the transcript.
   const langName = LANG_NAMES[lang];
-  const system = langName
+  let system = langName
     ? `${CODER_SYSTEM}\n\nLANGUAGE RULE: The Orleia interface language is ${langName} (code: ${lang}). Write ALL prose — explanations, caveats, questions — in ${langName}. Keep code, identifiers and quoted source material in their original form.`
     : CODER_SYSTEM;
+
+  // ---- Web research: opt-in chip OR auto-detect a live query (same
+  // isLiveQuery heuristic as Noor's Web toggle). Results are injected into
+  // the system prompt AND echoed back to the client as source chips via
+  // the first SSE frame (orleia.sources).
+  const lastUserMsg = [...messages].reverse().find((m) => m.role === "user");
+  let sources: { title: string; url: string }[] = [];
+  if (body.research === true || (lastUserMsg && isLiveQuery(lastUserMsg.content))) {
+    try {
+      const results = await webSearch((lastUserMsg?.content || "").slice(0, 300), 6);
+      const asAISource: AISource[] = results.map((r) => ({
+        kind: "web",
+        title: r.title,
+        href: r.url,
+        snippet: r.snippet,
+      }));
+      const searchBlock = buildSearchBlock(asAISource);
+      if (searchBlock) {
+        system += searchBlock;
+        sources = results.map((r) => ({ title: r.title, url: r.url }));
+      }
+    } catch (err) {
+      console.error("[coder] web research failed, answering without it:", err);
+    }
+  }
+
+  if (skills) system += `\n\n${skills}`;
   const chatMessages = [{ role: "system", content: system }, ...messages];
 
   const call = await callChat({
-    model: CODER_MODEL,
+    model,
     messages: chatMessages,
     temperature: temp,
     max_tokens: maxTokens,
@@ -184,7 +257,62 @@ export async function POST(req: Request) {
           { status: 502, headers: usageHeaders }
         );
       }
-      return new Response(upstream.body, {
+      // Passthrough SSE with two side effects, both invisible to latency:
+      //   1. start  -> source chips frame (research results, if any)
+      //   2. flush  -> charge the real token cost (prompt + completion x
+      //                effort weight) to the #coder counter, then emit a
+      //                final usage frame so the client's % chip updates
+      //                immediately instead of on the next request.
+      const enc = new TextEncoder();
+      const dec = new TextDecoder();
+      let sseBuf = '';
+      let completionChars = 0;
+      const meter = new TransformStream<Uint8Array, Uint8Array>({
+        start(controller) {
+          if (sources.length) {
+            controller.enqueue(enc.encode(`data: ${JSON.stringify({ orleia: { sources } })}\n\n`));
+          }
+        },
+        transform(chunk, controller) {
+          controller.enqueue(chunk); // pass bytes through first — no added latency
+          sseBuf += dec.decode(chunk, { stream: true });
+          const parts = sseBuf.split('\n\n');
+          sseBuf = parts.pop() || '';
+          for (const part of parts) {
+            const line = part.split('\n').find((l) => l.startsWith('data: '));
+            if (!line) continue;
+            const data = line.slice(6).trim();
+            if (data === '[DONE]') continue;
+            try {
+              const j = JSON.parse(data);
+              const d = j?.choices?.[0]?.delta;
+              if (typeof d?.content === 'string') completionChars += d.content.length;
+              if (typeof d?.reasoning_content === 'string') completionChars += d.reasoning_content.length;
+            } catch {
+              /* partial frame — the next chunk completes it */
+            }
+          }
+        },
+        async flush(controller) {
+          const completionTokens = Math.ceil(completionChars / 4);
+          const charge = promptTokens + Math.round(completionTokens * effortWeight);
+          let usedNow = budget.used + charge;
+          try {
+            const n = await addCoderUsage(deviceId, charge);
+            if (n !== null) usedNow = n;
+          } catch (err) {
+            console.error('[coder] usage charge failed:', err);
+          }
+          controller.enqueue(
+            enc.encode(
+              `data: ${JSON.stringify({
+                orleia: { usage: { used: usedNow, limit: Number.isFinite(budget.limit) ? budget.limit : null } },
+              })}\n\n`
+            )
+          );
+        },
+      });
+      return new Response(upstream.body.pipeThrough(meter), {
         headers: {
           ...usageHeaders,
           'Content-Type': 'text/event-stream; charset=utf-8',
@@ -210,7 +338,32 @@ export async function POST(req: Request) {
     if (!content) {
       return NextResponse.json({ error: 'Empty AI response' }, { status: 502 });
     }
-    return NextResponse.json({ content }, { headers: usageHeaders });
+    // Non-stream charge: provider-reported usage when available, else the
+    // same chars/4 estimate, weighted by effort like the stream path.
+    const completionTokens =
+      Number(data?.usage?.completion_tokens) > 0
+        ? Math.ceil(Number(data.usage.completion_tokens))
+        : Math.ceil(content.length / 4);
+    const charge = promptTokens + Math.round(completionTokens * effortWeight);
+    let usedNow = budget.used + charge;
+    try {
+      const n = await addCoderUsage(deviceId, charge);
+      if (n !== null) usedNow = n;
+    } catch (err) {
+      console.error('[coder] usage charge failed:', err);
+    }
+    return NextResponse.json(
+      { content, sources },
+      {
+        headers: {
+          ...usageHeaders,
+          'x-orleia-usage': JSON.stringify({
+            used: usedNow,
+            limit: Number.isFinite(budget.limit) ? budget.limit : null,
+          }),
+        },
+      }
+    );
   } catch {
     return NextResponse.json({ error: 'AI request failed' }, { status: 500 });
   }

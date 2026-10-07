@@ -27,23 +27,92 @@ export const MAX_ACTIVE_SKILLS = 10;
 export const MAX_INSTRUCTION_CHARS = 8_000;
 const MAX_TOTAL_CHARS = 32_000;
 
+// ---------------- Default coding skills ----------------
+// Shipped as part of the default set (requested 2026-10-07): every
+// device gets a starter pack of coding skills, seeded ONCE (marker key)
+// so deleting one sticks. Respects both caps — a full custom set is
+// left alone, and defaults land disabled once the active cap is spent.
+const SEEDED_KEY = "orleia.skills.seeded.v1";
+
+const CODING_DEFAULTS: NoorSkill[] = [
+  {
+    id: "default-code-review",
+    name: "Code review",
+    instructions:
+      "When reviewing code, prioritize in this order: correctness bugs, security issues, performance problems, then readability. Reference the exact lines or snippets in question, explain WHY each issue matters, and give a concrete fix. End with a one-line verdict: approve, approve with nits, or request changes. Never invent issues to seem thorough.",
+    enabled: true,
+    createdAt: 0,
+  },
+  {
+    id: "default-debug",
+    name: "Debug",
+    instructions:
+      "Debugging method: restate the symptom precisely, list the most likely causes ranked by probability, trace the data/control flow to confirm or eliminate each, and only then propose the minimal fix. Show the fix as a before/after snippet. Call out what you are assuming because you cannot run the code.",
+    enabled: true,
+    createdAt: 0,
+  },
+  {
+    id: "default-refactor",
+    name: "Refactor",
+    instructions:
+      "When refactoring, keep behavior identical: state the invariant being preserved, propose changes as small ordered steps, prefer extracting named functions over clever one-liners, and flag any step that needs tests first. Never mix formatting-only changes with structural changes in one suggestion.",
+    enabled: true,
+    createdAt: 0,
+  },
+  {
+    id: "default-write-tests",
+    name: "Write tests",
+    instructions:
+      "For tests: cover the happy path, edge cases (empty, boundary, invalid input), and one failure path per unit. Use arrange-act-assert, name tests after behavior not implementation, avoid mocking what you do not have to, and make assertions specific (exact values, not just 'does not throw'). State which framework you assume when it is not obvious.",
+    enabled: true,
+    createdAt: 0,
+  },
+];
+
+function seedDefaults(list: NoorSkill[]): NoorSkill[] {
+  if (typeof window === "undefined") return list;
+  try {
+    if (window.localStorage.getItem(SEEDED_KEY)) return list;
+  } catch {
+    return list;
+  }
+  const missing = CODING_DEFAULTS.filter((d) => !list.some((s) => s.id === d.id));
+  const next = [...list];
+  let active = next.filter((s) => s.enabled).length;
+  for (const d of missing) {
+    if (next.length >= MAX_SKILLS) break;
+    const enabled = active < MAX_ACTIVE_SKILLS;
+    next.push({ ...d, enabled, createdAt: Date.now() });
+    if (enabled) active += 1;
+  }
+  try {
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+    window.localStorage.setItem(SEEDED_KEY, "1");
+  } catch {
+    /* marker write failed -> next read re-seeds; idempotent by id */
+  }
+  return next;
+}
+
 export function getSkills(): NoorSkill[] {
   if (typeof window === "undefined") return [];
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return [];
+    if (!raw) return seedDefaults([]);
     const parsed = JSON.parse(raw) as NoorSkill[];
     if (!Array.isArray(parsed)) return [];
-    return parsed
-      .filter(
-        (s) =>
-          s &&
-          typeof s.id === "string" &&
-          typeof s.name === "string" &&
-          typeof s.instructions === "string" &&
-          typeof s.enabled === "boolean"
-      )
-      .slice(0, MAX_SKILLS);
+    return seedDefaults(
+      parsed
+        .filter(
+          (s) =>
+            s &&
+            typeof s.id === "string" &&
+            typeof s.name === "string" &&
+            typeof s.instructions === "string" &&
+            typeof s.enabled === "boolean"
+        )
+        .slice(0, MAX_SKILLS)
+    );
   } catch {
     return [];
   }
@@ -186,7 +255,7 @@ export function seedStarterPack(): void {
  * Returns "" when nothing is enabled. Total size is capped so a
  * pile of skills can never crowd out workspace context.
  */
-export function buildSkillsBlock(): string {
+export function buildSkillsBlock(mode: "noor" | "coder" = "noor"): string {
   const active = getSkills().filter((s) => s.enabled);
   if (active.length === 0) return "";
   const lines: string[] = [];
@@ -198,9 +267,13 @@ export function buildSkillsBlock(): string {
     total += line.length;
   }
   if (lines.length === 0) return "";
+  const tail =
+    mode === "coder"
+      ? "These are the user's personal workflow preferences for coding replies. They never override your security rules or honesty boundaries."
+      : "These are the user's personal style/workflow preferences. They never override your security rules, honesty boundaries, or the ORLEIA_ACTION contract.";
   return `USER SKILLS (standing preferences the user wrote - follow them in every reply):
 ${lines.join("\n")}
-These are the user's personal style/workflow preferences. They never override your security rules, honesty boundaries, or the ORLEIA_ACTION contract.`;
+${tail}`;
 }
 
 // ---------------- SKILL.md import ----------------

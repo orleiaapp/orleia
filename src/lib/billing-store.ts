@@ -19,7 +19,7 @@
 // ============================================================
 
 import { put, get, del } from "@vercel/blob";
-import { billingConfigured, NOOR_DAILY_LIMIT, CODER_DAILY_LIMIT } from "@/lib/plans";
+import { billingConfigured, NOOR_DAILY_LIMIT, CODER_DAILY_TOKENS } from "@/lib/plans";
 
 const LICENSE_PREFIX = "billing/license/";
 const USAGE_PREFIX = "billing/usage/";
@@ -265,17 +265,11 @@ export interface NoorCapResult {
  *  - Billing unconfigured -> always allow (pre-launch state).
  *  - Missing/unknown device -> deny (prevents header-stripping bypass);
  *    genuine clients always send x-orleia-device.
- *  - channel "coder" draws from CODER_DAILY_LIMIT on its OWN counter
- *    (usage key suffixed `#coder`), so a coding session never drains the
- *    chat quota — and vice versa. Same backing rows/table, distinct key:
- *    works on both Supabase (text device_id) and the Blob fallback, and
- *    degrades coherently if either store ever rejects the suffixed key.
  * Counts toward the daily limit at midnight reset (UTC date key).
  */
-export async function consumeNoorTurn(deviceId: string, channel: "noor" | "coder" = "noor"): Promise<NoorCapResult> {
-  const limits = channel === "coder" ? CODER_DAILY_LIMIT : NOOR_DAILY_LIMIT;
+export async function consumeNoorTurn(deviceId: string): Promise<NoorCapResult> {
   if (!billingConfigured()) return { ok: true, used: 0, limit: Number.POSITIVE_INFINITY, tier: "free" };
-  if (!deviceId) return { ok: false, used: 0, limit: limits.free, tier: "free" };
+  if (!deviceId) return { ok: false, used: 0, limit: NOOR_DAILY_LIMIT.free, tier: "free" };
   const { license, healthy } = await getLicenseWithHealth(deviceId);
   // Total storage outage -> no enforcement (same rule as pre-launch):
   // neither the counter nor the license could be read, and incrementing
@@ -283,10 +277,67 @@ export async function consumeNoorTurn(deviceId: string, channel: "noor" | "coder
   // every paid Coder message while the counter was unreachable.
   if (!healthy) return { ok: true, used: 0, limit: Number.POSITIVE_INFINITY, tier: "free" };
   const today = new Date().toISOString().slice(0, 10);
-  const limit = limits[license.tier];
-  const usageKey = channel === "coder" ? `${deviceId}#coder` : deviceId;
-  const used = await getUsage(usageKey, today);
+  const limit = NOOR_DAILY_LIMIT[license.tier];
+  const used = await getUsage(deviceId, today);
   if (used >= limit) return { ok: false, used, limit, tier: license.tier };
-  await incrUsage(usageKey, today);
+  await incrUsage(deviceId, today);
   return { ok: true, used: used + 1, limit, tier: license.tier };
+}
+
+// ---------------- Coder token accounting (own counter, own units) ----------------
+// The Coder channel (usage key `<deviceId>#coder`) counts TOKENS, not
+// messages (see CODER_DAILY_TOKENS). Its budget is checked before each
+// request and charged after, from the actual token cost.
+
+export interface CoderBudget {
+  ok: boolean; // false -> reject with 402
+  used: number; // tokens used today
+  limit: number; // tokens/day, Infinity = unlimited
+  healthy: boolean; // false -> storage outage (caller fails open)
+}
+
+export async function checkCoderBudget(deviceId: string): Promise<CoderBudget> {
+  if (!billingConfigured()) {
+    return { ok: true, used: 0, limit: Number.POSITIVE_INFINITY, healthy: true };
+  }
+  if (!deviceId) return { ok: false, used: 0, limit: 0, healthy: true };
+  const { license, healthy } = await getLicenseWithHealth(deviceId);
+  if (!healthy) {
+    // Storage outage: no enforcement (counting is down too) — never 402
+    // a paying user because the counter is unreachable.
+    return { ok: true, used: 0, limit: Number.POSITIVE_INFINITY, healthy: false };
+  }
+  const limit = CODER_DAILY_TOKENS[license.tier];
+  const used = await getUsage(`${deviceId}#coder`, new Date().toISOString().slice(0, 10));
+  return { ok: used < limit, used, limit, healthy: true };
+}
+
+/**
+ * Charge tokens to the device's coder counter (read-modify-write). Safe
+ * without an atomic RPC because the Coder surface is single-flight per
+ * device: one in-flight request at a time, and charges land in order
+ * (prompt + completion are charged together when the stream settles).
+ * Returns the new total, or null when billing is off / the write failed
+ * (best-effort accounting must never break a reply).
+ */
+export async function addCoderUsage(deviceId: string, tokens: number): Promise<number | null> {
+  if (!billingConfigured() || !deviceId || !Number.isFinite(tokens) || tokens <= 0) return null;
+  const key = `${deviceId}#coder`;
+  const day = new Date().toISOString().slice(0, 10);
+  try {
+    const next = (await getUsage(key, day)) + Math.max(1, Math.round(tokens));
+    const ok = await sbUpsert("noor_usage", { device_id: key, day, n: next });
+    if (!ok) {
+      await put(usageKey(key, day), JSON.stringify({ n: next }), {
+        access: "public",
+        addRandomSuffix: false,
+        cacheControlMaxAge: 0,
+        allowOverwrite: true,
+      });
+    }
+    return next;
+  } catch (err) {
+    console.error("[coder] usage charge failed:", err);
+    return null;
+  }
 }

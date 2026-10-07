@@ -22,16 +22,31 @@ export const NOOR_DAILY_LIMIT: Record<Tier, number> = {
 };
 
 /**
- * Daily Coder (beta) message cap per tier (server-enforced in /api/coder).
- * Same sizes as Noor but a SEPARATE counter: a coding session must not
- * silently drain chat quota. Free is 0 — /api/coder returns 403
- * coder_tier_locked for free before the cap is even consulted.
+ * Daily Coder TOKEN budget per tier (server-enforced in /api/coder).
+ * Tokens replace message counts (2026-10-07): message caps were easy to
+ * game with tiny prompts. Sized to match the old message caps at a
+ * typical ~1.5-2k tokens/message. Free = 0 — /api/coder returns 403
+ * coder_tier_locked for free before the budget is even consulted.
  */
-export const CODER_DAILY_LIMIT: Record<Tier, number> = {
+export const CODER_DAILY_TOKENS: Record<Tier, number> = {
   free: 0,
-  plus: 300,
-  pro: 1000,
+  plus: 500_000,
+  pro: 2_000_000,
   ultra: Number.POSITIVE_INFINITY,
+};
+
+/**
+ * Effort weight applied to completion tokens: higher effort burns more
+ * compute per token, so it costs proportionally more budget — the budget
+ * scales with effort AND difficulty, not just message count.
+ */
+export const CODER_EFFORT_WEIGHT: Record<string, number> = {
+  hyperfast: 0.5,
+  low: 0.75,
+  medium: 1,
+  high: 1.5,
+  max: 2,
+  ultra: 2.5,
 };
 
 export interface PlanDef {

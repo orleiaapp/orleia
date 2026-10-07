@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { guardApi } from "@/lib/apiGuard";
-import { billingConfigured, NOOR_DAILY_LIMIT, CODER_DAILY_LIMIT } from "@/lib/plans";
+import { billingConfigured, NOOR_DAILY_LIMIT, CODER_DAILY_TOKENS } from "@/lib/plans";
 import { getLicenseWithHealth, getUsage } from "@/lib/billing-store";
 
 export const runtime = "nodejs";
@@ -21,10 +21,11 @@ export async function GET(req: Request) {
   const today = new Date().toISOString().slice(0, 10);
   const used = billingConfigured() ? await getUsage(deviceId, today) : 0;
   const limit = NOOR_DAILY_LIMIT[license.tier];
-  // Coder channel draws from its own counter (`#coder`-suffixed usage key),
-  // so Coder mode can show server-truth "messages left" without touching chat.
+  // Coder channel draws from its own counter (`#coder`-suffixed usage key)
+  // and counts TOKENS, not messages (CODER_DAILY_TOKENS): the surface shows
+  // server-truth "% of daily tokens used" without touching chat quota.
   const coderUsed = billingConfigured() ? await getUsage(`${deviceId}#coder`, today) : 0;
-  const coderLimit = CODER_DAILY_LIMIT[license.tier];
+  const coderLimit = CODER_DAILY_TOKENS[license.tier];
 
   return NextResponse.json({
     tier: license.tier,

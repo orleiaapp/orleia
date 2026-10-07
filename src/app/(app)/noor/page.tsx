@@ -54,7 +54,7 @@ import {
   Lock,
 } from "lucide-react";
 import { LOCAL_MODELS, probeOllama, isModelInstalled, ollamaSetupHint, type OllamaStatus, type LocalModelDef } from "@/lib/local-ai";
-import { EFFORT_LEVELS, effortModelId, type EffortLevel } from "@/lib/ai-models";
+import { EFFORT_LEVELS, effortModelId, DEFAULT_MODEL, MODEL_PROFILES, type EffortLevel } from "@/lib/ai-models";
 import { EffortSlider } from "@/components/ui/effort-slider";
 import { storage } from "@/lib/storage";
 import { buildSituationModel } from "@/lib/graph/situation";
@@ -731,6 +731,11 @@ export default function AssistantPage() {
     triggerFog();
     setCoderMode(false);
   };
+
+  // Model/effort for Coder comes from the SHARED header picker (Codex-style
+  // reasoning-effort selector): resolved NVIDIA id + knobs. Legacy/local ids
+  // not in the profile table fall back to the default effort.
+  const coderProfile = MODEL_PROFILES[selectedModel] || MODEL_PROFILES[DEFAULT_MODEL];
 
   useEffect(
     () => () => {
@@ -2222,7 +2227,7 @@ try {
           <div className="flex items-center gap-2 shrink-0">
             {/* Model picker — desktop only on this bar; mobile picks the model
                 from the chip inside the composer pill. */}
-            <div className={cn("relative", (isMobile || coderMode) && "hidden")} ref={modelPickerRef}>
+            <div className={cn("relative", isMobile && "hidden")} ref={modelPickerRef}>
               <button
                 onClick={() => {
                   const next = !showModelPicker;
@@ -2395,7 +2400,16 @@ try {
               transition={{ duration: modeDur, ease: "easeOut" }}
               className="relative flex min-h-0 flex-1 flex-col overflow-hidden"
             >
-              <CoderSurface onExit={leaveCoder} onTierLocked={() => setCoderPaid(false)} />
+              <CoderSurface
+                onExit={leaveCoder}
+                onTierLocked={() => setCoderPaid(false)}
+                model={coderProfile.nvidiaModelId}
+                effort={effortOf(selectedModel)}
+                temperature={coderProfile.temperature}
+                maxTokens={coderProfile.maxTokens}
+                maxContext={coderProfile.maxContextMessages}
+                modelLabel={MODEL_META[selectedModel] || msgLabel(selectedModel)}
+              />
             </motion.div>
           ) : (
             <motion.div
