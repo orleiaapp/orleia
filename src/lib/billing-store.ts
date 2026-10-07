@@ -19,7 +19,7 @@
 // ============================================================
 
 import { put, get, del } from "@vercel/blob";
-import { billingConfigured, NOOR_DAILY_LIMIT } from "@/lib/plans";
+import { billingConfigured, NOOR_DAILY_LIMIT, CODER_DAILY_LIMIT } from "@/lib/plans";
 
 const LICENSE_PREFIX = "billing/license/";
 const USAGE_PREFIX = "billing/usage/";
@@ -144,20 +144,50 @@ function usageKey(deviceId: string, date: string): string {
 const validTiers = new Set(["free", "plus", "pro", "ultra"]);
 
 export async function getLicense(deviceId: string): Promise<StoredLicense> {
-  // Primary: Supabase row.
+  return (await getLicenseWithHealth(deviceId)).license;
+}
+
+/**
+ * License + storage health. `healthy: false` means NEITHER backend could
+ * answer (Supabase unreachable AND Blob threw) — a total billing-storage
+ * outage. Callers that gate access must fail open in that state: silently
+ * resolving every device to "free" during an outage locks out paying
+ * users (seen in prod 2026-10-07: Supabase project 404 on every service,
+ * Vercel Blob store suspended — every license read resolved to free).
+ */
+export async function getLicenseWithHealth(
+  deviceId: string
+): Promise<{ license: StoredLicense; healthy: boolean }> {
+  const fallback: StoredLicense = { tier: "free", status: "active", updatedAt: new Date().toISOString() };
+  // Primary: Supabase row. null => store unreachable (see sbSelect).
   const rows = await sbSelect<StoredLicense & { device_id: string }>(
     "billing_license",
     `device_id=eq.${encodeURIComponent(deviceId)}&select=*`
   );
-  if (rows && rows.length && validTiers.has(rows[0].tier)) {
-    const { device_id: _d, ...lic } = rows[0];
-    return lic as StoredLicense;
+  if (rows) {
+    if (rows.length && validTiers.has(rows[0].tier)) {
+      const { device_id: _d, ...lic } = rows[0];
+      return { license: lic as StoredLicense, healthy: true };
+    }
+    // Supabase answered: no row => genuinely free. Legacy pre-Supabase
+    // Blob rows are checked best-effort; their outage can't demote a
+    // Supabase-backed user.
+    const legacy = (await readJson(licenseKey(deviceId))) as StoredLicense | null;
+    if (legacy && validTiers.has(legacy.tier)) return { license: legacy, healthy: true };
+    return { license: fallback, healthy: true };
   }
-  // Fallback: Blob JSON.
-  const fallback: StoredLicense = { tier: "free", status: "active", updatedAt: new Date().toISOString() };
-  const parsed = (await readJson(licenseKey(deviceId))) as StoredLicense | null;
-  if (!parsed || !validTiers.has(parsed.tier)) return fallback;
-  return parsed;
+  // Supabase down -> Blob is the source of truth. Raw get(): readJson
+  // swallows errors, and we must distinguish "no file" (healthy) from
+  // "store suspended" (outage).
+  try {
+    const res = await get(licenseKey(deviceId), { access: "public" });
+    if (!res) return { license: fallback, healthy: true }; // healthy store, no file
+    const parsed = JSON.parse(await new Response(res.stream).text()) as StoredLicense;
+    if (!validTiers.has(parsed.tier)) return { license: fallback, healthy: true };
+    return { license: parsed, healthy: true };
+  } catch {
+    return { license: fallback, healthy: false };
+  }
 }
 
 export async function setLicense(deviceId: string, license: StoredLicense): Promise<void> {
@@ -230,21 +260,33 @@ export interface NoorCapResult {
 }
 
 /**
- * Single source of Noor cap enforcement. Consumes one Noor turn for the
- * device and reports whether the request may proceed.
+ * Single source of cap enforcement. Consumes one turn for the device on
+ * the given channel and reports whether the request may proceed.
  *  - Billing unconfigured -> always allow (pre-launch state).
  *  - Missing/unknown device -> deny (prevents header-stripping bypass);
  *    genuine clients always send x-orleia-device.
+ *  - channel "coder" draws from CODER_DAILY_LIMIT on its OWN counter
+ *    (usage key suffixed `#coder`), so a coding session never drains the
+ *    chat quota — and vice versa. Same backing rows/table, distinct key:
+ *    works on both Supabase (text device_id) and the Blob fallback, and
+ *    degrades coherently if either store ever rejects the suffixed key.
  * Counts toward the daily limit at midnight reset (UTC date key).
  */
-export async function consumeNoorTurn(deviceId: string): Promise<NoorCapResult> {
+export async function consumeNoorTurn(deviceId: string, channel: "noor" | "coder" = "noor"): Promise<NoorCapResult> {
+  const limits = channel === "coder" ? CODER_DAILY_LIMIT : NOOR_DAILY_LIMIT;
   if (!billingConfigured()) return { ok: true, used: 0, limit: Number.POSITIVE_INFINITY, tier: "free" };
-  if (!deviceId) return { ok: false, used: 0, limit: NOOR_DAILY_LIMIT.free, tier: "free" };
-  const license = await getLicense(deviceId);
+  if (!deviceId) return { ok: false, used: 0, limit: limits.free, tier: "free" };
+  const { license, healthy } = await getLicenseWithHealth(deviceId);
+  // Total storage outage -> no enforcement (same rule as pre-launch):
+  // neither the counter nor the license could be read, and incrementing
+  // would fail anyway. Never resolve to "free" mid-outage — that 402'd
+  // every paid Coder message while the counter was unreachable.
+  if (!healthy) return { ok: true, used: 0, limit: Number.POSITIVE_INFINITY, tier: "free" };
   const today = new Date().toISOString().slice(0, 10);
-  const limit = NOOR_DAILY_LIMIT[license.tier];
-  const used = await getUsage(deviceId, today);
+  const limit = limits[license.tier];
+  const usageKey = channel === "coder" ? `${deviceId}#coder` : deviceId;
+  const used = await getUsage(usageKey, today);
   if (used >= limit) return { ok: false, used, limit, tier: license.tier };
-  await incrUsage(deviceId, today);
+  await incrUsage(usageKey, today);
   return { ok: true, used: used + 1, limit, tier: license.tier };
 }

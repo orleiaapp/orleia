@@ -1,7 +1,33 @@
 # Coder Plan — "Coder mode inside Noor"
 
-Status: PLAN ONLY — no code written yet.
+Status: **P1 SHIPPED** 2026-10-07 (rev 4). Mode + switch + server gate +
+`/api/coder` + separate cap + foggy fade are live; P2–P4 pending.
 Date: Oct 6, 2026 (rev 3 — free sees the switch but locked; labeled beta everywhere)
+
+## 10. P1 implementation log (2026-10-07)
+
+- **Gate is server-truth now.** The old client check (`billingConfigured()`
+  in the browser) was always false — billing env never reaches the client
+  bundle — so EVERY device saw the paid "beta arriving soon" card (the bug
+  an ultra user reported as "it tells me I can't"). The switch now fetches
+  `GET /api/billing/license`; `/api/coder` enforces 403 `coder_tier_locked`
+  for free and 402 `coder_daily_cap`. Client gate fails open (network blips
+  must not lock out payers); the server is the real gate either way.
+- **Paid users enter the mode directly** — the "arrives soon" popover is
+  gone (key `coder.soonBody` kept per the keep-schema-on-features rule).
+- **Model:** `CODER_MODEL_PRIMARY` env, default
+  `nvidia/nemotron-3-ultra-550b-a55b` (only nemotron endpoints answer on the
+  current NIM key; kimi/glm return 403 until activated on build.nvidia.com —
+  `FALLBACKS` entries are already wired so the walk lands on a live sibling).
+- **Cap:** separate `channel: "coder"` counter = usage key `<deviceId>#coder`
+  (works on both Supabase text keys and Blob; degrades coherently either way).
+- **Quick actions deviation:** Explain / Debug / Write test / Refactor —
+  no "Run" until a sandbox exists (P3). No token counter; server-truth usage
+  chip instead.
+- **Entry:** paid click = enter (foggy fade 2×250ms + veil peak, reduced
+  motion → 150ms opacity-only); free click = lock popover. Always opens in
+  Noor mode next session (open question 3 resolved: no persistence for v1).
+- Transcript: `orleia.coderChat.v1` (localStorage, last 80 messages).
 Direction change: Coder is **not its own tab**. It is a **mode inside Noor**
 (like ChatGPT ↔ Codex under one roof): same chat surface, a mode switch, a
 **completely different UI/UX** while active, a **foggy fade** crossing

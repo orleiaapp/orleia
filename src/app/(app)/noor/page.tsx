@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState, useEffect, useRef, type ChangeEvent } from "react";
 import { ThinkingOrb } from "thinking-orbs";
 import { ResearchCard } from "@/components/noor/ResearchCard";
+import { CoderSurface } from "@/components/noor/CoderSurface";
 import {
   buildPlannerPrompt as _unusedPlanner,
   extractJSON as _unusedExtract,
@@ -15,7 +16,7 @@ import {
   type ResearchFormat,
 } from "@/lib/research";
 import { deliverableToMarkdown, downloadResearchMarkdown } from "@/lib/research-client";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import {
   Send,
   Mic,
@@ -68,8 +69,6 @@ import { isLiveQuery } from "@/lib/web-search";
 import { cn, generateId } from "@/lib/utils";
 import { useMobile } from "@/hooks/useMobile";
 import { getDeviceId } from "@/lib/device-id";
-import { getLicense } from "@/lib/billing-store";
-import { billingConfigured } from "@/lib/plans";
 import { AIMessage, AIModel, AI_MODELS, MODEL_ALIASES, BriefAction, AISource, PetAgent } from "@/types";
 import { Markdown } from "@/components/chat/Markdown";
 import { useI18n } from "@/lib/i18n";
@@ -372,6 +371,10 @@ export default function AssistantPage() {
   // Noor Coder (beta): mode-switch popover + resolved tier (null = loading).
   const [coderOpen, setCoderOpen] = useState(false);
   const [coderPaid, setCoderPaid] = useState<boolean | null>(null);
+  // Coder MODE (the surface itself) + foggy-fade bookkeeping.
+  const [coderMode, setCoderMode] = useState(false);
+  const [fogAt, setFogAt] = useState<number | null>(null);
+  const fogTimerRef = useRef<number | null>(null);
   // Local AI (Ollama): sub-list expansion + live install probe.
   const [localOpen, setLocalOpen] = useState(false);
   const [ollama, setOllama] = useState<OllamaStatus | null>(null);
@@ -666,21 +669,28 @@ export default function AssistantPage() {
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
 
-  // Noor Coder (beta): resolve the device's tier so free users see the
-  // switch locked behind an upgrade while paid tiers see beta access.
-  // Billing not configured yet -> treat as paid (same pre-launch rule as
-  // the daily caps: nothing is paywalled until Stripe env exists).
+  // Noor Coder (beta): resolve the device's tier SERVER-side. The browser
+  // bundle can't see billing env (a client billingConfigured() check is
+  // always false — which showed EVERY device the paid card), and the client
+  // gate is decoration anyway: /api/coder enforces 403/402 server-side.
+  // Fail OPEN on fetch errors: a flaky school network must not tell a
+  // paying user they're locked out.
   useEffect(() => {
     let alive = true;
     (async () => {
       let paid = true;
       try {
-        if (billingConfigured()) {
-          const lic = await getLicense(getDeviceId());
-          paid = lic.tier === "plus" || lic.tier === "pro" || lic.tier === "ultra";
-        }
+        const res = await fetch(
+          `/api/billing/license?deviceId=${encodeURIComponent(getDeviceId())}`,
+          { cache: "no-store" }
+        );
+        if (!res.ok) throw new Error(`license HTTP ${res.status}`);
+        const j = await res.json();
+        // storageHealthy=false => tier resolved during a storage outage:
+        // fail open (the server gate does the same), never show the lock.
+        paid = !j.billingConfigured || j.tier !== "free" || j.storageHealthy === false;
       } catch {
-        paid = false;
+        paid = true;
       }
       if (alive) setCoderPaid(paid);
     })();
@@ -688,6 +698,46 @@ export default function AssistantPage() {
       alive = false;
     };
   }, []);
+
+  // ---- Coder mode: entry (paid only, desktop lg+ only) + foggy fade ----
+  const reduceMotion = useReducedMotion();
+  const blurIn = reduceMotion ? "blur(0px)" : "blur(14px)";
+  const modeDur = reduceMotion ? 0.15 : 0.25;
+
+  const triggerFog = () => {
+    const at = Date.now();
+    setFogAt(at);
+    if (fogTimerRef.current) window.clearTimeout(fogTimerRef.current);
+    fogTimerRef.current = window.setTimeout(() => {
+      setFogAt((cur) => (cur === at ? null : cur));
+    }, 650);
+  };
+
+  const enterCoder = () => {
+    // Second gate: CSS hides the switch below lg; this keeps the mode out
+    // of narrow windows even if the markup ever changes.
+    if (typeof window !== "undefined" && !window.matchMedia("(min-width: 1024px)").matches) return;
+    if (coderPaid === false) {
+      setCoderOpen(true);
+      return;
+    }
+    setCoderOpen(false);
+    setShowChats(false);
+    triggerFog();
+    setCoderMode(true);
+  };
+
+  const leaveCoder = () => {
+    triggerFog();
+    setCoderMode(false);
+  };
+
+  useEffect(
+    () => () => {
+      if (fogTimerRef.current) window.clearTimeout(fogTimerRef.current);
+    },
+    []
+  );
 
 
 
@@ -2066,7 +2116,7 @@ try {
   return (
     <div ref={rootRef} className="fixed inset-0 z-0 flex gap-6 overflow-hidden md:relative md:inset-auto md:z-auto md:h-dvh">
       {/* Main chat */}
-      <div className="flex-1 flex flex-col min-w-0 min-h-0">
+      <div className="relative flex-1 flex flex-col min-w-0 min-h-0">
         {/* Header */}
         {/* Header — mobile clears the floating glass buttons (top-3 + 40px tall,
             same 64px clearance the shell gives other pages); compact again at
@@ -2086,14 +2136,35 @@ try {
               behind an upgrade; paid tiers see the beta-access card. */}
           <div className="hidden lg:block relative" ref={coderRef}>
             <div className="flex items-center rounded-full border border-border/60 bg-secondary/40 p-0.5 text-xs font-semibold">
-              <span className="px-3 py-1.5 rounded-full bg-background text-foreground shadow-sm">Noor</span>
               <button
-                onClick={() => setCoderOpen((v) => !v)}
+                onClick={() => {
+                  if (coderMode) leaveCoder();
+                }}
+                className={cn(
+                  "px-3 py-1.5 rounded-full transition-colors",
+                  coderMode
+                    ? "text-muted-foreground hover:text-foreground"
+                    : "bg-background text-foreground shadow-sm"
+                )}
+                aria-pressed={!coderMode}
+              >
+                Noor
+              </button>
+              <button
+                onClick={() => {
+                  if (coderMode) return; // active segment — leaving is the Noor segment's job
+                  if (coderPaid !== true) setCoderOpen((v) => !v);
+                  else enterCoder();
+                }}
                 className={cn(
                   "flex items-center gap-1.5 px-3 py-1.5 rounded-full transition-colors",
-                  coderOpen ? "text-foreground" : "text-muted-foreground hover:text-foreground"
+                  coderMode
+                    ? "bg-background text-foreground shadow-sm"
+                    : coderOpen
+                      ? "text-foreground"
+                      : "text-muted-foreground hover:text-foreground"
                 )}
-                aria-haspopup="dialog"
+                aria-haspopup={coderPaid !== true ? "dialog" : undefined}
                 aria-expanded={coderOpen}
               >
                 Coder
@@ -2118,33 +2189,31 @@ try {
                       {t("coder.beta")}
                     </span>
                   </div>
+                  {/* Paid users never see this popover anymore — the switch
+                      enters Coder mode directly. Free (and loading) only. */}
                   <p className="text-xs leading-relaxed text-muted-foreground mb-3">
-                    {coderPaid === null ? "..." : coderPaid ? t("coder.soonBody") : t("coder.lockedBody")}
+                    {coderPaid === null ? "..." : t("coder.lockedBody")}
                   </p>
                   <div className="flex items-center gap-2">
-                    {coderPaid === false ? (
-                      <>
-                        <button
-                          onClick={() => router.push("/pricing")}
-                          className="rounded-lg bg-primary-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-primary-600 transition-colors"
-                        >
-                          {t("coder.viewPlans")}
-                        </button>
-                        <button
-                          onClick={() => setCoderOpen(false)}
-                          className="rounded-lg px-2 py-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
-                        >
-                          {t("coder.notNow")}
-                        </button>
-                      </>
-                    ) : (
+                    {coderPaid === false && (
                       <button
-                        onClick={() => setCoderOpen(false)}
-                        className="rounded-lg border border-border px-3 py-1.5 text-xs font-semibold hover:bg-secondary transition-colors"
+                        onClick={() => router.push("/pricing")}
+                        className="rounded-lg bg-primary-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-primary-600 transition-colors"
                       >
-                        {t("coder.ok")}
+                        {t("coder.viewPlans")}
                       </button>
                     )}
+                    <button
+                      onClick={() => setCoderOpen(false)}
+                      className={cn(
+                        "rounded-lg px-2 py-1.5 text-xs transition-colors",
+                        coderPaid === false
+                          ? "text-muted-foreground hover:text-foreground"
+                          : "border border-border px-3 font-semibold hover:bg-secondary"
+                      )}
+                    >
+                      {t("coder.notNow")}
+                    </button>
                   </div>
                 </motion.div>
               )}
@@ -2153,7 +2222,7 @@ try {
           <div className="flex items-center gap-2 shrink-0">
             {/* Model picker — desktop only on this bar; mobile picks the model
                 from the chip inside the composer pill. */}
-            <div className={cn("relative", isMobile && "hidden")} ref={modelPickerRef}>
+            <div className={cn("relative", (isMobile || coderMode) && "hidden")} ref={modelPickerRef}>
               <button
                 onClick={() => {
                   const next = !showModelPicker;
@@ -2292,7 +2361,7 @@ try {
             </div>
             {/* Chats toggle — desktop only. On mobile the "Chats" button above
                 the pill replaces it in the empty state. */}
-            {!isMobile && (
+            {!isMobile && !coderMode && (
               <button
                 onClick={() => setShowChats(!showChats)}
                 className={cn(
@@ -2311,6 +2380,32 @@ try {
           </div>
         </div>
 
+        {/* Mode surfaces — foggy crossfade: the outgoing surface blurs and
+            fades, the veil peaks at mid-transition, then the incoming
+            surface resolves (CODER_PLAN §1). Coder is a sibling view of the
+            whole chat region; below lg the switch is CSS-hidden and
+            enterCoder()'s matchMedia guard refuses entry. */}
+        <AnimatePresence mode="wait" initial={false}>
+          {coderMode ? (
+            <motion.div
+              key="coder-surface"
+              initial={{ opacity: 0, filter: blurIn }}
+              animate={{ opacity: 1, filter: "blur(0px)" }}
+              exit={{ opacity: 0, filter: blurIn }}
+              transition={{ duration: modeDur, ease: "easeOut" }}
+              className="relative flex min-h-0 flex-1 flex-col overflow-hidden"
+            >
+              <CoderSurface onExit={leaveCoder} onTierLocked={() => setCoderPaid(false)} />
+            </motion.div>
+          ) : (
+            <motion.div
+              key="noor-surface"
+              initial={{ opacity: 0, filter: blurIn }}
+              animate={{ opacity: 1, filter: "blur(0px)" }}
+              exit={{ opacity: 0, filter: blurIn }}
+              transition={{ duration: modeDur, ease: "easeOut" }}
+              className="relative flex min-h-0 flex-1 flex-col"
+            >
         {/* Noor watermark — mobile empty state only: big mark, 50% transparent,
             centered above the pill. Purely decorative. */}
         {isMobile && isEmptyChat && (
@@ -3235,6 +3330,19 @@ try {
             </p>
           </div>
         </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+        {/* Fog veil — peaks at mid-transition: blur wash over both surfaces. */}
+        {!reduceMotion && fogAt !== null && (
+          <motion.div
+            key={fogAt}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: [0, 1, 0] }}
+            transition={{ duration: 0.5, times: [0, 0.45, 1], ease: "easeInOut" }}
+            className="pointer-events-none absolute inset-0 z-40 bg-background/50 backdrop-blur-[14px]"
+          />
+        )}
       </div>
 
       {/* Local model info popup — full details (pull command, exact model

@@ -21,6 +21,19 @@ export const NOOR_DAILY_LIMIT: Record<Tier, number> = {
   ultra: Number.POSITIVE_INFINITY,
 };
 
+/**
+ * Daily Coder (beta) message cap per tier (server-enforced in /api/coder).
+ * Same sizes as Noor but a SEPARATE counter: a coding session must not
+ * silently drain chat quota. Free is 0 — /api/coder returns 403
+ * coder_tier_locked for free before the cap is even consulted.
+ */
+export const CODER_DAILY_LIMIT: Record<Tier, number> = {
+  free: 0,
+  plus: 300,
+  pro: 1000,
+  ultra: Number.POSITIVE_INFINITY,
+};
+
 export interface PlanDef {
   tier: Exclude<Tier, "free">;
   name: string;
@@ -47,6 +60,7 @@ export const PAID_PLANS: PlanDef[] = [
     blurb: "For daily drivers who live in Noor.",
     perks: [
       "300 Noor messages every day",
+      "300 Coder messages every day",
       "Noor Coder (beta) access",
       "Everything in the free plan",
       "All tools stay unlimited",
@@ -62,6 +76,7 @@ export const PAID_PLANS: PlanDef[] = [
     blurb: "For power users running Noor all day.",
     perks: [
       "1,000 Noor messages every day",
+      "1,000 Coder messages every day",
       "Noor Coder (beta) access",
       "Everything in Plus",
       "Cancel anytime",
@@ -77,6 +92,7 @@ export const PAID_PLANS: PlanDef[] = [
     blurb: "For the ones who push Noor to its limits.",
     perks: [
       "Unlimited Noor messages (fair use)",
+      "Unlimited Coder messages (fair use)",
       "Noor Coder (beta) access",
       "Everything in Pro",
       "Cancel anytime",

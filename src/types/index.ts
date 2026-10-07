@@ -94,6 +94,10 @@ export interface ThemeConfig {
   highContrast: boolean;
   underlineLinks: boolean;
   language: string;
+  /** True once the user deliberately picks a language in Settings.
+   *  Distinguishes an explicit English pick from the stored default "en"
+   *  (which means auto/OS-driven). Absent in pre-existing data. */
+  languageExplicit: boolean;
   voiceId: string | null;
   remindersEnabled: boolean;
   remindEvents: boolean;

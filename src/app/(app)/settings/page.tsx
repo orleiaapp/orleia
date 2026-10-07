@@ -251,7 +251,7 @@ function ProfileEditor({
 /* ------------------------------------------------------------------ */
 export default function SettingsPage() {
   const [data, setData] = useState(storage.getData());
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const [activeCategory, setActiveCategory] = useState<SettingsCategory>(null);
 
   const [showConfirm, setShowConfirm] = useState(false);
@@ -683,10 +683,21 @@ export default function SettingsPage() {
               <label className="text-sm font-medium mb-2 block">
                 {t("settings.language")}
               </label>
+              {/* Value = the language actually rendering right now (OS-auto
+                  included): showing the stored "en" while the UI rendered
+                  Polish made English look already-selected — picking it fired
+                  no change event, and resolveLanguage skipped stored "en". */}
               <select
-                value={data.theme.language || "en"}
+                value={lang}
                 onChange={(e) => {
-                  storage.updateTheme({ language: e.target.value });
+                  // Mark the pick explicit so English is honored, and drop a
+                  // stale ?lang= param so the pick takes effect immediately.
+                  const url = new URL(window.location.href);
+                  if (url.searchParams.has("lang")) {
+                    url.searchParams.delete("lang");
+                    window.history.replaceState(window.history.state, "", url);
+                  }
+                  storage.updateTheme({ language: e.target.value, languageExplicit: true });
                   refresh();
                 }}
                 className="w-full max-w-xs rounded-xl border border-border bg-secondary/40 px-4 py-2.5 text-sm text-foreground outline-none transition-colors focus:border-primary-500/50"

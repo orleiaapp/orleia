@@ -8,7 +8,7 @@ const STORAGE_KEY = "orleia-data";
 const SYNC_KEY = "orleia-sync";
 
 const DEFAULT_DATA: AppData = {
-  theme: { theme: "system", primaryColor: "#6366f1", accentColor: "slate", fontSize: "md", reducedMotion: false, dyslexiaFriendly: false, highContrast: false, underlineLinks: false, language: "en", voiceId: null, remindersEnabled: true, remindEvents: true, remindHabits: true, remindTasks: true, remindMentions: true, remindWellness: false, desktopNotifications: true, wellnessTime: "15:00" },
+  theme: { theme: "system", primaryColor: "#6366f1", accentColor: "slate", fontSize: "md", reducedMotion: false, dyslexiaFriendly: false, highContrast: false, underlineLinks: false, language: "en", languageExplicit: false, voiceId: null, remindersEnabled: true, remindEvents: true, remindHabits: true, remindTasks: true, remindMentions: true, remindWellness: false, desktopNotifications: true, wellnessTime: "15:00" },
   calendarEvents: [],
   forms: [],
   boards: [],

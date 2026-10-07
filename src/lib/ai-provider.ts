@@ -33,6 +33,12 @@ const FALLBACKS: Record<string, string> = {
   "nvidia/nemotron-3-super-120b-a12b": "nvidia/nemotron-3-ultra-550b-a55b",
   "nvidia/nemotron-3-ultra-550b-a55b": "nvidia/nemotron-3.5-lightning-30b-a3b",
   "nvidia/nemotron-3.5-lightning-30b-a3b": "nvidia/nemotron-3-super-120b-a12b",
+  // Coder candidates (CODER_MODEL_PRIMARY). Today this key gets 403 on them
+  // until the endpoints are activated on build.nvidia.com — the walk then
+  // lands on the live Novella sibling instead of dead-ending.
+  "moonshotai/kimi-k2.6": "nvidia/nemotron-3-ultra-550b-a55b",
+  "moonshotai/kimi-k3": "nvidia/nemotron-3-ultra-550b-a55b",
+  "z-ai/glm-5.3": "nvidia/nemotron-3-ultra-550b-a55b",
 };
 
 // Per-model thinking mode, measured live against the endpoint:

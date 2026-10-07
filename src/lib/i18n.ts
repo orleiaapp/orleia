@@ -402,6 +402,18 @@ const dict: Record<string, Record<string, string>> = {  en: {
   "coder.viewPlans": "View plans",
   "coder.notNow": "Not now",
   "coder.ok": "Got it",
+  "coder.composerPh": "Paste an error, a function, or a repo question",
+  "coder.empty": "Paste an error, a function, or a repo question — or just ask anything about code.",
+  "coder.newChat": "New chat",
+  "coder.left": "{n} Coder messages left today",
+  "coder.unlimited": "Unlimited Coder messages",
+  "coder.explain": "Explain",
+  "coder.debug": "Debug",
+  "coder.test": "Write a test",
+  "coder.refactor": "Refactor",
+  "coder.sendHint": "⏎ to send · ⇧⏎ for a new line",
+  "coder.capBody": "You've used all your Coder messages for today — your limit resets at midnight (UTC).",
+  "coder.err": "Something went wrong. Try sending that again.",
   "skills.namePlaceholder": "Name - e.g. Concise mode",
   "skills.instructionsPlaceholder": "What should Noor always do? e.g. Keep answers under 3 sentences",
   "skills.template": "Quick start",
@@ -1016,7 +1028,7 @@ const dict: Record<string, Record<string, string>> = {  en: {
   "settings.fontMedium": "Medium",
   "settings.fontLarge": "Large",
   "settings.language": "Language",
-  "settings.languageHint": "Used everywhere in Orleia. Untranslated text falls back to English.",
+  "settings.languageHint": "Used everywhere in Orleia. Follows your system language until you pick one; untranslated text falls back to English.",
   "settings.accessibility": "Accessibility",
   "settings.dyslexia": "Dyslexia-friendly mode",
   "settings.dyslexiaDesc": "More readable font, wider letter & word spacing",
@@ -1670,6 +1682,18 @@ const dict: Record<string, Record<string, string>> = {  en: {
   "coder.viewPlans": "Ver planes",
   "coder.notNow": "Ahora no",
   "coder.ok": "Entendido",
+  "coder.composerPh": "Pega un error, una función o una pregunta sobre un repo",
+  "coder.empty": "Pega un error, una función o una pregunta sobre un repo — o pregunta cualquier cosa sobre código.",
+  "coder.newChat": "Nuevo chat",
+  "coder.left": "{n} mensajes de Coder hoy",
+  "coder.unlimited": "Mensajes de Coder ilimitados",
+  "coder.explain": "Explicar",
+  "coder.debug": "Depurar",
+  "coder.test": "Escribir test",
+  "coder.refactor": "Refactorizar",
+  "coder.sendHint": "⏎ para enviar · ⇧⏎ nueva línea",
+  "coder.capBody": "Has agotado tus mensajes de Coder de hoy — el límite se reinicia a medianoche (UTC).",
+  "coder.err": "Algo salió mal. Inténtalo de nuevo.",
   "skills.namePlaceholder": "Nombre - p. ej. Modo conciso",
   "skills.instructionsPlaceholder": "¿Qué debe hacer siempre Noor? P. ej. respuestas de menos de 3 frases",
   "skills.template": "Inicio rápido",
@@ -2877,6 +2901,18 @@ const dict: Record<string, Record<string, string>> = {  en: {
   "coder.viewPlans": "Voir les forfaits",
   "coder.notNow": "Pas maintenant",
   "coder.ok": "Compris",
+  "coder.composerPh": "Collez une erreur, une fonction ou une question sur un dépôt",
+  "coder.empty": "Collez une erreur, une fonction ou une question sur un dépôt — ou posez n'importe quelle question de code.",
+  "coder.newChat": "Nouvelle discussion",
+  "coder.left": "{n} messages Coder aujourd'hui",
+  "coder.unlimited": "Messages Coder illimités",
+  "coder.explain": "Expliquer",
+  "coder.debug": "Déboguer",
+  "coder.test": "Écrire un test",
+  "coder.refactor": "Refactoriser",
+  "coder.sendHint": "⏎ pour envoyer · ⇧⏎ nouvelle ligne",
+  "coder.capBody": "Vous avez épuisé vos messages Coder du jour — la limite se réinitialise à minuit (UTC).",
+  "coder.err": "Une erreur est survenue. Réessayez.",
   "skills.namePlaceholder": "Nom - ex. Mode concis",
   "skills.instructionsPlaceholder": "Que doit toujours faire Noor ? Ex. des réponses de moins de 3 phrases",
   "skills.template": "Démarrage rapide",
@@ -4082,6 +4118,18 @@ const dict: Record<string, Record<string, string>> = {  en: {
   "coder.viewPlans": "Pläne ansehen",
   "coder.notNow": "Später",
   "coder.ok": "Verstanden",
+  "coder.composerPh": "Füge einen Fehler, eine Funktion oder eine Repo-Frage ein",
+  "coder.empty": "Füge einen Fehler, eine Funktion oder eine Repo-Frage ein — oder frag einfach alles zu Code.",
+  "coder.newChat": "Neuer Chat",
+  "coder.left": "{n} Coder-Nachrichten heute",
+  "coder.unlimited": "Unbegrenzte Coder-Nachrichten",
+  "coder.explain": "Erklären",
+  "coder.debug": "Debuggen",
+  "coder.test": "Test schreiben",
+  "coder.refactor": "Refactoren",
+  "coder.sendHint": "⏎ zum Senden · ⇧⏎ neue Zeile",
+  "coder.capBody": "Dein Coder-Limit für heute ist aufgebraucht — es setzt um Mitternacht (UTC) zurück.",
+  "coder.err": "Etwas ist schiefgelaufen. Versuche es erneut.",
   "skills.namePlaceholder": "Name - z. B. Kompaktmodus",
   "skills.instructionsPlaceholder": "Was soll Noor immer tun? Z. B. Antworten unter 3 Sätzen",
   "skills.template": "Schnellstart",
@@ -5289,6 +5337,18 @@ const dict: Record<string, Record<string, string>> = {  en: {
   "coder.viewPlans": "Ver planos",
   "coder.notNow": "Agora não",
   "coder.ok": "Compreendi",
+  "coder.composerPh": "Cole um erro, uma função ou uma pergunta sobre um repositório",
+  "coder.empty": "Cole um erro, uma função ou uma pergunta sobre um repositório — ou pergunte qualquer coisa sobre código.",
+  "coder.newChat": "Nova conversa",
+  "coder.left": "{n} mensagens de Coder hoje",
+  "coder.unlimited": "Mensagens de Coder ilimitadas",
+  "coder.explain": "Explicar",
+  "coder.debug": "Depurar",
+  "coder.test": "Escrever teste",
+  "coder.refactor": "Refatorar",
+  "coder.sendHint": "⏎ para enviar · ⇧⏎ nova linha",
+  "coder.capBody": "Usou todas as mensagens de Coder de hoje — o limite reinicia à meia-noite (UTC).",
+  "coder.err": "Algo correu mal. Tente novamente.",
   "skills.namePlaceholder": "Nome - ex. Modo conciso",
   "skills.instructionsPlaceholder": "O que o Noor deve sempre fazer? Ex. respostas com menos de 3 frases",
   "skills.template": "Início rápido",
@@ -24298,24 +24358,37 @@ export function getLangDir(lang: string): "ltr" | "rtl" {
 
 /**
  * Language resolution order:
- *   1. explicit ?lang= URL param (deep links / testing)
- *   2. the user's pick in Settings → Appearance (theme.language)
- *   3. the operating system language (navigator.languages)
- *   4. English
- * The stored default "en" means "no explicit pick" (auto/OS-driven); a
- * user who explicitly picks English in the dropdown also stores "en",
- * which is indistinguishable from auto — accepted trade-off, documented
- * here. Missing translations fall back to English inside t().
+ *   1. an explicit pick in Settings → Appearance (theme.languageExplicit),
+ *      including English — an explicit pick also beats the ?lang= URL param
+ *      so a saved choice can never be silently overridden.
+ *   2. explicit ?lang= URL param (deep links / testing)
+ *   3. a legacy stored pick (data written before languageExplicit existed:
+ *      any stored value that isn't the default "en" was always a real pick)
+ *   4. the operating system language (navigator.languages)
+ *   5. English
+ * The stored default "en" WITHOUT languageExplicit means "no explicit pick"
+ * (auto/OS-driven): a Polish-OS laptop boots in Polish, while a user who
+ * deliberately picks English is honored. (Before the flag existed, a stored
+ * "en" was indistinguishable from auto — so picking English on a non-English
+ * system did nothing. Reported and fixed 2026-10.) Missing translations fall
+ * back to English inside t().
  */
 function resolveLanguage(): string {
   if (typeof window === "undefined") return "en";
   const params = new URLSearchParams(window.location.search);
   const fromUrl = params.get("lang");
-  if (fromUrl && LANGUAGES.some((l) => l.code === fromUrl)) return fromUrl;
+  const urlValid = Boolean(fromUrl && LANGUAGES.some((l) => l.code === fromUrl));
+  let saved: string | undefined;
+  let explicit = false;
   try {
-    const saved = storage.getData()?.theme?.language;
-    if (saved && saved !== "en" && LANGUAGES.some((l) => l.code === saved)) return saved;
+    const theme = storage.getData()?.theme;
+    saved = theme?.language;
+    explicit = theme?.languageExplicit === true;
   } catch { /* storage not initialized yet */ }
+  const savedValid = Boolean(saved && LANGUAGES.some((l) => l.code === saved));
+  if (savedValid && explicit) return saved as string;
+  if (urlValid) return fromUrl as string;
+  if (savedValid && saved !== "en") return saved as string;
   const candidates = [...(navigator.languages || []), navigator.language || "en"];
   for (const c of candidates) {
     const base = (c || "").toLowerCase().split("-")[0];
