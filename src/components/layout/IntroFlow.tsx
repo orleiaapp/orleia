@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Sun, Moon, Monitor } from "lucide-react";
+import { Sun, Moon, Monitor, ListTodo, CheckCircle2, FileText, Flower2, Sparkles } from "lucide-react";
 import { storage } from "@/lib/storage";
 import type { AccentColor } from "@/types";
 import { cn } from "@/lib/utils";
@@ -240,66 +240,7 @@ function WelcomeStep({ onDone }: { onDone: () => void }) {
     </div>
   );
 }
-// Live proof: instrument every outbound payload (fetch bodies, XHR bodies,
-// sendBeacon) while the proof screen is open and sum the bytes. Static
-// asset GETs carry no payload, so the counter only moves if data actually
-// leaves the device.
-function useOutboundBytes() {
-  const [bytes, setBytes] = useState(0);
-  useEffect(() => {
-    let total = 0;
-    const sizeOf = (b: unknown): number => {
-      if (typeof b === "string") return new Blob([b]).size;
-      if (b instanceof ArrayBuffer) return b.byteLength;
-      if (ArrayBuffer.isView(b)) return b.byteLength;
-      if (b instanceof Blob) return b.size;
-      if (b instanceof URLSearchParams) return new Blob([b.toString()]).size;
-      if (b instanceof FormData) {
-        let n = 0;
-        b.forEach((v, k) => {
-          n += new Blob([k]).size;
-          n += typeof v === "string" ? new Blob([v]).size : v.size;
-        });
-        return n;
-      }
-      return 0;
-    };
-    const add = (n: number) => {
-      if (n > 0) {
-        total += n;
-        setBytes(total);
-      }
-    };
-    const origFetch = window.fetch;
-    window.fetch = (input: RequestInfo | URL, init?: RequestInit) => {
-      try {
-        if (init?.body) add(sizeOf(init.body));
-      } catch { /* unmeasurable body — ignore */ }
-      return origFetch(input, init);
-    };
-    const origSend = XMLHttpRequest.prototype.send;
-    XMLHttpRequest.prototype.send = function (body?: Document | XMLHttpRequestBodyInit | null) {
-      try { add(sizeOf(body)); } catch { /* ignore */ }
-      return origSend.call(this, body);
-    };
-    const origBeacon = navigator.sendBeacon?.bind(navigator);
-    if (origBeacon) {
-      navigator.sendBeacon = (url: string | URL, data?: BodyInit | null) => {
-        try { add(sizeOf(data)); } catch { /* ignore */ }
-        return origBeacon(url, data);
-      };
-    }
-    return () => {
-      window.fetch = origFetch;
-      XMLHttpRequest.prototype.send = origSend;
-      if (origBeacon) navigator.sendBeacon = origBeacon;
-    };
-  }, []);
-  return bytes;
-}
-
-function ProofStep({ onDone }: { onDone: () => void }) {
-  const sent = useOutboundBytes();
+function EverythingStep({ onDone }: { onDone: () => void }) {
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
       if (e.code === "Space" || e.code === "Enter") {
@@ -310,12 +251,15 @@ function ProofStep({ onDone }: { onDone: () => void }) {
     window.addEventListener("keydown", h);
     return () => window.removeEventListener("keydown", h);
   }, [onDone]);
-  const fmt =
-    sent < 1024
-      ? `${sent} B`
-      : sent < 1048576
-        ? `${(sent / 1024).toFixed(1)} KB`
-        : `${(sent / 1048576).toFixed(2)} MB`;
+  // Motion graphic: the five tools start scattered, converge into the one
+  // home card, then fly back out — a looping "everything comes together".
+  const tools = [
+    { label: "Tasks", Icon: ListTodo, sx: -100, sy: -58, d: 0 },
+    { label: "Habits", Icon: CheckCircle2, sx: 100, sy: -66, d: 0.4 },
+    { label: "Notes", Icon: FileText, sx: -104, sy: 32, d: 0.8 },
+    { label: "Journal", Icon: Flower2, sx: 104, sy: 26, d: 1.2 },
+    { label: "Noor", Icon: Sparkles, sx: 0, sy: -98, d: 1.6 },
+  ];
   return (
     <div
       className="fixed inset-0 z-[100] flex flex-col overflow-hidden bg-[#050508] outline-none focus-visible:ring-2 focus-visible:ring-white/40 focus-visible:ring-inset"
@@ -342,46 +286,55 @@ function ProofStep({ onDone }: { onDone: () => void }) {
         >
           orleia.
         </motion.p>
+        {/* Motion graphic: tool chips converge into the one home card. */}
+        <div className="relative mx-auto mb-2 h-44 w-full max-w-sm">
+          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
+            <motion.div
+              animate={{ scale: [1, 1.04, 1] }}
+              transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+              className="flex h-24 w-36 flex-col gap-2 rounded-2xl border border-white/15 bg-white/[0.06] p-3.5"
+            >
+              {["60%", "85%", "45%"].map((wdt, i) => (
+                <motion.span
+                  key={wdt}
+                  className="block h-2 rounded-full bg-white/25"
+                  style={{ width: wdt }}
+                  animate={{ opacity: [0.3, 0.8, 0.3] }}
+                  transition={{ duration: 2.4, repeat: Infinity, delay: i * 0.4, ease: "easeInOut" }}
+                />
+              ))}
+            </motion.div>
+          </div>
+          {tools.map(({ label, Icon, sx, sy, d }) => (
+            <div key={label} className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
+              <motion.div
+                className="flex items-center gap-1.5 whitespace-nowrap rounded-full border border-white/10 bg-white/[0.07] px-3 py-1.5 text-xs font-medium text-white/85 backdrop-blur-sm"
+                initial={{ x: sx, y: sy, opacity: 0, scale: 0.85 }}
+                animate={{ x: [sx, sx, 0], y: [sy, sy, 0], opacity: [0, 1, 1, 0], scale: [0.85, 1, 1, 0.55] }}
+                transition={{ duration: 3.4, times: [0, 0.28, 0.78, 1], repeat: Infinity, delay: d, ease: "easeInOut" }}
+              >
+                <Icon className="h-3.5 w-3.5 text-primary-500" />
+                {label}
+              </motion.div>
+            </div>
+          ))}
+        </div>
         <motion.h1
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.35, duration: 0.9 }}
           className="text-center font-sans text-3xl font-bold tracking-tight text-white md:text-5xl"
         >
-          Nothing has left this device.
+          Everything, one place.
         </motion.h1>
-        <motion.div
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.55, duration: 0.8 }}
-          className="mt-6 w-full max-w-sm rounded-2xl border border-white/10 bg-white/[0.03] px-5 py-4"
-        >
-          <div className="flex items-center gap-3">
-            <span className="relative flex h-2 w-2 shrink-0">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-60" />
-              <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
-            </span>
-            <span className="font-sans text-3xl font-bold tabular-nums text-white">{fmt}</span>
-            <span className="ml-auto text-right text-[10px] leading-tight text-zinc-500">
-              your data sent
-              <br />
-              since this screen loaded
-            </span>
-          </div>
-          <div className="mt-4 space-y-2 border-t border-white/10 pt-3 text-xs">
-            <div className="flex justify-between"><span className="text-zinc-500">Storage</span><span className="text-white/90">this browser, this device</span></div>
-            <div className="flex justify-between"><span className="text-zinc-500">Account</span><span className="text-white/90">not required</span></div>
-            <div className="flex justify-between"><span className="text-zinc-500">Analytics on your content</span><span className="text-white/90">zero</span></div>
-          </div>
-        </motion.div>
         <motion.p
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.75, duration: 0.8 }}
-          className="mt-4 max-w-sm text-center text-xs leading-relaxed text-zinc-500"
+          className="mt-3 max-w-sm text-center text-xs leading-relaxed text-zinc-500"
         >
-          That counter is live — every payload the app sends is measured on
-          this screen. It stays at 0 because your workspace stays here.
+          Tasks, habits, notes, journal and Noor live together on one home
+          screen — no more hopping between places to get things done.
         </motion.p>
         <motion.button
           initial={{ opacity: 0, y: 16 }}
@@ -469,17 +422,17 @@ function AppearanceStep({ onDone }: { onDone: () => void }) {
 const INTRO_STEP_KEY = "orleia-intro-step";
 
 export function IntroFlow({ onComplete }: { onComplete: () => void }) {
-  // Flow order: dark constellation welcome → live privacy proof → 13+
-  // declaration → name → look & feel.
-  const [step, setStep] = useState<"welcome" | "proof" | "age" | "name" | "appearance">(() => { if (typeof window === "undefined") return "welcome"; const saved = localStorage.getItem(INTRO_STEP_KEY); if (saved === "appearance" || saved === "name") return saved; return "welcome"; });
+  // Flow order: dark constellation welcome → "everything, one place" →
+  // 13+ declaration → name → look & feel.
+  const [step, setStep] = useState<"welcome" | "unified" | "age" | "name" | "appearance">(() => { if (typeof window === "undefined") return "welcome"; const saved = localStorage.getItem(INTRO_STEP_KEY); if (saved === "appearance" || saved === "name") return saved; return "welcome"; });
   useEffect(() => { if (step === "welcome") localStorage.removeItem(INTRO_STEP_KEY); else localStorage.setItem(INTRO_STEP_KEY, step); }, [step]);
-  const afterWelcome = () => setStep("proof");
-  const afterProof = () => setStep(storage.isAgeConfirmed() ? "name" : "age");
+  const afterWelcome = () => setStep("unified");
+  const afterUnified = () => setStep(storage.isAgeConfirmed() ? "name" : "age");
   const finish = () => { localStorage.removeItem(INTRO_STEP_KEY); storage.completeOnboarding(); onComplete(); };
   return (
     <AnimatePresence mode="wait">
       {step === "welcome" && <motion.div key="welcome" exit={{ opacity: 0 }} transition={{ duration: 0.3 }}><WelcomeStep onDone={afterWelcome} /></motion.div>}
-      {step === "proof" && <motion.div key="proof" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }}><ProofStep onDone={afterProof} /></motion.div>}
+      {step === "unified" && <motion.div key="unified" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }}><EverythingStep onDone={afterUnified} /></motion.div>}
       {step === "age" && <AgeGate key="age" onConfirmed={() => setStep("name")} />}
       {step === "name" && <motion.div key="name" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }}><NameStep onDone={() => setStep("appearance")} /></motion.div>}
       {step === "appearance" && <motion.div key="appearance" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }}><AppearanceStep onDone={finish} /></motion.div>}
