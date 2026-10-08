@@ -37,7 +37,6 @@ const RIBBON = [
   "Deck presentations",
   "Calendar",
   "Noor AI — Novella 5.0",
-  "Noor Coder (β) — writes projects to your PC",
   "Deep research",
   "Free to start",
 ];
@@ -526,7 +525,7 @@ export default function LandingPage() {
                 },
                 {
                   title: "AI without the privacy tax",
-                  body: "Noor reads your live workspace and acts on it — planning weeks, creating tasks, answering about your workspace — through a guarded pipeline with model allowlists and daily caps. New in beta: Noor Coder — it researches the live web and scaffolds real folders and files straight into a folder you pick on your own machine, included with Plus, Pro and Ultra.",
+                  body: "Noor reads your live workspace and acts on it — planning weeks, creating tasks, answering about your workspace — through a guarded pipeline with model allowlists and daily caps.",
                 },
                 {
                   title: "Built by someone who uses it",

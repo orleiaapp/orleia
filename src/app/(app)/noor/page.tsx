@@ -5,6 +5,11 @@ import { useState, useEffect, useRef, type ChangeEvent } from "react";
 import { ThinkingOrb } from "thinking-orbs";
 import { ResearchCard } from "@/components/noor/ResearchCard";
 import { CoderSurface } from "@/components/noor/CoderSurface";
+
+// Noor Coder is on hold: set to false to hide every entry point (header
+// switch, sidebar threads, background-run toast). The surface and API stay
+// in the bundle — flipping this back to true re-enables it everywhere.
+const CODER_ENABLED = false;
 import {
   buildPlannerPrompt as _unusedPlanner,
   extractJSON as _unusedExtract,
@@ -735,6 +740,7 @@ export default function AssistantPage() {
   };
 
   const enterCoder = () => {
+    if (!CODER_ENABLED) return;
     // Second gate: CSS hides the switch below lg; this keeps the mode out
     // of narrow windows even if the markup ever changes.
     if (typeof window !== "undefined" && !window.matchMedia("(min-width: 1024px)").matches) return;
@@ -2037,6 +2043,7 @@ try {
   // them into the shared recent-chats list. Function declaration so it is
   // hoisted for the sidebar-refresh effect above.
   function readCoderThreads(): CoderThreadRow[] {
+    if (!CODER_ENABLED) return [];
     try {
       const raw =
         typeof localStorage !== "undefined" ? localStorage.getItem("orleia.coderChat.v2") : null;
@@ -2279,7 +2286,7 @@ try {
           </div>
           {/* Coder mode switch — desktop only (lg+). Free sees it locked
               behind an upgrade; paid tiers see the beta-access card. */}
-          <div className="hidden lg:block relative" ref={coderRef}>
+          <div className={CODER_ENABLED ? "hidden lg:block relative" : "hidden"} ref={coderRef}>
             <div className="flex items-center rounded-full border border-border/60 bg-secondary/40 p-0.5 text-xs font-semibold">
               <button
                 onClick={() => {
