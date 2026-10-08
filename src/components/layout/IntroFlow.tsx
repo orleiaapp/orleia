@@ -278,26 +278,18 @@ function EverythingStep({ onDone }: { onDone: () => void }) {
         <Constellation />
       </div>
       <div className="relative z-10 mt-auto flex w-full flex-col items-center px-6 pb-[max(4.5rem,env(safe-area-inset-bottom))]">
-        <motion.p
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2, duration: 0.9 }}
-          className="mb-4 text-center font-sans text-sm tracking-[0.35em] text-zinc-500"
-        >
-          orleia.
-        </motion.p>
         {/* Motion graphic: tool chips converge into the one home card. */}
         <div className="relative mx-auto mb-2 h-44 w-full max-w-sm">
           <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
             <motion.div
               animate={{ scale: [1, 1.04, 1] }}
               transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
-              className="flex h-24 w-36 flex-col gap-2 rounded-2xl border border-white/15 bg-white/[0.06] p-3.5"
+              className="flex h-24 w-36 flex-col gap-2 rounded-2xl border border-zinc-700 bg-zinc-900 p-3.5 shadow-lg"
             >
               {["60%", "85%", "45%"].map((wdt, i) => (
                 <motion.span
                   key={wdt}
-                  className="block h-2 rounded-full bg-white/25"
+                  className="block h-2 rounded-full bg-zinc-700"
                   style={{ width: wdt }}
                   animate={{ opacity: [0.3, 0.8, 0.3] }}
                   transition={{ duration: 2.4, repeat: Infinity, delay: i * 0.4, ease: "easeInOut" }}
@@ -308,7 +300,7 @@ function EverythingStep({ onDone }: { onDone: () => void }) {
           {tools.map(({ label, Icon, sx, sy, d }) => (
             <div key={label} className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
               <motion.div
-                className="flex items-center gap-1.5 whitespace-nowrap rounded-full border border-white/10 bg-white/[0.07] px-3 py-1.5 text-xs font-medium text-white/85 backdrop-blur-sm"
+                className="flex items-center gap-1.5 whitespace-nowrap rounded-full border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-xs font-medium text-zinc-200 shadow-md"
                 initial={{ x: sx, y: sy, opacity: 0, scale: 0.85 }}
                 animate={{ x: [sx, sx, 0], y: [sy, sy, 0], opacity: [0, 1, 1, 0], scale: [0.85, 1, 1, 0.55] }}
                 transition={{ duration: 3.4, times: [0, 0.28, 0.78, 1], repeat: Infinity, delay: d, ease: "easeInOut" }}
