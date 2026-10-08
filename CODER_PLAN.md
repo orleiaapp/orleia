@@ -84,6 +84,18 @@ Date: Oct 6, 2026 (rev 3 — free sees the switch but locked; labeled beta every
   the pill now); both modes greet with a welcome message over the Noor mark
   at 10% transparency (`coder.welcome` — code-related,
   `assistant.welcome` — plain). The watermark is no longer mobile-only.
+- **Rev 10 (2026-10-08):** hero stack + shared chats + full i18n.
+  - Empty states now STACK (no overlap): Noor mark at 10% → casual
+    "Hi/Hey/Hello, {name}" (random word, name from local profile) → pill,
+    in both Noor and Coder.
+  - **Coder threads land in the shared recent-chats sidebar**: they are
+    read from `orleia.coderChat.v2` (stamped with `updatedAt` for recency),
+    merged pinned-first into the same sorted list with a Coder badge, and
+    clicking one enters Coder (same gates as the switch) focused on that
+    thread via the `openThread` prop.
+  - **i18n**: all 48 coder keys + 5 greeting keys now exist in all 19
+    languages (866 translations added; es/fr/de/pt had drifted after rev 6,
+    the other 14 never had the coder block).
 Direction change: Coder is **not its own tab**. It is a **mode inside Noor**
 (like ChatGPT ↔ Codex under one roof): same chat surface, a mode switch, a
 **completely different UI/UX** while active, a **foggy fade** crossing

@@ -25,6 +25,7 @@ import {
   CheckCircle2,
   Plus,
   MessageSquare,
+  Terminal,
   ChevronDown,
   Sparkles,
   X as XIcon,
@@ -379,6 +380,13 @@ export default function AssistantPage() {
   const [localOpen, setLocalOpen] = useState(false);
   const [ollama, setOllama] = useState<OllamaStatus | null>(null);
   const [showChats, setShowChats] = useState(false);
+  // Shared recent-chats: Coder threads mirrored from their own store, a
+  // pending "open this Coder thread" request (seq makes repeat taps re-fire),
+  // and the casual hero greeting word.
+  type CoderThreadRow = { id: string; title: string; count: number; updatedAt: number };
+  const [coderRows, setCoderRows] = useState<CoderThreadRow[]>([]);
+  const [coderOpenThread, setCoderOpenThread] = useState<{ id: string; seq: number } | null>(null);
+  const [greetIdx, setGreetIdx] = useState(0);
   const [localInfo, setLocalInfo] = useState<LocalModelDef | null>(null);
   const localInfoRef = useRef<HTMLDivElement>(null);
   const isMobile = useMobile();
@@ -644,6 +652,17 @@ export default function AssistantPage() {
   const refresh = () => setData({ ...storage.getData() });
   useEffect(() => storage.subscribe(() => setData({ ...storage.getData() })), []);
 
+  // Mirror Coder threads into the shared sidebar when it opens or the mode
+  // changes; pick the casual greeting word once after mount (hydration-safe,
+  // same pattern as the dashboard).
+  useEffect(() => {
+    setCoderRows(readCoderThreads());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showChats, coderMode]);
+  useEffect(() => {
+    setGreetIdx(Math.floor(Math.random() * 3));
+  }, []);
+
   useEffect(() => {
     // Scroll only the chat's own scroll container, never the page window.
     const box = messagesBoxRef.current;
@@ -730,6 +749,17 @@ export default function AssistantPage() {
   const leaveCoder = () => {
     triggerFog();
     setCoderMode(false);
+    setCoderOpenThread(null);
+  };
+
+  // Shared recent-chats: tapping a Coder thread opens it in Coder mode
+  // (same gates as the header switch: paid + desktop lg+).
+  const openCoderThread = (id: string) => {
+    setCoderOpenThread({ id, seq: Date.now() });
+    setShowChats(false);
+    if (coderMode) return; // already there — the surface switches via prop
+    enterCoder();
+    if (coderPaid === false) setCoderOpenThread(null); // lock popover instead
   };
 
   // Model/effort for Coder comes from the SHARED header picker (Codex-style
@@ -1908,6 +1938,16 @@ try {
     return { base, sub };
   })();
 
+  // Casual fresh-chat hero: "Hi, Maciej!" / "Hey there!" — word randomized
+  // once after mount, name from the local profile.
+  const heroGreeting = (() => {
+    const greet =
+      [t("assistant.greetHi"), t("assistant.greetHey"), t("assistant.greetHello")][greetIdx] ||
+      t("assistant.greetHi");
+    const who = data.profile?.name?.trim() || t("assistant.there");
+    return t("assistant.welcome").replace("{greet}", greet).replace("{name}", who);
+  })();
+
   // Turn a raw first message into a short, human conversation title.
   const summarizeChatTitle = (raw: string): string => {
     let t = raw.trim().replace(/\s+/g, " ");
@@ -1976,6 +2016,39 @@ try {
     : t("assistant.responding");
 
 
+  // Coder threads live in their own store (orleia.coderChat.v2) — mirror
+  // them into the shared recent-chats list. Function declaration so it is
+  // hoisted for the sidebar-refresh effect above.
+  function readCoderThreads(): CoderThreadRow[] {
+    try {
+      const raw =
+        typeof localStorage !== "undefined" ? localStorage.getItem("orleia.coderChat.v2") : null;
+      if (!raw) return [];
+      const parsed = JSON.parse(raw) as { threads?: unknown };
+      const list = Array.isArray(parsed.threads) ? parsed.threads : [];
+      return list
+        .map((x) => x as { id?: unknown; title?: unknown; messages?: unknown; updatedAt?: unknown })
+        .filter((x) => typeof x.id === "string" && Array.isArray(x.messages) && x.messages.length > 0)
+        .map((x) => {
+          const msgs = (x.messages as { role?: unknown; content?: unknown }[]) || [];
+          const first = msgs.find((m) => m && m.role === "user" && typeof m.content === "string");
+          const fallback =
+            first && typeof first.content === "string" ? first.content.trim().slice(0, 48) : "";
+          return {
+            id: x.id as string,
+            title:
+              (typeof x.title === "string" && x.title.trim().slice(0, 48)) ||
+              fallback ||
+              t("coder.newChat"),
+            count: msgs.length,
+            updatedAt: typeof x.updatedAt === "number" ? x.updatedAt : 0,
+          };
+        });
+    } catch {
+      return [];
+    }
+  }
+
   // Conversations panel content (shared between desktop side panel and mobile drawer)
   const chatsPanel = (onClose?: () => void) => {
     const q = chatSearch.trim().toLowerCase();
@@ -1990,6 +2063,53 @@ try {
       (a, b) =>
         (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0) ||
         new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+    );
+    // Coder threads merged into the same pinned-first, recency-sorted list.
+    const coderFiltered = coderRows.filter((r) => !q || r.title.toLowerCase().includes(q));
+    type PanelRow =
+      | { kind: "coder"; updatedAt: number; row: CoderThreadRow }
+      | { kind: "noor"; updatedAt: number; conv: (typeof sorted)[number] };
+    const rows: PanelRow[] = [
+      ...sorted.map((conv) => ({
+        kind: "noor" as const,
+        updatedAt: new Date(conv.updatedAt).getTime() || 0,
+        conv,
+      })),
+      ...coderFiltered.map((row) => ({ kind: "coder" as const, updatedAt: row.updatedAt, row })),
+    ].sort(
+      (a, b) =>
+        ((b.kind === "noor" && b.conv.pinned) ? 1 : 0) -
+          ((a.kind === "noor" && a.conv.pinned) ? 1 : 0) ||
+        b.updatedAt - a.updatedAt
+    );
+    const coderRow = (row: CoderThreadRow) => (
+      <div
+        key={`coder-${row.id}`}
+        role="button"
+        tabIndex={0}
+        onClick={() => openCoderThread(row.id)}
+        onKeyDown={(e) => {
+          if (e.target !== e.currentTarget) return;
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            openCoderThread(row.id);
+          }
+        }}
+        className="w-full cursor-pointer text-left rounded-xl px-3 py-2.5 text-sm transition-all duration-200 group hover:bg-secondary text-muted-foreground hover:text-foreground"
+      >
+        <div className="flex items-center gap-2">
+          <Terminal className="h-4 w-4 shrink-0" />
+          <span className="truncate text-xs">{row.title}</span>
+          <span className="ml-auto shrink-0 rounded-full bg-primary-500/15 px-1.5 py-0.5 text-[9px] font-semibold text-primary-500">
+            {t("coder.badge")}
+          </span>
+        </div>
+        <div className="mt-1">
+          <p className="text-[10px] text-muted-foreground/60">
+            {row.count} {row.count !== 1 ? t("assistant.msgs") : t("assistant.msg")}
+          </p>
+        </div>
+      </div>
     );
     return (
       <div className="flex flex-col h-full">
@@ -2024,7 +2144,7 @@ try {
           />
         </div>
         <div className="flex-1 overflow-y-auto space-y-1 pr-0.5">
-          {sorted.map((conv) => (
+          {rows.map((r) => (r.kind === "coder" ? coderRow(r.row) : ((conv: (typeof conversations)[number]) => (
             <div
               key={conv.id}
               role="button"
@@ -2108,10 +2228,12 @@ try {
                 )}
               </div>
             </div>
-          ))}
-          {sorted.length === 0 && (
+          ))(r.conv)))}
+          {rows.length === 0 && (
             <p className="text-xs text-muted-foreground text-center py-8">
-              {conversations.length === 0 ? t("assistant.noConversations") : t("assistant.noMatches")}
+              {conversations.length === 0 && coderRows.length === 0
+                ? t("assistant.noConversations")
+                : t("assistant.noMatches")}
             </p>
           )}
         </div>
@@ -2404,6 +2526,7 @@ try {
             >
               <CoderSurface
                 onExit={leaveCoder}
+                openThread={coderOpenThread}
                 onTierLocked={() => setCoderPaid(false)}
                 model={coderProfile.nvidiaModelId}
                 effort={effortOf(selectedModel)}
@@ -2422,19 +2545,6 @@ try {
               transition={{ duration: modeDur, ease: "easeOut" }}
               className="relative flex min-h-0 flex-1 flex-col"
             >
-        {/* Noor watermark — empty state at every breakpoint: big mark at 10%
-            transparency behind the welcome. Purely decorative. */}
-        {isEmptyChat && (
-          <div aria-hidden className="pointer-events-none absolute inset-0 z-0 flex items-center justify-center">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src="/noor-mark-white.png"
-              alt=""
-              className="h-44 w-44 object-contain opacity-10 invert dark:invert-0"
-            />
-          </div>
-        )}
-
         {/* Messages */}
         <div ref={messagesBoxRef} className={cn("flex-1 overflow-y-auto px-2 md:px-6", isEmptyChat && "hidden")}>
           <div className="noor-chat-font mx-auto w-full py-6 space-y-6 md:py-8">
@@ -2788,12 +2898,21 @@ try {
           <div className={cn("w-full", isEmptyChat ? "mx-auto lg:max-w-2xl" : "mx-auto lg:max-w-4xl")}>
             {/* Mobile: chats access lives in the floating glass circle
                 (second row, under the hamburger) rendered at page root. */}
-            {/* Welcome — empty-state greeting above the pill; the Noor mark
-                sits behind it at 10% transparency. */}
+            {/* Fresh-chat hero stack: Noor mark (10%) → casual "Hi, name"
+                → pill. Never overlaps the composer. */}
             {isEmptyChat && !petAgent && (
-              <p className="relative z-10 mb-3 text-center text-lg font-medium tracking-tight text-foreground sm:text-xl">
-                {t("assistant.welcome")}
-              </p>
+              <div className="relative z-10 mb-4 flex flex-col items-center gap-3">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src="/noor-mark-white.png"
+                  alt=""
+                  aria-hidden
+                  className="h-36 w-36 object-contain opacity-10 invert dark:invert-0 sm:h-44 sm:w-44"
+                />
+                <p className="text-center text-lg font-medium tracking-tight text-foreground sm:text-xl">
+                  {heroGreeting}
+                </p>
+              </div>
             )}
             {/* Pet chat empty state: pet face + one-tap job prompts. */}
             {isEmptyChat && petAgent && !loading && (

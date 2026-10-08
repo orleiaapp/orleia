@@ -56,6 +56,7 @@ import {
 import { useI18n } from "@/lib/i18n";
 import { Markdown } from "@/components/chat/Markdown";
 import { getDeviceId } from "@/lib/device-id";
+import { storage } from "@/lib/storage";
 import { buildSkillsBlock, getSkills, skillForCommand } from "@/lib/noor-skills";
 import { cn, generateId } from "@/lib/utils";
 import {
@@ -76,7 +77,14 @@ type CMsg = {
   sources?: Source[];
 };
 /** One conversation fork. `parent` builds the branch tree in the menu. */
-type Thread = { id: string; title: string; parent?: string; messages: CMsg[] };
+type Thread = {
+  id: string;
+  title: string;
+  parent?: string;
+  messages: CMsg[];
+  /** For the shared recent-chats sidebar's recency sort. */
+  updatedAt?: number;
+};
 type ActionState = "ok" | "err";
 type LogEntry = { id: string; t: string; op: string; target: string; ok: boolean };
 
@@ -113,7 +121,7 @@ const isValidMsg = (x: unknown): x is CMsg => {
 
 function makeThread(messages: CMsg[], id: string, parent?: string): Thread {
   const title = messages.find((m) => m.role === "user")?.content.trim().slice(0, 48) || "";
-  return { id, title, parent, messages };
+  return { id, title, parent, messages, updatedAt: Date.now() };
 }
 
 /** v2 store with a v1 → v2 migration (old flat transcript becomes one thread). */
@@ -128,7 +136,14 @@ function loadState(): { threads: Thread[]; activeId: string } {
           const x = t as Thread | null;
           return Boolean(x && typeof x.id === "string" && Array.isArray(x.messages));
         })
-        .map((t) => ({ ...t, messages: t.messages.filter(isValidMsg).slice(-80) }));
+        .map((t, i, arr) => ({
+          ...t,
+          messages: t.messages.filter(isValidMsg).slice(-80),
+          // Sidebar recency: threads saved before updatedAt existed keep
+          // their creation order, anchored near now.
+          updatedAt:
+            typeof t.updatedAt === "number" ? t.updatedAt : Date.now() - (arr.length - i) * 60000,
+        }));
       if (ok.length > 0) {
         const activeId =
           typeof parsed?.activeId === "string" && ok.some((t) => t.id === parsed.activeId)
@@ -178,7 +193,7 @@ function extractActions(content: string): { rest: string; actions: CoderAction[]
 /** Apply a message list to a thread, deriving the title from the first prompt. */
 function finalize(t: Thread, messages: CMsg[]): Thread {
   const title = t.title || (messages.find((m) => m.role === "user")?.content.trim().slice(0, 48) || "");
-  return { ...t, messages, title };
+  return { ...t, messages, title, updatedAt: Date.now() };
 }
 
 /** Collapsible reasoning pane — spinner while streaming, quiet after. */
@@ -210,6 +225,7 @@ function ThinkingBlock({ text, active }: { text: string; active: boolean }) {
 export function CoderSurface({
   onExit,
   onTierLocked,
+  openThread,
   model,
   effort,
   temperature,
@@ -219,6 +235,8 @@ export function CoderSurface({
 }: {
   onExit: () => void;
   onTierLocked: () => void;
+  /** Pending "open this thread" request from the shared recent-chats sidebar. */
+  openThread?: { id: string; seq: number } | null;
   /** Resolved NVIDIA model id from the shared model/effort picker. */
   model: string;
   /** Effort level id — drives the server-side token cost weight. */
@@ -236,6 +254,19 @@ export function CoderSurface({
       ? { threads: [makeThread([], "init")], activeId: "init" }
       : loadState()
   );
+  // Casual hero greeting word — picked once after mount (hydration-safe).
+  const [greetIdx, setGreetIdx] = useState(0);
+  useEffect(() => {
+    setGreetIdx(Math.floor(Math.random() * 3));
+  }, []);
+  // Sidebar request: open/focus a specific thread (seq makes repeat taps
+  // re-fire; cleared on leave so remounts keep the persisted active thread).
+  useEffect(() => {
+    if (!openThread) return;
+    setState((s) =>
+      s.threads.some((t) => t.id === openThread.id) ? { ...s, activeId: openThread.id } : s
+    );
+  }, [openThread]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [locked, setLocked] = useState(false);
@@ -271,6 +302,12 @@ export function CoderSurface({
 
   const activeThread = threads.find((t) => t.id === activeId) ?? threads[0];
   const messages = activeThread?.messages ?? [];
+
+  // "Hi, Maciej — let's write some code." (word randomized, name local).
+  const coderGreet =
+    [t("assistant.greetHi"), t("assistant.greetHey"), t("assistant.greetHello")][greetIdx] ||
+    t("assistant.greetHi");
+  const coderWho = storage.getData().profile?.name?.trim() || t("assistant.there");
 
   const slashMatches =
     slashOpen && input.startsWith("/") && !input.slice(1).includes(" ")
@@ -864,17 +901,19 @@ export function CoderSurface({
       <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto px-4 md:px-6">
         <div className="mx-auto w-full max-w-3xl py-6 space-y-5">
           {messages.length === 0 && (
-            <div className="relative flex min-h-[50vh] flex-col items-center justify-center gap-4 text-center">
-              {/* Noor mark — welcoming watermark at 10% behind the greeting */}
+            <div className="flex min-h-[50vh] flex-col items-center justify-center gap-4 text-center">
+              {/* Noor mark (10%) → casual greeting with the user's name. */}
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src="/noor-mark-white.png"
                 alt=""
                 aria-hidden
-                className="pointer-events-none absolute left-1/2 top-1/2 h-72 w-72 -translate-x-1/2 -translate-y-1/2 object-contain opacity-10 invert dark:invert-0"
+                className="h-36 w-36 object-contain opacity-10 invert dark:invert-0 sm:h-44 sm:w-44"
               />
-              <p className="relative z-10 max-w-md text-xl font-semibold tracking-tight text-foreground">
-                {t("coder.welcome")}
+              <p className="max-w-md text-lg font-medium tracking-tight text-foreground sm:text-xl">
+                {t("coder.welcome")
+                  .replace("{greet}", coderGreet)
+                  .replace("{name}", coderWho)}
               </p>
             </div>
           )}
