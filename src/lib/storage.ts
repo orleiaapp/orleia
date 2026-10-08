@@ -933,6 +933,11 @@ class Storage {
     localStorage.removeItem(SYNC_KEY);
     localStorage.removeItem("orleia-password");
     localStorage.removeItem("orleia-tutorial-pending");
+    // Full reset: the 13+ declaration and any mid-flow onboarding position
+    // must go too, otherwise a cleared device skips the age gate and lands
+    // straight on the name step.
+    localStorage.removeItem("orleia_age_confirmed");
+    localStorage.removeItem("orleia-intro-step");
     await clearIDB();
     this.data = null;
   }

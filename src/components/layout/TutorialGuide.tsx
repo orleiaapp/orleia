@@ -48,11 +48,11 @@ export function TutorialGuide({ onComplete }: { onComplete: () => void }) {
     .slice(0, 2);
 
   return (
-    <div className="fixed inset-0 z-[90] flex flex-col overflow-hidden bg-background">
+    <div className="fixed inset-0 z-[90] flex flex-col overflow-hidden bg-[#050508] text-white">
       {/* Top progress */}
-      <div className="absolute inset-x-0 top-0 z-10 h-0.5 bg-muted">
+      <div className="absolute inset-x-0 top-0 z-10 h-0.5 bg-white/10">
         <div
-          className="h-full bg-primary-500 transition-all duration-500 ease-out"
+          className="h-full bg-white transition-all duration-500 ease-out"
           style={{ width: `${((step + 1) / steps.length) * 100}%` }}
         />
       </div>
@@ -74,7 +74,7 @@ export function TutorialGuide({ onComplete }: { onComplete: () => void }) {
           >
             <div className="relative max-h-[30vh] w-full max-w-[240px] overflow-hidden md:max-h-none md:max-w-sm">
               {/* Glow */}
-              <div className="absolute -inset-6 rounded-[2rem] bg-primary-500/5 blur-2xl" />
+              <div className="absolute -inset-6 rounded-[2rem] bg-white/5 blur-2xl" />
               <div className="relative">
                 <Visual />
               </div>
@@ -84,21 +84,21 @@ export function TutorialGuide({ onComplete }: { onComplete: () => void }) {
           {/* Copy - compact typography on mobile so it never overflows */}
           <div className="order-2 flex min-h-0 flex-1 flex-col justify-center md:block">
             <p
-              className="mb-2 text-[10px] font-sans tracking-widest text-muted-foreground/40 md:mb-4 md:text-[11px]"
+              className="mb-2 text-[10px] font-sans tracking-[0.35em] text-zinc-500 md:mb-4 md:text-[11px]"
               style={{ animation: "lx-fade-up 0.5s cubic-bezier(0.22,1,0.36,1) both 0.05s" }}
             >
               {kicker}
             </p>
 
             <h2
-              className="mb-1.5 text-xl font-bold tracking-tight leading-tight md:mb-3 md:text-4xl"
+              className="mb-1.5 font-sans text-xl font-bold tracking-tight leading-tight text-white md:mb-3 md:text-4xl"
               style={{ animation: "lx-fade-up 0.5s cubic-bezier(0.22,1,0.36,1) both 0.10s" }}
             >
               {title}
             </h2>
 
             <p
-              className="mb-2.5 max-w-md text-xs leading-snug text-muted-foreground/80 md:mb-6 md:text-base md:leading-relaxed"
+              className="mb-2.5 max-w-md text-xs leading-snug text-zinc-500 md:mb-6 md:text-base md:leading-relaxed"
               style={{ animation: "lx-fade-up 0.5s cubic-bezier(0.22,1,0.36,1) both 0.15s" }}
             >
               {desc}
@@ -109,13 +109,13 @@ export function TutorialGuide({ onComplete }: { onComplete: () => void }) {
               {points.map((p, i) => (
                 <li
                   key={i}
-                  className="flex items-start gap-2 text-xs text-muted-foreground md:text-sm"
+                  className="flex items-start gap-2 text-xs text-zinc-400 md:text-sm"
                   style={{
                     animation: `lx-fade-up 0.5s cubic-bezier(0.22,1,0.36,1) both ${0.2 + i * 0.07}s`,
                   }}
                 >
-                  <span className="mt-0.5 flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full bg-emerald-500/15 md:h-4 md:w-4">
-                    <Check className="h-2 w-2 text-emerald-500 md:h-2.5 md:w-2.5" />
+                  <span className="mt-0.5 flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full border border-zinc-700 bg-zinc-900 md:h-4 md:w-4">
+                    <Check className="h-2 w-2 text-emerald-400 md:h-2.5 md:w-2.5" />
                   </span>
                   {p}
                 </li>
@@ -126,11 +126,11 @@ export function TutorialGuide({ onComplete }: { onComplete: () => void }) {
                 minimal (nav opens by swiping, like the rest of the app) */}
             {step === 0 && (
               <div
-                className="mb-3 hidden items-start gap-2 rounded-xl border border-border bg-secondary/40 p-2.5 [@media(min-height:720px)]:flex md:hidden"
+                className="mb-3 hidden items-start gap-2 rounded-xl border border-zinc-800 bg-zinc-900 p-2.5 [@media(min-height:720px)]:flex md:hidden"
                 style={{ animation: "lx-fade-up 0.5s cubic-bezier(0.22,1,0.36,1) both 0.48s" }}
               >
-                <MoveHorizontal className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                <p className="text-[11px] leading-snug text-muted-foreground/70">{t("tutorial.navHint")}</p>
+                <MoveHorizontal className="mt-0.5 h-3.5 w-3.5 shrink-0 text-zinc-500" />
+                <p className="text-[11px] leading-snug text-zinc-500">{t("tutorial.navHint")}</p>
               </div>
             )}
 
@@ -142,7 +142,7 @@ export function TutorialGuide({ onComplete }: { onComplete: () => void }) {
               <button
                 type="button"
                 onClick={onComplete}
-                className="text-xs text-muted-foreground/40 transition-colors hover:text-muted-foreground/70"
+                className="text-xs text-zinc-600 transition-colors hover:text-zinc-300"
               >
                 {t("tutorial.skip")}
               </button>
@@ -153,7 +153,7 @@ export function TutorialGuide({ onComplete }: { onComplete: () => void }) {
                 <button
                   type="button"
                   onClick={() => setStep(step - 1)}
-                  className="inline-flex items-center gap-2 rounded-md border border-border px-4 py-2.5 text-xs font-medium text-muted-foreground transition-all hover:bg-secondary/40 active:scale-[0.98]"
+                  className="inline-flex items-center gap-2 rounded-full border border-zinc-700 bg-zinc-900 px-4 py-2.5 text-xs font-medium text-zinc-300 transition-all hover:border-zinc-500 hover:text-white active:scale-[0.98]"
                 >
                   {t("tutorial.back")}
                 </button>
@@ -163,7 +163,7 @@ export function TutorialGuide({ onComplete }: { onComplete: () => void }) {
                 <button
                   type="button"
                   onClick={onComplete}
-                  className="inline-flex items-center gap-2 rounded-md bg-foreground px-5 py-2.5 text-xs font-medium text-background transition-all hover:opacity-90 active:scale-[0.98]"
+                  className="inline-flex items-center gap-2 rounded-full bg-white px-5 py-2.5 text-xs font-medium text-black shadow-[0_0_28px_-8px_rgba(255,255,255,0.5)] transition-all hover:bg-zinc-200 active:scale-[0.98]"
                 >
                   {t("tutorial.done")}
                   <Check className="h-3.5 w-3.5" />
@@ -172,7 +172,7 @@ export function TutorialGuide({ onComplete }: { onComplete: () => void }) {
                 <button
                   type="button"
                   onClick={() => setStep(step + 1)}
-                  className="inline-flex items-center gap-2 rounded-md bg-foreground px-5 py-2.5 text-xs font-medium text-background transition-all hover:opacity-90 active:scale-[0.98]"
+                  className="inline-flex items-center gap-2 rounded-full bg-white px-5 py-2.5 text-xs font-medium text-black shadow-[0_0_28px_-8px_rgba(255,255,255,0.5)] transition-all hover:bg-zinc-200 active:scale-[0.98]"
                 >
                   {t("tutorial.next")}
                   <ArrowRight className="h-3.5 w-3.5" />
@@ -192,7 +192,7 @@ export function TutorialGuide({ onComplete }: { onComplete: () => void }) {
                   onClick={() => setStep(i)}
                   className={cn(
                     "h-1.5 rounded-full transition-all duration-300",
-                    i === step ? "w-6 bg-foreground" : "w-1.5 bg-muted-foreground/20 hover:bg-muted-foreground/40"
+                    i === step ? "w-6 bg-white" : "w-1.5 bg-white/20 hover:bg-white/40"
                   )}
                   aria-label={t("tutorial.stepAria").replace("{n}", String(i + 1))}
                 />

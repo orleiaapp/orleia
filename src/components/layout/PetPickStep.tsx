@@ -29,19 +29,19 @@ export function PetPickStep({ onDone }: { onDone: (petId: string) => void }) {
   };
 
   return (
-    <div className="fixed inset-0 z-[90] flex flex-col bg-background px-4 pb-6 pt-10 md:px-8 md:pt-14">
+    <div className="fixed inset-0 z-[90] flex flex-col bg-[#050508] px-4 pb-6 pt-10 text-white md:px-8 md:pt-14">
       {/* Progress bar, matching TutorialGuide */}
-      <div className="absolute inset-x-0 top-0 h-0.5 bg-muted">
-        <div className="h-full w-full bg-primary-500" />
+      <div className="absolute inset-x-0 top-0 h-0.5 bg-white/10">
+        <div className="h-full w-full bg-white" />
       </div>
 
-      <p className="text-center text-[10px] font-sans tracking-widest text-muted-foreground/40 md:text-[11px]">
+      <p className="text-center text-[10px] font-sans tracking-[0.35em] text-zinc-500 md:text-[11px]">
         {t("tutorial.pet.kicker")}
       </p>
-      <h2 className="mt-3 text-center text-3xl font-bold tracking-tight md:text-5xl">
+      <h2 className="mt-3 text-center font-sans text-3xl font-bold tracking-tight text-white md:text-5xl">
         {t("tutorial.pet.title")}
       </h2>
-      <p className="mx-auto mt-4 max-w-md text-center text-sm leading-relaxed text-muted-foreground/80 md:text-base">
+      <p className="mx-auto mt-4 max-w-md text-center text-sm leading-relaxed text-zinc-500 md:text-base">
         {t("tutorial.pet.desc")}
       </p>
 
@@ -62,7 +62,7 @@ export function PetPickStep({ onDone }: { onDone: (petId: string) => void }) {
                 className={cnCell(active)}
                 dangerouslySetInnerHTML={{ __html: petSvg(p, "h-full w-full") }}
               />
-              <span className="mt-2 block text-center text-[11px] font-medium text-muted-foreground">
+              <span className="mt-2 block text-center text-[11px] font-medium text-zinc-400">
                 {p.name}
               </span>
             </button>
@@ -85,27 +85,27 @@ export function PetPickStep({ onDone }: { onDone: (petId: string) => void }) {
                 }}
                 maxLength={24}
                 placeholder={t("tutorial.pet.namePh")}
-                className="w-full rounded-xl border border-border bg-secondary/40 px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground/40 outline-none transition-colors focus:border-amber-500/40"
+                className="w-full rounded-xl border border-zinc-700 bg-zinc-900 px-4 py-3 text-sm text-zinc-100 placeholder:text-zinc-600 outline-none transition-colors focus:border-zinc-500"
                 aria-label={t("tutorial.pet.namePh")}
               />
               <button
                 type="button"
                 onClick={() => setNaming(false)}
-                className="rounded-xl border border-border px-3 py-3 text-xs font-medium text-muted-foreground hover:text-foreground"
+                className="rounded-xl border border-zinc-700 bg-zinc-900 px-3 py-3 text-xs font-medium text-zinc-300 hover:text-white"
               >
                 <Check className="h-4 w-4" />
               </button>
             </div>
           ) : (
             <div className="flex items-center justify-center gap-2">
-              <p className="text-sm text-muted-foreground">
-                <span className="font-semibold text-foreground">{displayName}</span>{" "}
+              <p className="text-sm text-zinc-500">
+                <span className="font-semibold text-white">{displayName}</span>{" "}
                 {t("tutorial.pet.selectedSuffix")}
               </p>
               <button
                 type="button"
                 onClick={() => setNaming(true)}
-                className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:border-foreground/40 hover:text-foreground"
+                className="inline-flex items-center gap-1.5 rounded-full border border-zinc-700 px-3 py-1.5 text-xs text-zinc-400 transition-colors hover:border-zinc-500 hover:text-white"
               >
                 <Pencil className="h-3 w-3" />
                 {t("habits.pet.rename")}
@@ -124,7 +124,7 @@ export function PetPickStep({ onDone }: { onDone: (petId: string) => void }) {
               setPet("");
               setName("");
             }}
-            className="text-xs text-muted-foreground/40 transition-colors hover:text-muted-foreground/70"
+            className="text-xs text-zinc-600 transition-colors hover:text-zinc-300"
           >
             {t("tutorial.pet.reset")}
           </button>
@@ -133,7 +133,7 @@ export function PetPickStep({ onDone }: { onDone: (petId: string) => void }) {
             type="button"
             disabled={!chosen}
             onClick={finish}
-            className="inline-flex items-center gap-2 rounded-md bg-foreground px-6 py-2.5 text-xs font-medium text-background transition-all hover:opacity-90 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-30"
+            className="inline-flex items-center gap-2 rounded-full bg-white px-6 py-2.5 text-xs font-medium text-black shadow-[0_0_28px_-8px_rgba(255,255,255,0.5)] transition-all hover:bg-zinc-200 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-30 disabled:shadow-none"
           >
             <Heart className="h-3.5 w-3.5" />
             {t("tutorial.pet.done")}
@@ -149,8 +149,8 @@ function cnCard(active: boolean): string {
   return [
     "group relative rounded-2xl border p-3 transition-colors",
     active
-      ? "border-primary-500 bg-primary-500/10"
-      : "border-border bg-secondary/40 hover:border-foreground/30",
+      ? "border-white bg-zinc-800"
+      : "border-zinc-700 bg-zinc-900 hover:border-zinc-500",
   ].join(" ");
 }
 

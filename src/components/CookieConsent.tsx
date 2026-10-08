@@ -63,11 +63,26 @@ export default function CookieConsent() {
   const [custom, setCustom] = useState<Customizations>({ analytics: false });
 
   useEffect(() => {
+    // Footer "Cookie settings" reopens the banner in customize mode —
+    // registered everywhere so an explicit click always works.
+    const onOpen = () => {
+      setCustom(readCustom());
+      setCustomizing(true);
+      setVisible(true);
+    };
+    window.addEventListener("orleia:open-cookie-settings", onOpen);
+
+    // Auto-banner is LANDING-ONLY: the workspace (app.*) never nags —
+    // there is nothing to consent to beyond the footer link there.
+    const isAppHost = window.location.hostname.startsWith("app.");
+    if (isAppHost) {
+      return () => window.removeEventListener("orleia:open-cookie-settings", onOpen);
+    }
+
     try {
       if (!window.localStorage.getItem(KEY)) {
-        // Small bottom banner after onboarding, not a first-screen takeover:
-        // wait for the app to be interactive (or onboarding to finish) so
-        // the welcome/age gate get the user's full attention first.
+        // Small bottom banner, not a first-screen takeover: wait for the
+        // page to be interactive so the welcome gets full attention first.
         const arm = () => setTimeout(() => setVisible(true), 800);
         let armed = false;
         const tryArm = () => {
@@ -79,18 +94,15 @@ export default function CookieConsent() {
         const onReady = () => { clearInterval(iv); if (!armed) { armed = true; arm(); } };
         window.addEventListener("orleia:app-ready", onReady, { once: true });
         setTimeout(() => { clearInterval(iv); onReady(); }, 20000);
-        return () => { clearInterval(iv); window.removeEventListener("orleia:app-ready", onReady); };
+        return () => {
+          clearInterval(iv);
+          window.removeEventListener("orleia:app-ready", onReady);
+          window.removeEventListener("orleia:open-cookie-settings", onOpen);
+        };
       }
     } catch {
       /* storage blocked - stay hidden rather than nag every load */
     }
-    // Footer "Cookie settings" reopens the banner in customize mode.
-    const onOpen = () => {
-      setCustom(readCustom());
-      setCustomizing(true);
-      setVisible(true);
-    };
-    window.addEventListener("orleia:open-cookie-settings", onOpen);
     return () => window.removeEventListener("orleia:open-cookie-settings", onOpen);
   }, []);
 
