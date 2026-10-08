@@ -133,7 +133,12 @@ export default function TermsPage() {
         <p>
           Orleia's core tools are free of charge. Optional paid subscriptions (Plus, Pro, Ultra) raise the daily
           limit of Noor AI messages and unlock Noor Coder (beta) — a coding mode still in beta that may change,
-          be limited, or be withdrawn while in beta. Billing is handled by Stripe Payments Europe Ltd.; we never see or store your
+          be limited, or be withdrawn while in beta. Paid plans also include a daily Noor Coder budget measured in
+          AI tokens (not messages), which resets daily at midnight (UTC) and scales with the effort level you
+          choose. When you apply a Coder proposal, the proposed files and folders are created directly on your
+          device, inside a folder you select — Orleia never uploads your workspace files. You are responsible for
+          reviewing what is written to your device and for any command you choose to run yourself. Billing is
+          handled by Stripe Payments Europe Ltd.; we never see or store your
           payment card details.
         </p>
         <p>

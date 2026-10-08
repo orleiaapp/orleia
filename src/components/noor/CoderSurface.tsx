@@ -91,6 +91,11 @@ const TEMPLATES: Record<string, { icon: typeof Info; prompt: string }> = {
   debug: { icon: Bug, prompt: "Find the bug in this code and explain the fix:\n\n" },
   test: { icon: FlaskConical, prompt: "Write tests for this code:\n\n" },
   refactor: { icon: Wand2, prompt: "Refactor this code for clarity without changing behavior:\n\n" },
+  scaffold: {
+    icon: FolderPlus,
+    prompt:
+      "Scaffold a complete, runnable project from scratch — design the folder structure and write every file needed:\n\n",
+  },
 };
 
 const skillSlug = (name: string) =>
@@ -979,7 +984,9 @@ export function CoderSurface({
                                           ? t("coder.applied")
                                           : st === "err"
                                             ? t("coder.applyFail")
-                                            : t("coder.apply")}
+                                            : a.op === "mkdir"
+                                              ? t("coder.createFolder")
+                                              : t("coder.apply")}
                                     </button>
                                   </div>
                                 </div>

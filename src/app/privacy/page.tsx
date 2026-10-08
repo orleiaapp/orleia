@@ -86,6 +86,15 @@ export default function PrivacyPage() {
           <li>You can bring your own API key for full control</li>
           <li>AI features are optional - all core tools work without them</li>
         </ul>
+        <p className="mt-3">
+          Noor Coder (beta) adds two things on top of this. First, when web research runs — either because you
+          switched the Web toggle on or your question needs live facts — only an excerpt of your prompt (up to
+          300 characters) is sent as a search query to the keyless search providers listed in section 8; no
+          workspace data is included. Second, when you apply a Coder proposal, your browser writes the selected
+          files and folders directly into a folder you choose on your own device, and those files never pass
+          through Orleia — the app only keeps a local handle to that folder. To enforce plan limits, Orleia stores
+          a per-device daily counter of AI tokens (numbers only, never your content).
+        </p>
       </section>
 
       <section>
@@ -136,7 +145,7 @@ export default function PrivacyPage() {
         </p>
         <ul className="list-disc pl-6 space-y-1.5">
           <li><strong>NVIDIA NIM API</strong> - Powers Noor's AI features (optional), including chat (Nemotron models), image generation (FLUX.1-dev), and image understanding (Llama 3.2 Vision). When you use Noor, your prompts and relevant context are processed by NVIDIA. See section 4 for details.</li>
-          <li><strong>Web search engines</strong> - When you ask Noor to search the web, only your search query is sent to keyless search providers (DuckDuckGo, Mojeek, Wikipedia, Bing RSS, Google News RSS) to fetch results. No workspace data is included.</li>
+          <li><strong>Web search engines</strong> - When you ask Noor to search the web, only your search query is sent to keyless search providers (DuckDuckGo, Mojeek, Wikipedia, Bing RSS, Google News RSS) to fetch results. No workspace data is included. The same applies to Noor Coder's web research (see section 4).</li>
           <li><strong>Vercel</strong> - Hosts the application and provides aggregate, anonymized visit metrics. See section 6.</li>
           <li><strong>Push reminder store (Vercel Blob)</strong> - If you enable reminders while the app is closed, Orleia stores the minimal data needed to deliver them: a push subscription endpoint, your device identifier, and the upcoming reminder times with their titles. This store contains no workspace content, is overwritten on every schedule sync, and expires after delivery. Deleting the app data or disabling notifications removes it.</li>
           <li><strong>Web push services</strong> - Delivering a push notification involves your browser vendor's push service (e.g. Mozillaautopush for Firefox, Apple's APNs for Safari, Google's FCM for Chrome). Only the encrypted notification payload and your subscription endpoint pass through them; they cannot read your data.</li>

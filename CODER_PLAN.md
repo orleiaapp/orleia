@@ -64,6 +64,15 @@ Date: Oct 6, 2026 (rev 3 — free sees the switch but locked; labeled beta every
     handle) and applies writes directly to disk. Shell cards copy the
     command (browser can't execute) and every action lands in a
     terminal-style log panel.
+- **Rev 7 (2026-10-08):** creation is the point. System prompt now demands
+  scaffolding, not folder-filling: nested paths auto-create directories,
+  standalone `mkdir` for empty dirs, new top-level folders allowed
+  (`my-app/…`), whole project delivered in one reply (entry, configs,
+  modules, README). New "New project" starter template; mkdir cards relabeled
+  "Create folder" (`coder.createFolder`, `coder.scaffold`). Copy pass across
+  landing (ribbon + privacy card), terms §11, refund §1, privacy §4/§8 and
+  what-is-orleia FAQ (new "What is Noor Coder?" entry) to describe folder
+  creation, on-device writes and the daily token budget.
 Direction change: Coder is **not its own tab**. It is a **mode inside Noor**
 (like ChatGPT ↔ Codex under one roof): same chat surface, a mode switch, a
 **completely different UI/UX** while active, a **foggy fade** crossing

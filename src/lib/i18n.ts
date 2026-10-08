@@ -432,6 +432,8 @@ const dict: Record<string, Record<string, string>> = {  en: {
   "coder.terminal": "Terminal",
   "coder.termEmpty": "No actions yet — ask Coder to create files and they'll land here.",
   "coder.apply": "Write to PC",
+  "coder.createFolder": "Create folder",
+  "coder.scaffold": "New project",
   "coder.applyAll": "Apply all",
   "coder.applied": "Written",
   "coder.applyFail": "Failed",
