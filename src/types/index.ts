@@ -82,6 +82,8 @@ export interface UserProfile {
   communicationPrefs?: string | string[];
   goals?: string;
   helpWith?: string[];
+  /** Acquisition source picked during onboarding (friends|social|search|press|other). */
+  hearAbout?: string;
 }
 
 export interface ThemeConfig {

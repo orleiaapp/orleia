@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Sun, Moon, Monitor, ListTodo, CheckCircle2, FileText, Flower2, Sparkles } from "lucide-react";
+import { Sun, Moon, Monitor, ListTodo, CheckCircle2, FileText, Flower2, Sparkles, Users, Share2, Search, Newspaper, Globe } from "lucide-react";
 import { storage } from "@/lib/storage";
 import type { AccentColor } from "@/types";
 import { cn } from "@/lib/utils";
@@ -342,6 +342,163 @@ function EverythingStep({ onDone }: { onDone: () => void }) {
   );
 }
 
+// Goals → saved to profile.goals, which buildProfileBlock() already injects
+// into Noor's system prompt ("tailor suggestions to their goals").
+function GoalsStep({ onDone }: { onDone: () => void }) {
+  const [goals, setGoals] = useState("");
+  const save = () => {
+    storage.updateProfile({ goals: goals.trim() });
+    onDone();
+  };
+  return (
+    <div className="fixed inset-0 z-[100] flex flex-col overflow-hidden bg-[#050508] outline-none focus-visible:ring-2 focus-visible:ring-white/40 focus-visible:ring-inset">
+      <div
+        className="pointer-events-none absolute inset-x-0 top-0 h-[64%]"
+        style={{
+          maskImage: "linear-gradient(to bottom, black 55%, transparent)",
+          WebkitMaskImage: "linear-gradient(to bottom, black 55%, transparent)",
+        }}
+      >
+        <Constellation />
+      </div>
+      <div className="relative z-10 mt-auto flex w-full flex-col items-center px-6 pb-[max(4.5rem,env(safe-area-inset-bottom))]">
+        <motion.h1
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.15, duration: 0.8 }}
+          className="text-center font-sans text-3xl font-bold tracking-tight text-white md:text-5xl"
+        >
+          What are you working toward?
+        </motion.h1>
+        <motion.p
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.35, duration: 0.8 }}
+          className="mt-3 max-w-sm text-center text-xs leading-relaxed text-zinc-500"
+        >
+          Noor reads this and adapts — plans, nudges and check-ins shaped
+          around your goals.
+        </motion.p>
+        <motion.textarea
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.5, duration: 0.8 }}
+          value={goals}
+          onChange={(e) => setGoals(e.target.value)}
+          placeholder="e.g. ship my app, run three times a week, sleep better"
+          aria-label="Your goals"
+          rows={3}
+          maxLength={400}
+          className="mt-6 w-full max-w-sm resize-none rounded-2xl border border-zinc-700 bg-zinc-900 px-4 py-3.5 text-sm leading-relaxed text-zinc-100 shadow-md outline-none placeholder:text-zinc-600 focus:border-zinc-500"
+        />
+        <motion.button
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.65, duration: 0.8 }}
+          onClick={save}
+          className="mt-6 w-full max-w-sm rounded-full bg-white px-9 py-3.5 font-sans text-sm font-medium text-black shadow-[0_0_36px_-8px_rgba(255,255,255,0.5)] transition-all hover:bg-zinc-200 active:scale-[0.98]"
+        >
+          Continue
+        </motion.button>
+        <motion.button
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.8, duration: 0.8 }}
+          onClick={onDone}
+          className="mt-3 py-1 text-xs text-zinc-500 transition-colors hover:text-zinc-300"
+        >
+          Skip for now
+        </motion.button>
+      </div>
+    </div>
+  );
+}
+
+// Acquisition source — stored on the local profile (hearAbout). Tap a row
+// to save and advance immediately.
+function SourceStep({ onDone }: { onDone: () => void }) {
+  const [picked, setPicked] = useState<string | null>(null);
+  const timer = useRef<number | null>(null);
+  useEffect(() => () => { if (timer.current) window.clearTimeout(timer.current); }, []);
+  const options = [
+    { key: "friends", label: "Friends or family", Icon: Users },
+    { key: "social", label: "Social media", Icon: Share2 },
+    { key: "search", label: "Search engine", Icon: Search },
+    { key: "press", label: "News or press", Icon: Newspaper },
+    { key: "other", label: "Somewhere else", Icon: Globe },
+  ];
+  const pick = (key: string) => {
+    if (picked) return;
+    setPicked(key);
+    storage.updateProfile({ hearAbout: key });
+    timer.current = window.setTimeout(onDone, 350);
+  };
+  return (
+    <div className="fixed inset-0 z-[100] flex flex-col overflow-hidden bg-[#050508] outline-none focus-visible:ring-2 focus-visible:ring-white/40 focus-visible:ring-inset">
+      <div
+        className="pointer-events-none absolute inset-x-0 top-0 h-[64%]"
+        style={{
+          maskImage: "linear-gradient(to bottom, black 55%, transparent)",
+          WebkitMaskImage: "linear-gradient(to bottom, black 55%, transparent)",
+        }}
+      >
+        <Constellation />
+      </div>
+      <div className="relative z-10 mt-auto flex w-full flex-col items-center px-6 pb-[max(4.5rem,env(safe-area-inset-bottom))]">
+        <motion.h1
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.15, duration: 0.8 }}
+          className="text-center font-sans text-3xl font-bold tracking-tight text-white md:text-5xl"
+        >
+          Where did you hear about us?
+        </motion.h1>
+        <div className="mt-6 flex w-full max-w-sm flex-col gap-2.5">
+          {options.map(({ key, label, Icon }, i) => (
+            <motion.button
+              key={key}
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3 + i * 0.07, duration: 0.7 }}
+              onClick={() => pick(key)}
+              aria-pressed={picked === key}
+              className={
+                picked && picked !== key
+                  ? "flex items-center gap-3 rounded-2xl border border-zinc-800 bg-zinc-950 px-4 py-3.5 text-sm text-zinc-600 opacity-40 shadow-md transition-all"
+                  : picked === key
+                    ? "flex items-center gap-3 rounded-2xl border border-white/60 bg-zinc-800 px-4 py-3.5 text-sm font-medium text-white shadow-md transition-all"
+                    : "flex items-center gap-3 rounded-2xl border border-zinc-700 bg-zinc-900 px-4 py-3.5 text-sm text-zinc-200 shadow-md transition-all hover:border-zinc-500 hover:bg-zinc-800 active:scale-[0.98]"
+              }
+            >
+              <Icon className="h-4 w-4 shrink-0 text-primary-500" />
+              {label}
+              {picked === key && (
+                <motion.span
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  transition={{ type: "spring", stiffness: 500, damping: 20 }}
+                  className="ml-auto"
+                >
+                  <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+                </motion.span>
+              )}
+            </motion.button>
+          ))}
+        </div>
+        <motion.button
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.75, duration: 0.8 }}
+          onClick={() => { if (!picked) onDone(); }}
+          className="mt-5 py-1 text-xs text-zinc-500 transition-colors hover:text-zinc-300"
+        >
+          Skip
+        </motion.button>
+      </div>
+    </div>
+  );
+}
+
 function NameStep({ onDone }: { onDone: (name: string) => void }) {
   const [name, setName] = useState("");
   const submit = () => {
@@ -415,16 +572,19 @@ const INTRO_STEP_KEY = "orleia-intro-step";
 
 export function IntroFlow({ onComplete }: { onComplete: () => void }) {
   // Flow order: dark constellation welcome → "everything, one place" →
-  // 13+ declaration → name → look & feel.
-  const [step, setStep] = useState<"welcome" | "unified" | "age" | "name" | "appearance">(() => { if (typeof window === "undefined") return "welcome"; const saved = localStorage.getItem(INTRO_STEP_KEY); if (saved === "appearance" || saved === "name") return saved; return "welcome"; });
+  // goals (Noor adapts) → acquisition source → 13+ → name → look & feel.
+  const [step, setStep] = useState<"welcome" | "unified" | "goals" | "hear" | "age" | "name" | "appearance">(() => { if (typeof window === "undefined") return "welcome"; const saved = localStorage.getItem(INTRO_STEP_KEY); if (saved === "appearance" || saved === "name") return saved; return "welcome"; });
   useEffect(() => { if (step === "welcome") localStorage.removeItem(INTRO_STEP_KEY); else localStorage.setItem(INTRO_STEP_KEY, step); }, [step]);
   const afterWelcome = () => setStep("unified");
-  const afterUnified = () => setStep(storage.isAgeConfirmed() ? "name" : "age");
+  const afterUnified = () => setStep("goals");
+  const afterHear = () => setStep(storage.isAgeConfirmed() ? "name" : "age");
   const finish = () => { localStorage.removeItem(INTRO_STEP_KEY); storage.completeOnboarding(); onComplete(); };
   return (
     <AnimatePresence mode="wait">
       {step === "welcome" && <motion.div key="welcome" exit={{ opacity: 0 }} transition={{ duration: 0.3 }}><WelcomeStep onDone={afterWelcome} /></motion.div>}
       {step === "unified" && <motion.div key="unified" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }}><EverythingStep onDone={afterUnified} /></motion.div>}
+      {step === "goals" && <motion.div key="goals" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }}><GoalsStep onDone={() => setStep("hear")} /></motion.div>}
+      {step === "hear" && <motion.div key="hear" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }}><SourceStep onDone={afterHear} /></motion.div>}
       {step === "age" && <AgeGate key="age" onConfirmed={() => setStep("name")} />}
       {step === "name" && <motion.div key="name" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }}><NameStep onDone={() => setStep("appearance")} /></motion.div>}
       {step === "appearance" && <motion.div key="appearance" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }}><AppearanceStep onDone={finish} /></motion.div>}
