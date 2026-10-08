@@ -2550,7 +2550,7 @@ try {
             <img
               src="/noor-mark-white.png"
               alt=""
-              className="h-44 w-44 object-contain opacity-10 invert dark:invert-0"
+              className="h-44 w-44 -translate-y-10 object-contain opacity-10 invert dark:invert-0"
             />
           </div>
         )}
