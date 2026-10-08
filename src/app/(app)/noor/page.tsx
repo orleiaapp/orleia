@@ -2422,9 +2422,9 @@ try {
               transition={{ duration: modeDur, ease: "easeOut" }}
               className="relative flex min-h-0 flex-1 flex-col"
             >
-        {/* Noor watermark — mobile empty state only: big mark, 50% transparent,
-            centered above the pill. Purely decorative. */}
-        {isMobile && isEmptyChat && (
+        {/* Noor watermark — empty state at every breakpoint: big mark at 10%
+            transparency behind the welcome. Purely decorative. */}
+        {isEmptyChat && (
           <div aria-hidden className="pointer-events-none absolute inset-0 z-0 flex items-center justify-center">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
@@ -2788,6 +2788,13 @@ try {
           <div className={cn("w-full", isEmptyChat ? "mx-auto lg:max-w-2xl" : "mx-auto lg:max-w-4xl")}>
             {/* Mobile: chats access lives in the floating glass circle
                 (second row, under the hamburger) rendered at page root. */}
+            {/* Welcome — empty-state greeting above the pill; the Noor mark
+                sits behind it at 10% transparency. */}
+            {isEmptyChat && !petAgent && (
+              <p className="relative z-10 mb-3 text-center text-lg font-medium tracking-tight text-foreground sm:text-xl">
+                {t("assistant.welcome")}
+              </p>
+            )}
             {/* Pet chat empty state: pet face + one-tap job prompts. */}
             {isEmptyChat && petAgent && !loading && (
               <div className="mb-2 flex flex-wrap items-center gap-1.5">

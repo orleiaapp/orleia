@@ -864,20 +864,18 @@ export function CoderSurface({
       <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto px-4 md:px-6">
         <div className="mx-auto w-full max-w-3xl py-6 space-y-5">
           {messages.length === 0 && (
-            <div className="flex min-h-[50vh] flex-col items-center justify-center gap-5 text-center">
-              <p className="max-w-md text-sm leading-relaxed text-muted-foreground">{t("coder.empty")}</p>
-              <div className="grid w-full max-w-md grid-cols-2 gap-2">
-                {Object.entries(TEMPLATES).map(([k, { icon: Icon }]) => (
-                  <button
-                    key={k}
-                    onClick={() => applyAction(k)}
-                    className="flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2.5 text-left text-[13px] font-medium transition-all hover:border-primary-500/40 hover:bg-secondary/60"
-                  >
-                    <Icon className="h-4 w-4 shrink-0 text-primary-500" />
-                    {t(`coder.${k}`)}
-                  </button>
-                ))}
-              </div>
+            <div className="relative flex min-h-[50vh] flex-col items-center justify-center gap-4 text-center">
+              {/* Noor mark — welcoming watermark at 10% behind the greeting */}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/noor-mark-white.png"
+                alt=""
+                aria-hidden
+                className="pointer-events-none absolute left-1/2 top-1/2 h-72 w-72 -translate-x-1/2 -translate-y-1/2 object-contain opacity-10 invert dark:invert-0"
+              />
+              <p className="relative z-10 max-w-md text-xl font-semibold tracking-tight text-foreground">
+                {t("coder.welcome")}
+              </p>
             </div>
           )}
           {messages.map((m, mi) => {

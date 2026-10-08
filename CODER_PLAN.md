@@ -77,8 +77,13 @@ Date: Oct 6, 2026 (rev 3 — free sees the switch but locked; labeled beta every
   Refactor / New project + Web toggle) moved from the mid-row to sit centered
   directly on top of the composer pill; the shared recent-chats panel is now
   reachable in Coder mode too (toggle no longer gated `!coderMode`) — opening
-  a conversation or a new chat from it fades back to Noor and loads it, so
+  a conversation or a new  chat from it fades back to Noor and loads it, so
   Noor and Coder share one recent-chats list.
+- **Rev 9 (2026-10-08):** empty states reworked. Coder's old
+  "Paste an error…" line + starter-card grid are gone (the chips live above
+  the pill now); both modes greet with a welcome message over the Noor mark
+  at 10% transparency (`coder.welcome` — code-related,
+  `assistant.welcome` — plain). The watermark is no longer mobile-only.
 Direction change: Coder is **not its own tab**. It is a **mode inside Noor**
 (like ChatGPT ↔ Codex under one roof): same chat surface, a mode switch, a
 **completely different UI/UX** while active, a **foggy fade** crossing
