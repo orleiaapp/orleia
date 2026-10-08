@@ -8,7 +8,11 @@ import { webSearch, buildSearchBlock, isLiveQuery } from '@/lib/web-search';
 import type { AISource } from '@/types';
 
 export const runtime = 'nodejs';
-export const maxDuration = 60;
+// Scaffolds at 4096 completion tokens with a thinking model need MINUTES,
+// not 60s — the old limit had Vercel kill the function mid-stream, which
+// looked exactly like "Coder stopped halfway" (and made the user's manual
+// "continue" fail the same way).
+export const maxDuration = 300;
 
 // ============================================================
 // Noor Coder (beta) — mirrors /api/chat on purpose:

@@ -104,6 +104,15 @@ function replyTruncated(s: string): boolean {
   return !s.slice(open + "```orleia-action".length).includes("```");
 }
 
+/** Build-mode reply that emitted action blocks but ends with a "keep going"
+ *  invitation — a CLEAN stop mid-task (not cut by the token cap). */
+function buildNeedsContinuation(s: string): boolean {
+  if (!s.includes("```orleia-action")) return false;
+  return /(?:shall|should|want|may|would|like) i continu|say.{0,16}continu|type.{0,10}continu|continu(?:e|ing|ation)\s*[?]?\s*$|next,? i(?:'| wi)ll|ready for the next/i.test(
+    s.slice(-500)
+  );
+}
+
 // Quick-action prompt templates. Prompt engineering, not UI copy (the
 // model answers in the interface language via /api/coder's rule); only
 // the labels are translated.
@@ -470,6 +479,10 @@ export function CoderSurface({
       return out;
     };
     try {
+      // Regroup loop: ONE automatic retry after a network blip, an upstream
+      // 5xx, or a stream killed mid-reply.
+      for (let regroup = 0; ; regroup++) {
+        try {
       for (;;) {
       const res = await fetch("/api/coder", {
         method: "POST",
@@ -577,13 +590,25 @@ export function CoderSurface({
           }
         }
       }
-      // Cut mid-scaffold → keep going automatically (≤3 passes).
-      if (controller.signal.aborted || continueAttempt >= 3 || !replyTruncated(full)) break;
+      // Cut mid-scaffold OR clearly inviting a continuation → keep going (≤3 passes).
+      if (controller.signal.aborted || continueAttempt >= 3) break;
+      if (!replyTruncated(full) && !buildNeedsContinuation(full)) break;
       continueAttempt++;
       }
       if (!full.trim()) {
         dropReplyIfEmpty(threadId, replyId);
         setErr(t("coder.err"));
+      }
+      break;
+        } catch (e) {
+          // Transient failure → one regroup retry; aborts and second
+          // failures fall through to the original handler below.
+          if ((e as Error)?.name !== "AbortError" && !controller.signal.aborted && regroup < 1) {
+            await new Promise((r) => setTimeout(r, 1200));
+            continue;
+          }
+          throw e;
+        }
       }
     } catch (e) {
       const aborted = (e as Error)?.name === "AbortError";

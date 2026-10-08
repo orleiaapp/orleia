@@ -122,6 +122,12 @@ Date: Oct 6, 2026 (rev 3 — free sees the switch but locked; labeled beta every
     TRIMS (tail-wins per message, drop-oldest for the total) instead of
     rejecting, the body limit is2 MB, and the client packs outbound
     history (≤40k/message, ≤240k total) before fetch.
+- **Rev 14 (2026-10-08):** "still stops mid-task" root cause =
+  `maxDuration = 60` — Vercel killed the function during long scaffold
+  generations (and the user's manual "continue" died the same way). Now
+  `maxDuration = 300`, plus one client regroup-retry (network blip / 5xx /
+  killed stream) and a `buildNeedsContinuation` heuristic so CLEAN stops
+  after action blocks ("Shall I continue…?") also auto-continue ≤3 passes.
 Direction change: Coder is **not its own tab**. It is a **mode inside Noor**
 (like ChatGPT ↔ Codex under one roof): same chat surface, a mode switch, a
 **completely different UI/UX** while active, a **foggy fade** crossing
