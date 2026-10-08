@@ -2542,6 +2542,18 @@ try {
             aria-hidden={coderMode}
             className={cn("relative flex min-h-0 flex-1 flex-col", coderMode && "pointer-events-none")}
           >
+        {/* Noor watermark — MOBILE empty state only: big mark dead-center,
+            no text (desktop gets the stacked hero below instead). */}
+        {isMobile && isEmptyChat && (
+          <div aria-hidden className="pointer-events-none absolute inset-0 z-0 flex items-center justify-center">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/noor-mark-white.png"
+              alt=""
+              className="h-44 w-44 object-contain opacity-10 invert dark:invert-0"
+            />
+          </div>
+        )}
         {/* Messages */}
         <div ref={messagesBoxRef} className={cn("flex-1 overflow-y-auto px-2 md:px-6", isEmptyChat && "hidden")}>
           <div className="noor-chat-font mx-auto w-full py-6 space-y-6 md:py-8">
@@ -2895,9 +2907,9 @@ try {
           <div className={cn("w-full", isEmptyChat ? "mx-auto lg:max-w-2xl lg:-translate-y-4" : "mx-auto lg:max-w-4xl")}>
             {/* Mobile: chats access lives in the floating glass circle
                 (second row, under the hamburger) rendered at page root. */}
-            {/* Fresh-chat hero stack: Noor mark (10%) → casual "Hi, name"
-                → pill. Never overlaps the composer. */}
-            {isEmptyChat && !petAgent && (
+            {/* Fresh-chat hero (DESKTOP only): Noor mark (10%) → casual
+                "Hi, name" → pill. Mobile keeps its centered watermark above. */}
+            {!isMobile && isEmptyChat && !petAgent && (
               <div className="relative z-10 mb-8 flex flex-col items-center gap-2">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
