@@ -73,6 +73,12 @@ Date: Oct 6, 2026 (rev 3 — free sees the switch but locked; labeled beta every
   landing (ribbon + privacy card), terms §11, refund §1, privacy §4/§8 and
   what-is-orleia FAQ (new "What is Noor Coder?" entry) to describe folder
   creation, on-device writes and the daily token budget.
+- **Rev 8 (2026-10-08):** quick-action pills (Explain / Debug / Write a test /
+  Refactor / New project + Web toggle) moved from the mid-row to sit centered
+  directly on top of the composer pill; the shared recent-chats panel is now
+  reachable in Coder mode too (toggle no longer gated `!coderMode`) — opening
+  a conversation or a new chat from it fades back to Noor and loads it, so
+  Noor and Coder share one recent-chats list.
 Direction change: Coder is **not its own tab**. It is a **mode inside Noor**
 (like ChatGPT ↔ Codex under one roof): same chat surface, a mode switch, a
 **completely different UI/UX** while active, a **foggy fade** crossing

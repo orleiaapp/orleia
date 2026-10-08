@@ -1023,48 +1023,6 @@ export function CoderSurface({
         </div>
       </div>
 
-      {/* Quick actions — Noor chip style; Web = live research toggle */}
-      <div className="flex shrink-0 flex-wrap items-center gap-1.5 px-4 pt-1 md:px-6">
-        {Object.entries(TEMPLATES).map(([k, { icon: Icon }]) => (
-          <button
-            key={k}
-            onClick={() => applyAction(k)}
-            disabled={busy}
-            className="inline-flex items-center gap-1.5 rounded-full border border-border/70 bg-secondary/60 px-3 py-1.5 text-xs font-medium text-muted-foreground transition-all hover:border-primary-500/40 hover:text-foreground disabled:opacity-40"
-          >
-            <Icon className="h-3.5 w-3.5 text-primary-500" />
-            {t(`coder.${k}`)}
-          </button>
-        ))}
-        <button
-          onClick={() => setWeb((v) => !v)}
-          title={t("coder.web")}
-          aria-pressed={web}
-          className={cn(
-            "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-all",
-            web
-              ? "border-primary-500/50 bg-primary-500/15 text-primary-500"
-              : "border-border/70 bg-secondary/60 text-muted-foreground hover:border-primary-500/40 hover:text-foreground"
-          )}
-        >
-          <Globe className="h-3.5 w-3.5" />
-          {t("coder.webShort")}
-        </button>
-        {queueLen > 0 && (
-          <button
-            onClick={() => {
-              queueRef.current = [];
-              setQueueLen(0);
-            }}
-            title={t("coder.clearQueue")}
-            className="ml-auto inline-flex items-center gap-1.5 rounded-full border border-amber-500/40 bg-amber-500/10 px-3 py-1.5 text-xs font-medium text-amber-600 dark:text-amber-400"
-          >
-            {t("coder.queued").replace("{n}", String(queueLen))}
-            <X className="h-3 w-3" />
-          </button>
-        )}
-      </div>
-
       {/* Terminal log — every workspace action, Claude-Code-exec style */}
       {termOpen && (
         <div className="mx-4 mt-2 max-h-40 overflow-y-auto rounded-2xl border border-border bg-card md:mx-6">
@@ -1121,6 +1079,47 @@ export function CoderSurface({
       {/* Composer — Noor's pill */}
       <div className="shrink-0 px-4 pb-3 pt-2 md:px-6">
         <div className="mx-auto w-full max-w-3xl">
+          {/* Quick actions — centered on top of the pill; Web = live research toggle */}
+          <div className="flex flex-wrap items-center justify-center gap-1.5 pb-2.5">
+            {Object.entries(TEMPLATES).map(([k, { icon: Icon }]) => (
+              <button
+                key={k}
+                onClick={() => applyAction(k)}
+                disabled={busy}
+                className="inline-flex items-center gap-1.5 rounded-full border border-border/70 bg-secondary/60 px-3 py-1.5 text-xs font-medium text-muted-foreground transition-all hover:border-primary-500/40 hover:text-foreground disabled:opacity-40"
+              >
+                <Icon className="h-3.5 w-3.5 text-primary-500" />
+                {t(`coder.${k}`)}
+              </button>
+            ))}
+            <button
+              onClick={() => setWeb((v) => !v)}
+              title={t("coder.web")}
+              aria-pressed={web}
+              className={cn(
+                "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-all",
+                web
+                  ? "border-primary-500/50 bg-primary-500/15 text-primary-500"
+                  : "border-border/70 bg-secondary/60 text-muted-foreground hover:border-primary-500/40 hover:text-foreground"
+              )}
+            >
+              <Globe className="h-3.5 w-3.5" />
+              {t("coder.webShort")}
+            </button>
+            {queueLen > 0 && (
+              <button
+                onClick={() => {
+                  queueRef.current = [];
+                  setQueueLen(0);
+                }}
+                title={t("coder.clearQueue")}
+                className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/40 bg-amber-500/10 px-3 py-1.5 text-xs font-medium text-amber-600 dark:text-amber-400"
+              >
+                {t("coder.queued").replace("{n}", String(queueLen))}
+                <X className="h-3 w-3" />
+              </button>
+            )}
+          </div>
           {/* Slash commands: type "/" for skills (Claude Code-style) */}
           {slashMatches.length > 0 && (
             <div className="relative bottom-1 z-50 mb-1 w-full rounded-2xl border border-border bg-background p-1.5 shadow-2xl">

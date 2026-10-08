@@ -2004,7 +2004,7 @@ try {
             >
               <Download className="h-4 w-4" />
             </button>
-            <button onClick={startNewChat} className="btn-ghost p-1.5 rounded-xl hover:bg-secondary transition-colors" title={t("assistant.newChat")}>
+            <button onClick={() => { if (coderMode) leaveCoder(); startNewChat(); }} className="btn-ghost p-1.5 rounded-xl hover:bg-secondary transition-colors" title={t("assistant.newChat")}>
               <Plus className="h-4 w-4" />
             </button>
             {onClose && (
@@ -2029,13 +2029,14 @@ try {
               key={conv.id}
               role="button"
               tabIndex={0}
-              onClick={() => { loadConversation(conv.id); setShowChats(false); }}
+              onClick={() => { if (coderMode) leaveCoder(); loadConversation(conv.id); setShowChats(false); }}
               onKeyDown={(e) => {
                 // Only when the row itself is focused: keystrokes inside the
                 // rename <input> (space, enter) must keep native behavior.
                 if (e.target !== e.currentTarget) return;
                 if (e.key === "Enter" || e.key === " ") {
                   e.preventDefault();
+                  if (coderMode) leaveCoder();
                   loadConversation(conv.id);
                   setShowChats(false);
                 }
@@ -2364,9 +2365,10 @@ try {
                 )}
               </AnimatePresence>
             </div>
-            {/* Chats toggle — desktop only. On mobile the "Chats" button above
+            {/* Chats toggle — desktop only (both modes: Noor and Coder share
+                the same recent-chats panel). On mobile the "Chats" button above
                 the pill replaces it in the empty state. */}
-            {!isMobile && !coderMode && (
+            {!isMobile && (
               <button
                 onClick={() => setShowChats(!showChats)}
                 className={cn(
