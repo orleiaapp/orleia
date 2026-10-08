@@ -94,8 +94,23 @@ Date: Oct 6, 2026 (rev 3 — free sees the switch but locked; labeled beta every
     clicking one enters Coder (same gates as the switch) focused on that
     thread via the `openThread` prop.
   - **i18n**: all 48 coder keys + 5 greeting keys now exist in all 19
-    languages (866 translations added; es/fr/de/pt had drifted after rev 6,
-    the other 14 never had the coder block).
+  languages (866 translations added; es/fr/de/pt had drifted after rev 6,
+  the other 14 never had the coder block).
+- **Rev 12 (2026-10-08):** reliability + control.
+  - **Background runs**: Noor stays mounted as the base layer and Coder is
+    an overlay that survives leaving the mode while a reply/queue is live
+    (`onBusyChange` → `bgCoder`); a completion **toast** (extended undo-toast
+    with an optional action label) jumps back into Coder.
+  - **Plan / Build toggle** in the top strip: plan mode sends
+    `mode: "plan"` — the server appends a read-only PLAN MODE override so no
+    `orleia-action` blocks are emitted; choice persisted in
+    `orleia.coder.planMode`.
+  - **No more half-finished scaffolds**: server prompt gains a completion
+    mandate (never stop after one file), the client floors `max_tokens` at
+    4096 and auto-continues (≤3 passes, `CONTINUE_PROMPT`) whenever a reply
+    ends inside an unclosed `orleia-action` fence.
+  - Hero smaller + higher (Noor), smaller (Coder); Coder composer stays a
+    pill for multiline input (no rectangle).
 Direction change: Coder is **not its own tab**. It is a **mode inside Noor**
 (like ChatGPT ↔ Codex under one roof): same chat surface, a mode switch, a
 **completely different UI/UX** while active, a **foggy fade** crossing

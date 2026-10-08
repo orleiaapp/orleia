@@ -58,6 +58,7 @@ import { LOCAL_MODELS, probeOllama, isModelInstalled, ollamaSetupHint, type Olla
 import { EFFORT_LEVELS, effortModelId, DEFAULT_MODEL, MODEL_PROFILES, type EffortLevel } from "@/lib/ai-models";
 import { EffortSlider } from "@/components/ui/effort-slider";
 import { storage } from "@/lib/storage";
+import { showToast } from "@/lib/undo-toast";
 import { buildSituationModel } from "@/lib/graph/situation";
 import { getGraph } from "@/lib/graph/engine";
 import { chat } from "@/lib/ai";
@@ -386,6 +387,7 @@ export default function AssistantPage() {
   type CoderThreadRow = { id: string; title: string; count: number; updatedAt: number };
   const [coderRows, setCoderRows] = useState<CoderThreadRow[]>([]);
   const [coderOpenThread, setCoderOpenThread] = useState<{ id: string; seq: number } | null>(null);
+  const [bgCoder, setBgCoder] = useState(false);
   const [greetIdx, setGreetIdx] = useState(0);
   const [localInfo, setLocalInfo] = useState<LocalModelDef | null>(null);
   const localInfoRef = useRef<HTMLDivElement>(null);
@@ -760,6 +762,21 @@ export default function AssistantPage() {
     if (coderMode) return; // already there — the surface switches via prop
     enterCoder();
     if (coderPaid === false) setCoderOpenThread(null); // lock popover instead
+  };
+
+  // Background run: Coder keeps streaming while the user works in Noor —
+  // toast when the reply lands (unless they are watching Coder itself).
+  const coderActiveRef = useRef(false);
+  const handleCoderBusy = (active: boolean) => {
+    const was = coderActiveRef.current;
+    coderActiveRef.current = active;
+    setBgCoder(active);
+    if (was && !active && !coderMode) {
+      showToast(t("coder.bgDone"), t("coder.view"), () => {
+        setCoderOpenThread(null);
+        enterCoder();
+      });
+    }
   };
 
   // Model/effort for Coder comes from the SHARED header picker (Codex-style
@@ -2514,37 +2531,17 @@ try {
             surface resolves (CODER_PLAN §1). Coder is a sibling view of the
             whole chat region; below lg the switch is CSS-hidden and
             enterCoder()'s matchMedia guard refuses entry. */}
-        <AnimatePresence mode="wait" initial={false}>
-          {coderMode ? (
-            <motion.div
-              key="coder-surface"
-              initial={{ opacity: 0, filter: blurIn }}
-              animate={{ opacity: 1, filter: "blur(0px)" }}
-              exit={{ opacity: 0, filter: blurIn }}
-              transition={{ duration: modeDur, ease: "easeOut" }}
-              className="relative flex min-h-0 flex-1 flex-col overflow-hidden"
-            >
-              <CoderSurface
-                onExit={leaveCoder}
-                openThread={coderOpenThread}
-                onTierLocked={() => setCoderPaid(false)}
-                model={coderProfile.nvidiaModelId}
-                effort={effortOf(selectedModel)}
-                temperature={coderProfile.temperature}
-                maxTokens={coderProfile.maxTokens}
-                maxContext={coderProfile.maxContextMessages}
-                modelLabel={MODEL_META[selectedModel] || msgLabel(selectedModel)}
-              />
-            </motion.div>
-          ) : (
-            <motion.div
-              key="noor-surface"
-              initial={{ opacity: 0, filter: blurIn }}
-              animate={{ opacity: 1, filter: "blur(0px)" }}
-              exit={{ opacity: 0, filter: blurIn }}
-              transition={{ duration: modeDur, ease: "easeOut" }}
-              className="relative flex min-h-0 flex-1 flex-col"
-            >
+        <div className="relative flex min-h-0 flex-1 flex-col">
+          {/* Noor surface — always mounted (base layer): Coder overlays it,
+              and a background Coder run keeps streaming while you work here.
+              Below lg the switch is CSS-hidden and enterCoder()'s matchMedia
+              guard refuses entry. */}
+          <motion.div
+            animate={{ opacity: coderMode ? 0 : 1, filter: coderMode ? blurIn : "blur(0px)" }}
+            transition={{ duration: modeDur, ease: "easeOut" }}
+            aria-hidden={coderMode}
+            className={cn("relative flex min-h-0 flex-1 flex-col", coderMode && "pointer-events-none")}
+          >
         {/* Messages */}
         <div ref={messagesBoxRef} className={cn("flex-1 overflow-y-auto px-2 md:px-6", isEmptyChat && "hidden")}>
           <div className="noor-chat-font mx-auto w-full py-6 space-y-6 md:py-8">
@@ -2895,21 +2892,21 @@ try {
               : "bg-background/80 backdrop-blur-sm pt-0 sm:pt-4"
           )}
         >
-          <div className={cn("w-full", isEmptyChat ? "mx-auto lg:max-w-2xl" : "mx-auto lg:max-w-4xl")}>
+          <div className={cn("w-full", isEmptyChat ? "mx-auto lg:max-w-2xl lg:-translate-y-4" : "mx-auto lg:max-w-4xl")}>
             {/* Mobile: chats access lives in the floating glass circle
                 (second row, under the hamburger) rendered at page root. */}
             {/* Fresh-chat hero stack: Noor mark (10%) → casual "Hi, name"
                 → pill. Never overlaps the composer. */}
             {isEmptyChat && !petAgent && (
-              <div className="relative z-10 mb-4 flex flex-col items-center gap-3">
+              <div className="relative z-10 mb-8 flex flex-col items-center gap-2">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src="/noor-mark-white.png"
                   alt=""
                   aria-hidden
-                  className="h-36 w-36 object-contain opacity-10 invert dark:invert-0 sm:h-44 sm:w-44"
+                  className="h-24 w-24 object-contain opacity-10 invert dark:invert-0 sm:h-28 sm:w-28"
                 />
-                <p className="text-center text-lg font-medium tracking-tight text-foreground sm:text-xl">
+                <p className="text-center text-base font-medium tracking-tight text-foreground sm:text-lg">
                   {heroGreeting}
                 </p>
               </div>
@@ -3473,8 +3470,37 @@ try {
           </div>
         </div>
             </motion.div>
-          )}
-        </AnimatePresence>
+          {/* Coder overlay — mounted while active OR while a reply streams in
+              the background, so the run survives leaving Coder mode. */}
+          <AnimatePresence initial={false}>
+            {(coderMode || bgCoder) && (
+              <motion.div
+                key="coder-surface"
+                initial={{ opacity: 0, filter: blurIn }}
+                animate={coderMode ? { opacity: 1, filter: "blur(0px)" } : { opacity: 0, filter: blurIn }}
+                exit={{ opacity: 0, filter: blurIn }}
+                transition={{ duration: modeDur, ease: "easeOut" }}
+                className={cn(
+                  "absolute inset-0 z-30 flex flex-col overflow-hidden",
+                  !coderMode && "pointer-events-none"
+                )}
+              >
+                <CoderSurface
+                  onExit={leaveCoder}
+                  openThread={coderOpenThread}
+                  onTierLocked={() => setCoderPaid(false)}
+                  onBusyChange={handleCoderBusy}
+                  model={coderProfile.nvidiaModelId}
+                  effort={effortOf(selectedModel)}
+                  temperature={coderProfile.temperature}
+                  maxTokens={coderProfile.maxTokens}
+                  maxContext={coderProfile.maxContextMessages}
+                  modelLabel={MODEL_META[selectedModel] || msgLabel(selectedModel)}
+                />
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
         {/* Fog veil — peaks at mid-transition: blur wash over both surfaces. */}
         {!reduceMotion && fogAt !== null && (
           <motion.div

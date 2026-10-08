@@ -90,6 +90,19 @@ type LogEntry = { id: string; t: string; op: string; target: string; ok: boolean
 
 const STORE_KEY = "orleia.coderChat.v2";
 const LEGACY_KEY = "orleia.coderChat.v1";
+const PLAN_FLAG = "orleia.coder.planMode";
+
+// Prompt engineering (not UI copy): the auto-continuation pass asked of the
+// model when the token cap cuts a reply mid-scaffold.
+const CONTINUE_PROMPT =
+  "Continue exactly where you stopped. Output ONLY the remaining orleia-action blocks for the files that are still missing — no recap, no preamble, no explanations.";
+
+/** True when the reply ends inside an unclosed orleia-action fence (cut off). */
+function replyTruncated(s: string): boolean {
+  const open = s.lastIndexOf("```orleia-action");
+  if (open === -1) return false;
+  return !s.slice(open + "```orleia-action".length).includes("```");
+}
 
 // Quick-action prompt templates. Prompt engineering, not UI copy (the
 // model answers in the interface language via /api/coder's rule); only
@@ -226,6 +239,7 @@ export function CoderSurface({
   onExit,
   onTierLocked,
   openThread,
+  onBusyChange,
   model,
   effort,
   temperature,
@@ -237,6 +251,9 @@ export function CoderSurface({
   onTierLocked: () => void;
   /** Pending "open this thread" request from the shared recent-chats sidebar. */
   openThread?: { id: string; seq: number } | null;
+  /** Stream state for the page: true while a reply (or queue) is active —
+   *  lets the page keep this surface mounted as a background worker. */
+  onBusyChange?: (active: boolean) => void;
   /** Resolved NVIDIA model id from the shared model/effort picker. */
   model: string;
   /** Effort level id — drives the server-side token cost weight. */
@@ -254,6 +271,18 @@ export function CoderSurface({
       ? { threads: [makeThread([], "init")], activeId: "init" }
       : loadState()
   );
+  // Plan mode: read-only analysis, no file writes (server-enforced). Persisted.
+  const [planMode, setPlanMode] = useState(
+    () => typeof window !== "undefined" && localStorage.getItem(PLAN_FLAG) === "1"
+  );
+  const togglePlanMode = (next: boolean) => {
+    setPlanMode(next);
+    try {
+      localStorage.setItem(PLAN_FLAG, next ? "1" : "0");
+    } catch {
+      /* private mode — the choice simply won't persist */
+    }
+  };
   // Casual hero greeting word — picked once after mount (hydration-safe).
   const [greetIdx, setGreetIdx] = useState(0);
   useEffect(() => {
@@ -280,6 +309,12 @@ export function CoderSurface({
   // Multi-task queue: messages typed while a reply streams, drained in order.
   const [queueLen, setQueueLen] = useState(0);
   const queueRef = useRef<string[]>([]);
+  // Tell the page whether a run is live (stream OR queued sends) so it can
+  // keep this surface mounted while the user works elsewhere.
+  useEffect(() => {
+    onBusyChange?.(busy || queueLen > 0);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [busy, queueLen]);
   // Threads menu + terminal log.
   const [threadsOpen, setThreadsOpen] = useState(false);
   const [termOpen, setTermOpen] = useState(false);
@@ -404,17 +439,34 @@ export function CoderSurface({
     const controller = new AbortController();
     abortRef.current = controller;
     let replySources: Source[] | null = null;
+    // Reply accumulates across auto-continuation passes (≤3) when the token
+    // cap cuts a scaffold mid-file.
+    let full = "";
+    let think = "";
+    let continueAttempt = 0;
+    const reqHistory = (): CMsg[] =>
+      continueAttempt === 0
+        ? history
+        : [
+            ...history,
+            { id: `cont-a${continueAttempt}`, role: "assistant" as const, content: full },
+            { id: `cont-u${continueAttempt}`, role: "user" as const, content: CONTINUE_PROMPT },
+          ];
     try {
+      for (;;) {
       const res = await fetch("/api/coder", {
         method: "POST",
         signal: controller.signal,
         headers: { "Content-Type": "application/json", "x-orleia-device": getDeviceId() },
         body: JSON.stringify({
-          messages: history.slice(-maxContext).map(({ role, content }) => ({ role, content })),
+          messages: reqHistory().slice(-maxContext).map(({ role, content }) => ({ role, content })),
           model,
           effort,
           temperature,
-          maxTokens,
+          // Ceiling floor: a whole scaffold must fit one pass; whatever is
+          // still cut off continues automatically below.
+          maxTokens: Math.max(maxTokens, 4096),
+          mode: planMode ? "plan" : "build",
           stream: true,
           lang: document.documentElement.lang || "en",
           // User's standing skills, same injection style as Noor's situation block.
@@ -448,8 +500,6 @@ export function CoderSurface({
       const reader = res.body.getReader();
       const dec = new TextDecoder();
       let buf = "";
-      let full = "";
-      let think = "";
       const publish = () =>
         setState((s) => ({
           ...s,
@@ -509,6 +559,10 @@ export function CoderSurface({
             /* partial frame — the next chunk completes it */
           }
         }
+      }
+      // Cut mid-scaffold → keep going automatically (≤3 passes).
+      if (controller.signal.aborted || continueAttempt >= 3 || !replyTruncated(full)) break;
+      continueAttempt++;
       }
       if (!full.trim()) {
         dropReplyIfEmpty(threadId, replyId);
@@ -780,6 +834,29 @@ export function CoderSurface({
           )}
         </div>
         <div className="flex items-center gap-1">
+          {/* Plan / Build — plan mode is read-only (server-enforced) */}
+          <div className="flex items-center rounded-full border border-border/60 bg-secondary/40 p-0.5 text-[11px] font-semibold">
+            <button
+              onClick={() => togglePlanMode(true)}
+              aria-pressed={planMode}
+              className={cn(
+                "rounded-full px-2.5 py-1 transition-colors",
+                planMode ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              {t("coder.planMode")}
+            </button>
+            <button
+              onClick={() => togglePlanMode(false)}
+              aria-pressed={!planMode}
+              className={cn(
+                "rounded-full px-2.5 py-1 transition-colors",
+                !planMode ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              {t("coder.buildMode")}
+            </button>
+          </div>
           {/* Thread switcher (branch tree) */}
           <button
             onClick={() => setThreadsOpen((v) => !v)}
@@ -908,9 +985,9 @@ export function CoderSurface({
                 src="/noor-mark-white.png"
                 alt=""
                 aria-hidden
-                className="h-36 w-36 object-contain opacity-10 invert dark:invert-0 sm:h-44 sm:w-44"
+                className="h-24 w-24 object-contain opacity-10 invert dark:invert-0 sm:h-28 sm:w-28"
               />
-              <p className="max-w-md text-lg font-medium tracking-tight text-foreground sm:text-xl">
+              <p className="max-w-md text-base font-medium tracking-tight text-foreground sm:text-lg">
                 {t("coder.welcome")
                   .replace("{greet}", coderGreet)
                   .replace("{name}", coderWho)}
@@ -1181,10 +1258,7 @@ export function CoderSurface({
             </div>
           )}
           <div
-            className={cn(
-              "flex items-end gap-2 bg-secondary/40 pl-4 pr-2 py-2",
-              input.split("\n").length > 1 ? "rounded-[22px]" : "rounded-full"
-            )}
+            className="flex items-end gap-2 rounded-full bg-secondary/40 pl-4 pr-2 py-2"
           >
             <textarea
               ref={taRef}

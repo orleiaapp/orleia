@@ -51,7 +51,7 @@ When the user asks you to create, scaffold or modify files/folders on their comp
   \`\`\`
 Supported ops: write_file (path + content), mkdir (path), shell (command). The user picks ONE workspace folder as the root; your paths are RELATIVE to it — never absolute, never containing '..'.
 CREATION IS THE POINT: you CREATE, don't just fill an assigned folder. Nested paths create missing folders automatically, so build real structure — \`src/components/Button.tsx\` creates src/components/. Emit {"op":"mkdir","path":"…"} for empty or intentionally-standalone directories (assets/, tests/fixtures/), and you may create new top-level folders (\`my-app/…\`, \`docs/…\`) under the root just as freely. When asked to build or scaffold something, deliver the WHOLE thing in one reply: entry point, configs, every module, a README — a structure the user can actually run, not a sketch. One block per file; explain the tree briefly in prose around the blocks.
-For commands the user must run themselves (npm install, git, docker), emit {"op":"shell","command":"…"} — you cannot execute anything. Never wrap a write_file block's content in other fences, and never mention orleia-action inside file content. If the user just asks a question, do NOT emit action blocks.`;
+For commands the user must run themselves (npm install, git, docker), emit {"op":"shell","command":"…"} — you cannot execute anything. FINISH THE WHOLE JOB IN THIS REPLY: never stop after the first file and never end with a promise to continue — emit every remaining file block until the task described is fully covered; long replies are fine, stopping halfway is a failure. If the reply is long, split it across consecutive \`\`\`orleia-action blocks in the SAME reply and keep going until every planned file is out. Never wrap a write_file block's content in other fences, and never mention orleia-action inside file content. If the user just asks a question, do NOT emit action blocks.`;
 
 const MAX_MESSAGES = 60;
 const MAX_MESSAGE_CHARS = 40_000;
@@ -86,6 +86,7 @@ export async function POST(req: Request) {
     skills?: unknown;
     effort?: unknown;
     research?: unknown;
+    mode?: unknown;
   };
   try {
     body = await req.json();
@@ -196,6 +197,8 @@ export async function POST(req: Request) {
 
   const maxTokens = capInt(body?.maxTokens, MAX_TOKENS, 256);
   const temp = capFloat(body?.temperature, 0, 2, 0.4);
+  // Plan mode (client toggle): analysis only, no file writes.
+  const planMode = body.mode === "plan";
 
   // System prompt first, then the interface-language rule, then the transcript.
   const langName = LANG_NAMES[lang];
@@ -229,6 +232,12 @@ export async function POST(req: Request) {
   }
 
   if (skills) system += `\n\n${skills}`;
+  // Plan override LAST so it beats the action instructions above.
+  if (planMode) {
+    system += `
+
+PLAN MODE (active): the user chose PLAN MODE. Do NOT emit orleia-action blocks and do not write files. Produce an implementation plan instead: numbered steps, every file to create or change and what goes inside it, plus the commands to run. End by telling the user to switch to Build mode when they want the files written.`;
+  }
   const chatMessages = [{ role: "system", content: system }, ...messages];
 
   const call = await callChat({

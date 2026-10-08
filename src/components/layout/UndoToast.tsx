@@ -43,7 +43,7 @@ export function UndoToast() {
     setToast(null);
     // The captured restore closure runs on the next tick so storage
     // mutations don't collide with the originating event handler.
-    if (c) setTimeout(() => c.onUndo(), 0);
+    if (c?.onUndo) setTimeout(() => c.onUndo?.(), 0);
   };
 
   return (
@@ -62,7 +62,7 @@ export function UndoToast() {
             onClick={undo}
             className="shrink-0 rounded-full bg-primary-500/15 px-3 py-1 text-sm font-semibold text-primary-500 transition-all hover:bg-primary-500/25 active:scale-95"
           >
-            {t("common.undo")}
+            {toast.label || t("common.undo")}
           </button>
         </motion.div>
       )}

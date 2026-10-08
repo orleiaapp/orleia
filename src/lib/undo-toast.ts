@@ -12,13 +12,23 @@ const UNDO_EVENT = "orleia:undo-toast";
 
 export interface UndoToastPayload {
   message: string;
-  onUndo: () => void;
+  onUndo?: () => void;
+  /** Button label override (defaults to "Undo" in UndoToast). */
+  label?: string;
 }
 
 export function showUndo(message: string, onUndo: () => UndoState | void): void {
   haptic.tick();
   window.dispatchEvent(new CustomEvent<UndoToastPayload>(UNDO_EVENT, {
     detail: { message, onUndo: onUndo as () => void },
+  }));
+}
+
+/** Generic toast with a custom action button (same visual, no Undo semantics). */
+export function showToast(message: string, actionLabel: string, onAction: () => void): void {
+  haptic.tick();
+  window.dispatchEvent(new CustomEvent<UndoToastPayload>(UNDO_EVENT, {
+    detail: { message, onUndo: onAction, label: actionLabel },
   }));
 }
 
