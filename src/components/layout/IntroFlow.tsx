@@ -1,13 +1,96 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Sun, Moon, Monitor } from "lucide-react";
 import { storage } from "@/lib/storage";
 import type { AccentColor } from "@/types";
 import { cn } from "@/lib/utils";
+import { AgeGate } from "./AgeGate";
 
-const GREETINGS = ["welcome","bienvenue","willkommen","bienvenido","benvenuto","bem-vindo","welkom","witaj","hoş geldiniz","ようこそ","欢迎","مرحبًا"];
+// Animated star field for the opening screen: white stars drifting on a
+// near-black sky, hairline links between neighbours. Static under
+// prefers-reduced-motion (stars still render, they just don't move).
+function Constellation() {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    let raf = 0;
+    let w = 0;
+    let h = 0;
+    type Star = { x: number; y: number; vx: number; vy: number; r: number; a: number; p: number };
+    let stars: Star[] = [];
+    const seed = () => {
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const rect = canvas.getBoundingClientRect();
+      w = Math.max(1, rect.width);
+      h = Math.max(1, rect.height);
+      canvas.width = Math.round(w * dpr);
+      canvas.height = Math.round(h * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      const count = Math.round(Math.min(110, Math.max(45, (w * h) / 9000)));
+      stars = Array.from({ length: count }, () => ({
+        x: Math.random() * w,
+        y: Math.random() * h,
+        vx: (Math.random() - 0.5) * 0.06,
+        vy: (Math.random() - 0.5) * 0.06,
+        r: 0.4 + Math.random() * 1.2,
+        a: 0.25 + Math.random() * 0.6,
+        p: Math.random() * Math.PI * 2,
+      }));
+    };
+    const LINK = 110; // px — beyond this two stars aren't connected
+    const frame = (t: number) => {
+      ctx.clearRect(0, 0, w, h);
+      // Hairlines between near neighbours.
+      ctx.lineWidth = 1;
+      for (let i = 0; i < stars.length; i++) {
+        for (let j = i + 1; j < stars.length; j++) {
+          const dx = stars[i].x - stars[j].x;
+          const dy = stars[i].y - stars[j].y;
+          const d = Math.hypot(dx, dy);
+          if (d < LINK) {
+            ctx.strokeStyle = `rgba(255,255,255,${((1 - d / LINK) * 0.18).toFixed(3)})`;
+            ctx.beginPath();
+            ctx.moveTo(stars[i].x, stars[i].y);
+            ctx.lineTo(stars[j].x, stars[j].y);
+            ctx.stroke();
+          }
+        }
+      }
+      // Stars, with a slow twinkle and drift.
+      for (const s of stars) {
+        if (!reduced) {
+          s.x += s.vx;
+          s.y += s.vy;
+          if (s.x < -6) s.x = w + 6;
+          else if (s.x > w + 6) s.x = -6;
+          if (s.y < -6) s.y = h + 6;
+          else if (s.y > h + 6) s.y = -6;
+        }
+        const tw = reduced ? 1 : 0.7 + 0.3 * Math.sin(t * 0.0012 + s.p);
+        ctx.fillStyle = `rgba(255,255,255,${(s.a * tw).toFixed(3)})`;
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      raf = requestAnimationFrame(frame);
+    };
+    seed();
+    raf = requestAnimationFrame(frame);
+    const onResize = () => seed();
+    window.addEventListener("resize", onResize);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener("resize", onResize);
+    };
+  }, []);
+  return <canvas ref={canvasRef} className="h-full w-full" aria-hidden />;
+}
 
 const ACCENT_COLORS: { key: AccentColor; label: string; cls: string }[] = [
   { key: "slate", label: "Slate", cls: "bg-zinc-400" },
@@ -19,34 +102,61 @@ const ACCENT_COLORS: { key: AccentColor; label: string; cls: string }[] = [
   { key: "orange", label: "Orange", cls: "bg-orange-500" },
 ];
 function WelcomeStep({ onDone }: { onDone: () => void }) {
-  const [idx, setIdx] = useState(0);
-  const [count, setCount] = useState(0);
-  const [fading, setFading] = useState(false);
-  const [hintShown, setHintShown] = useState(false);
-  const word = GREETINGS[idx];
-  const done = count >= word.length;
-  useEffect(() => { const t = setTimeout(() => setCount(1), 500); return () => clearTimeout(t); }, []);
-  useEffect(() => { if (count > 0 && count < word.length && !fading) { const t = setTimeout(() => setCount(c => c + 1), 100); return () => clearTimeout(t); } }, [count, word.length, fading]);
-  useEffect(() => { if (fading) { const t = setTimeout(() => { setIdx(i => (i + 1) % GREETINGS.length); setCount(0); setFading(false); }, 350); return () => clearTimeout(t); } }, [fading]);
-  useEffect(() => { if (idx > 0 && count === 0 && !fading) { const t = setTimeout(() => setCount(1), 400); return () => clearTimeout(t); } }, [idx, count, fading]);
-  useEffect(() => { if (!done || fading) return; const t = setTimeout(() => setFading(true), 1800); return () => clearTimeout(t); }, [done, fading]);
-  useEffect(() => { if (done && !hintShown) setHintShown(true); }, [done, hintShown]);
-  useEffect(() => { const h = (e: KeyboardEvent) => { if (e.code === "Space" || e.code === "Enter") { e.preventDefault(); if (!done) setCount(word.length); else onDone(); } }; window.addEventListener("keydown", h); return () => window.removeEventListener("keydown", h); }, [done, onDone, word.length]);
+  useEffect(() => {
+    const h = (e: KeyboardEvent) => {
+      if (e.code === "Space" || e.code === "Enter") {
+        e.preventDefault();
+        onDone();
+      }
+    };
+    window.addEventListener("keydown", h);
+    return () => window.removeEventListener("keydown", h);
+  }, [onDone]);
   return (
     <div
-      className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-background outline-none focus-visible:ring-2 focus-visible:ring-foreground/40 focus-visible:ring-inset"
-      onClick={() => done ? onDone() : setCount(word.length)}
+      className="fixed inset-0 z-[100] flex flex-col overflow-hidden bg-[#050508] outline-none focus-visible:ring-2 focus-visible:ring-white/40 focus-visible:ring-inset"
+      onClick={onDone}
       role="button"
       tabIndex={0}
-      aria-label={done ? "Continue" : "Skip animation"}
+      aria-label="Get started"
     >
-      <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3, duration: 0.8 }} className="mb-10 text-xs tracking-[0.5em] text-muted-foreground/40">ORLEIA</motion.p>
-      <motion.h1 initial={{ opacity: 0 }} animate={{ opacity: fading ? 0 : 1 }} transition={{ duration: 0.35 }} className="font-serif text-5xl font-light tracking-tight text-foreground md:text-7xl">
-        <span dir="auto">{word.slice(0, count)}</span>
-        {!fading && <span className="ml-1 inline-block h-[0.8em] w-[2px] translate-y-[0.06em] animate-pulse bg-foreground/70" />}
-      </motion.h1>
-      <div className="mt-10 flex h-12 items-start justify-center">
-        {hintShown && <motion.p initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="text-[11px] tracking-widest text-muted-foreground/50">tap or press space to continue</motion.p>}
+      {/* Constellation fills the top of the screen and fades into the black
+          before the headline, so the sky reads as depth not wallpaper. */}
+      <div
+        className="pointer-events-none absolute inset-x-0 top-0 h-[64%]"
+        style={{
+          maskImage: "linear-gradient(to bottom, black 55%, transparent)",
+          WebkitMaskImage: "linear-gradient(to bottom, black 55%, transparent)",
+        }}
+      >
+        <Constellation />
+      </div>
+      <motion.p
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.2, duration: 0.9 }}
+        className="relative z-10 pt-[max(2.25rem,env(safe-area-inset-top))] text-center font-sans text-sm tracking-[0.35em] text-zinc-500"
+      >
+        orleia.
+      </motion.p>
+      <div className="relative z-10 mt-auto flex w-full flex-col items-center gap-7 px-6 pb-[max(2.75rem,env(safe-area-inset-bottom))]">
+        <motion.h1
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.4, duration: 0.9 }}
+          className="text-center font-sans text-4xl font-light tracking-tight text-white md:text-6xl"
+        >
+          Do it your way
+        </motion.h1>
+        <motion.button
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.75, duration: 0.8 }}
+          onClick={(e) => { e.stopPropagation(); onDone(); }}
+          className="rounded-full bg-white px-9 py-3.5 font-sans text-sm font-medium text-black shadow-[0_0_36px_-8px_rgba(255,255,255,0.5)] transition-all hover:bg-zinc-200 active:scale-[0.97]"
+        >
+          Get started
+        </motion.button>
       </div>
     </div>
   );
@@ -123,12 +233,16 @@ function AppearanceStep({ onDone }: { onDone: () => void }) {
 const INTRO_STEP_KEY = "orleia-intro-step";
 
 export function IntroFlow({ onComplete }: { onComplete: () => void }) {
-  const [step, setStep] = useState<"welcome" | "name" | "appearance">(() => { if (typeof window === "undefined") return "welcome"; const saved = localStorage.getItem(INTRO_STEP_KEY); if (saved === "appearance" || saved === "name") return saved; return "welcome"; });
+  // Flow order (user-specified): the multilingual welcome owns the first
+  // screen alone, THEN the 13+ declaration, then name + look & feel.
+  const [step, setStep] = useState<"welcome" | "age" | "name" | "appearance">(() => { if (typeof window === "undefined") return "welcome"; const saved = localStorage.getItem(INTRO_STEP_KEY); if (saved === "appearance" || saved === "name") return saved; return "welcome"; });
   useEffect(() => { if (step === "welcome") localStorage.removeItem(INTRO_STEP_KEY); else localStorage.setItem(INTRO_STEP_KEY, step); }, [step]);
+  const afterWelcome = () => setStep(storage.isAgeConfirmed() ? "name" : "age");
   const finish = () => { localStorage.removeItem(INTRO_STEP_KEY); storage.completeOnboarding(); onComplete(); };
   return (
     <AnimatePresence mode="wait">
-      {step === "welcome" && <motion.div key="welcome" exit={{ opacity: 0 }} transition={{ duration: 0.3 }}><WelcomeStep onDone={() => setStep("name")} /></motion.div>}
+      {step === "welcome" && <motion.div key="welcome" exit={{ opacity: 0 }} transition={{ duration: 0.3 }}><WelcomeStep onDone={afterWelcome} /></motion.div>}
+      {step === "age" && <AgeGate key="age" onConfirmed={() => setStep("name")} />}
       {step === "name" && <motion.div key="name" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }}><NameStep onDone={() => setStep("appearance")} /></motion.div>}
       {step === "appearance" && <motion.div key="appearance" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }}><AppearanceStep onDone={finish} /></motion.div>}
     </AnimatePresence>
