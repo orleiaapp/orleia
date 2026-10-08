@@ -264,6 +264,14 @@ html[data-reduced-motion="true"] *::after {
     outline: none !important;
     box-shadow: none !important;
   }
+  /* Coder composer pill: same accent-outline kill as Noor's pill —
+     without it the global :focus-visible rule draws a violet rectangle
+     around the textarea while typing. */
+  .coder-composer:focus,
+  .coder-composer:focus-visible {
+    outline: none !important;
+    box-shadow: none !important;
+  }
   /* Apple-Notes-style bottom toolbar rides above the keyboard: the page
      publishes the keyboard overlap to --orleia-notes-kb and the toolbar
      lifts by exactly that amount. Default 0 = no keyboard. */

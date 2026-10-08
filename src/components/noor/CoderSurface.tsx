@@ -452,6 +452,23 @@ export function CoderSurface({
             { id: `cont-a${continueAttempt}`, role: "assistant" as const, content: full },
             { id: `cont-u${continueAttempt}`, role: "user" as const, content: CONTINUE_PROMPT },
           ];
+    // Outbound context pack — newest wins. Per-message and total caps keep
+    // the body well under the API payload limits, so a big scaffold can
+    // never make the NEXT send fail with 400/413 ("prompt just fails").
+    const packHistory = () => {
+      const out = reqHistory()
+        .slice(-maxContext)
+        .map(({ role, content }) => ({
+          role,
+          content: content.length > 40_000 ? content.slice(-40_000) : content,
+        }));
+      let total = out.reduce((n, m) => n + m.content.length, 0);
+      while (out.length > 2 && total > 240_000) {
+        total -= out[0].content.length;
+        out.shift();
+      }
+      return out;
+    };
     try {
       for (;;) {
       const res = await fetch("/api/coder", {
@@ -459,7 +476,7 @@ export function CoderSurface({
         signal: controller.signal,
         headers: { "Content-Type": "application/json", "x-orleia-device": getDeviceId() },
         body: JSON.stringify({
-          messages: reqHistory().slice(-maxContext).map(({ role, content }) => ({ role, content })),
+          messages: packHistory(),
           model,
           effort,
           temperature,
@@ -1274,7 +1291,7 @@ export function CoderSurface({
               }}
               onKeyDown={onComposerKey}
               placeholder={busy ? t("coder.composerQueuePh") : t("coder.composerPh")}
-              className="max-h-40 flex-1 resize-none bg-transparent py-2 text-[15px] leading-relaxed outline-none focus-visible:ring-0"
+              className="coder-composer max-h-40 flex-1 resize-none bg-transparent py-2 text-[15px] leading-relaxed outline-none focus-visible:ring-0"
             />
             {(busy || !!input.trim()) && (
               <button

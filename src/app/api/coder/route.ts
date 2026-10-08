@@ -72,7 +72,9 @@ const ALLOWED_ROLES = new Set(["user", "assistant"]);
 export async function POST(req: Request) {
   const denied = guardApi(req, { perMinute: 120, perDay: 5000 });
   if (denied) return denied;
-  if (bodyTooLarge(req, 512 * 1024)) {
+  // Generous limit: packed code histories legitimately reach ~1 MB once a
+  // thread is full of scaffolded files (multibyte + JSON escaping inflate).
+  if (bodyTooLarge(req, 2 * 1024 * 1024)) {
     return NextResponse.json({ error: 'payload too large' }, { status: 413 });
   }
 
@@ -120,13 +122,18 @@ export async function POST(req: Request) {
     if (!ALLOWED_ROLES.has(m.role)) {
       return NextResponse.json({ error: 'role not allowed' }, { status: 400 });
     }
+    // Trim instead of reject: an auto-continued scaffold legitimately grows
+    // past the old cap, and a 400 here would fail EVERY later send in the
+    // thread (the user only sees "prompt failed"). Newest content wins.
     if (m.content.length > MAX_MESSAGE_CHARS) {
-      return NextResponse.json({ error: 'message too long' }, { status: 400 });
+      m.content = `[earlier content trimmed]\n` + m.content.slice(-MAX_MESSAGE_CHARS);
     }
     totalChars += m.content.length;
-    if (totalChars > MAX_TOTAL_CHARS) {
-      return NextResponse.json({ error: 'conversation too long' }, { status: 400 });
-    }
+  }
+  // Over budget → drop the OLDEST messages rather than rejecting the send.
+  while (messages.length > 1 && totalChars > MAX_TOTAL_CHARS) {
+    totalChars -= messages[0].content.length;
+    messages.shift();
   }
 
   const deviceId = String(req.headers.get("x-orleia-device") || "").slice(0, 64);

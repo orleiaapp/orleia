@@ -111,6 +111,17 @@ Date: Oct 6, 2026 (rev 3 — free sees the switch but locked; labeled beta every
     ends inside an unclosed `orleia-action` fence.
   - Hero smaller + higher (Noor), smaller (Coder); Coder composer stays a
     pill for multiline input (no rectangle).
+- **Rev 13 (2026-10-08):** two field reports fixed.
+  - **Violet rectangle while typing**: the global `:focus-visible` accent
+    rule paints an outline over `outline-none` (documented in globals.css
+    for Noor's pill). The Coder textarea now carries `.coder-composer`
+    with the same `outline: none !important` kill.
+  - **"Prompt just fails" after big scaffolds**: server400s
+    (message >40k chars / conversation >250k) and the512 KB body limit
+    turned every LATER send in a thread into an error. Now the server
+    TRIMS (tail-wins per message, drop-oldest for the total) instead of
+    rejecting, the body limit is2 MB, and the client packs outbound
+    history (≤40k/message, ≤240k total) before fetch.
 Direction change: Coder is **not its own tab**. It is a **mode inside Noor**
 (like ChatGPT ↔ Codex under one roof): same chat surface, a mode switch, a
 **completely different UI/UX** while active, a **foggy fade** crossing
