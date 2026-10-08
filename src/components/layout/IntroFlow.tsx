@@ -131,20 +131,20 @@ function WelcomeStep({ onDone }: { onDone: () => void }) {
       >
         <Constellation />
       </div>
-      <motion.p
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 0.2, duration: 0.9 }}
-        className="relative z-10 pt-[max(2.25rem,env(safe-area-inset-top))] text-center font-sans text-sm tracking-[0.35em] text-zinc-500"
-      >
-        orleia.
-      </motion.p>
-      <div className="relative z-10 mt-auto flex w-full flex-col items-center gap-7 px-6 pb-[max(2.75rem,env(safe-area-inset-bottom))]">
+      <div className="relative z-10 mt-auto flex w-full flex-col items-center px-6 pb-[max(4.5rem,env(safe-area-inset-bottom))]">
+        <motion.p
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2, duration: 0.9 }}
+          className="mb-4 text-center font-sans text-sm tracking-[0.35em] text-zinc-500"
+        >
+          orleia.
+        </motion.p>
         <motion.h1
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.4, duration: 0.9 }}
-          className="text-center font-sans text-4xl font-light tracking-tight text-white md:text-6xl"
+          className="text-center font-sans text-4xl font-bold tracking-tight text-white md:text-6xl"
         >
           Do it your way
         </motion.h1>
@@ -153,7 +153,7 @@ function WelcomeStep({ onDone }: { onDone: () => void }) {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.75, duration: 0.8 }}
           onClick={(e) => { e.stopPropagation(); onDone(); }}
-          className="rounded-full bg-white px-9 py-3.5 font-sans text-sm font-medium text-black shadow-[0_0_36px_-8px_rgba(255,255,255,0.5)] transition-all hover:bg-zinc-200 active:scale-[0.97]"
+          className="mt-7 rounded-full bg-white px-9 py-3.5 font-sans text-sm font-medium text-black shadow-[0_0_36px_-8px_rgba(255,255,255,0.5)] transition-all hover:bg-zinc-200 active:scale-[0.97]"
         >
           Get started
         </motion.button>
