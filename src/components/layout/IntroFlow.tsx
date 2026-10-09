@@ -210,7 +210,7 @@ function WelcomeStep({ onDone }: { onDone: () => void }) {
       >
         <Constellation />
       </div>
-      <div className="relative z-10 mt-auto flex w-full flex-col items-center px-6 pb-[max(4.5rem,env(safe-area-inset-bottom))]">
+      <div className="relative z-10 mt-auto md:my-auto flex w-full flex-col items-center px-6 pb-[max(4.5rem,env(safe-area-inset-bottom))]">
         <motion.p
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
@@ -278,7 +278,7 @@ function EverythingStep({ onDone }: { onDone: () => void }) {
       >
         <Constellation />
       </div>
-      <div className="relative z-10 mt-auto flex w-full flex-col items-center px-6 pb-[max(4.5rem,env(safe-area-inset-bottom))]">
+      <div className="relative z-10 mt-auto md:my-auto flex w-full flex-col items-center px-6 pb-[max(4.5rem,env(safe-area-inset-bottom))]">
         {/* Motion graphic: tool chips converge into the one home card. */}
         <div className="relative mx-auto mb-2 h-44 w-full max-w-sm">
           <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
@@ -395,7 +395,7 @@ function GoalsStep({ onDone }: { onDone: () => void }) {
           it fits and degrades to a normal top-anchored scroll on short
           screens, so the chips can never get clipped by the fixed viewport. */}
       <div className="relative z-10 flex min-h-0 flex-1 flex-col overflow-y-auto px-6 pt-16 pb-[max(4.5rem,env(safe-area-inset-bottom))]">
-        <div className="mx-auto flex w-full max-w-md flex-col items-center">
+        <div className="mx-auto flex w-full max-w-md flex-col items-center md:my-auto">
           <motion.h1
             initial={{ opacity: 0, y: 14 }}
             animate={{ opacity: 1, y: 0 }}
@@ -541,7 +541,7 @@ function SourceStep({ onDone }: { onDone: () => void }) {
       >
         <Constellation />
       </div>
-      <div className="relative z-10 mt-auto flex w-full flex-col items-center px-6 pb-[max(4.5rem,env(safe-area-inset-bottom))]">
+      <div className="relative z-10 mt-auto md:my-auto flex w-full flex-col items-center px-6 pb-[max(4.5rem,env(safe-area-inset-bottom))]">
         <motion.h1
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
@@ -608,12 +608,15 @@ function NameStep({ onDone }: { onDone: (name: string) => void }) {
     }
     onDone(trimmed);
   };
+  // Mobile: top-anchored (natural reading order, no dead space under the
+  // keyboard). Desktop: the whole stack centers vertically via
+  // justify-center + flex-none, so every step lands mid-screen.
   return (
-    <div className="fixed inset-0 z-[100] flex flex-col overflow-hidden bg-background">
-      <div className="mt-14 flex w-full justify-center md:mt-16"><p className="text-xs tracking-[0.5em] text-muted-foreground/40">ORLEIA</p></div>
+    <div className="fixed inset-0 z-[100] flex flex-col overflow-hidden bg-background md:justify-center">
+      <div className="mt-14 flex w-full justify-center md:mt-0"><p className="text-xs tracking-[0.5em] text-muted-foreground/40">ORLEIA</p></div>
       <motion.h1 initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, ease: EASE_OUT }} className="mt-10 text-center font-serif text-3xl font-light tracking-tight md:text-4xl">What should we call you?</motion.h1>
       <p className="mt-3 text-center text-sm text-muted-foreground">Just a name — it stays on your device and greets you every morning.</p>
-      <div className="mt-8 flex w-full flex-1 flex-col items-center px-6">
+      <div className="mt-8 flex w-full flex-1 md:flex-none flex-col items-center px-6">
         <input
           value={name}
           onChange={(e) => setName(e.target.value)}
@@ -625,7 +628,7 @@ function NameStep({ onDone }: { onDone: (name: string) => void }) {
           className="w-full max-w-sm rounded-2xl border border-border bg-secondary/40 px-5 py-4 text-center text-lg outline-none transition-colors placeholder:text-muted-foreground/50 focus:border-muted-foreground/40"
         />
       </div>
-      <div className="w-full px-6 pb-10 pt-4"><div className="mx-auto w-full max-w-sm flex flex-col gap-2">
+      <div className="w-full px-6 pb-10 md:pb-4 pt-4"><div className="mx-auto w-full max-w-sm flex flex-col gap-2">
         <button onClick={submit} className="w-full rounded-full bg-foreground px-8 py-3 text-sm font-medium text-background transition-all hover:opacity-90 active:scale-[0.98]">Continue</button>
         <button onClick={() => onDone("")} className="w-full py-1 text-xs text-muted-foreground/70 transition-colors hover:text-foreground">I&apos;d rather not say</button>
       </div></div>
@@ -640,10 +643,10 @@ function AppearanceStep({ onDone }: { onDone: () => void }) {
   const pickTheme = (m: "light" | "dark" | "system") => { storage.updateTheme({ theme: m }); const isDark = m === "dark" || (m === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches); document.documentElement.classList.toggle("dark", isDark); setMode(m); };
   const pickSize = (s: "sm" | "md" | "lg") => { storage.updateTheme({ fontSize: s }); document.documentElement.setAttribute("data-font-size", s); setSize(s); };
   return (
-    <div className="fixed inset-0 z-[100] flex flex-col overflow-hidden bg-background">
-      <div className="mt-14 flex w-full justify-center md:mt-16"><p className="text-xs tracking-[0.5em] text-muted-foreground/40">ORLEIA</p></div>
+    <div className="fixed inset-0 z-[100] flex flex-col overflow-hidden bg-background md:justify-center">
+      <div className="mt-14 flex w-full justify-center md:mt-0"><p className="text-xs tracking-[0.5em] text-muted-foreground/40">ORLEIA</p></div>
       <motion.h1 initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, ease: EASE_OUT }} className="mt-10 text-center font-serif text-3xl font-light tracking-tight md:text-4xl">Pick your look</motion.h1>
-      <div className="mt-8 w-full flex-1 overflow-y-auto px-6 pb-4">
+      <div className="mt-8 w-full flex-1 md:flex-none md:overflow-visible overflow-y-auto px-6 pb-4">
         <div className="mx-auto flex w-full max-w-sm flex-col gap-8">
           <div><p className="mb-2.5 text-sm font-medium text-muted-foreground">Theme</p>
             <div className="grid grid-cols-3 gap-2">{([{ m: "light", icon: Sun, label: "Light" }, { m: "dark", icon: Moon, label: "Dark" }, { m: "system", icon: Monitor, label: "System" }] as const).map(({ m, icon: Icon, label }) => (
@@ -662,7 +665,7 @@ function AppearanceStep({ onDone }: { onDone: () => void }) {
               </button>))}</div></div>
         </div>
       </div>
-      <div className="w-full px-6 pb-10 pt-4"><div className="mx-auto w-full max-w-sm"><button onClick={onDone} className="w-full rounded-full bg-foreground px-8 py-3 text-sm font-medium text-background transition-all hover:opacity-90 active:scale-[0.98]">Start using Orleia</button></div></div>
+      <div className="w-full px-6 pb-10 md:pb-4 pt-4"><div className="mx-auto w-full max-w-sm"><button onClick={onDone} className="w-full rounded-full bg-foreground px-8 py-3 text-sm font-medium text-background transition-all hover:opacity-90 active:scale-[0.98]">Start using Orleia</button></div></div>
     </div>
   );
 }
