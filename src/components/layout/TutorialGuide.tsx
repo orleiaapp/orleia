@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { ArrowLeft, ArrowRight, Check, MoveHorizontal } from "lucide-react";
 import { EASE_OUT } from "@/lib/utils";
 import { useI18n } from "@/lib/i18n";
@@ -28,19 +28,55 @@ const steps: TutorialStep[] = [
   { key: "noor", Visual: NoorMock },
 ];
 
-/* Directional slide: a slide glides in from the side you're heading toward
-   and glides out the opposite way — one motion for the whole slide instead
-   of a staggered cascade of parts snapping into place. custom lives on
-   AnimatePresence so the exiting slide always sees the *current* direction.
-   Drag follows the finger (dragSnapToOrigin rubber-bands it back). */
-const slide = {
-  enter: (dir: number) => ({ x: dir * 72, opacity: 0 }),
-  center: { x: 0, opacity: 1 },
-  exit: (dir: number) => ({ x: dir * -72, opacity: 0 }),
+/* Directional slide with a motion-blur: each slide enters with a soft
+   gaussian blur + slight scale-down and resolves into focus as it settles,
+   and blurs back out when it leaves. The blur hides the motion edge, which
+   makes the whole transition read smoother than a hard slide. Per-variant
+   transitions live INSIDE the variants (Framer does not resolve transition
+   props by variant name). custom lives on AnimatePresence so the exiting
+   slide always sees the *current* direction. Drag follows the finger
+   (dragSnapToOrigin rubber-bands it back).
+
+   Reduced motion: keep only the crossfade — no slide, no scale, no blur. */
+const SLIDE_BLUR = "blur(14px)";
+const EXIT_EASE: [number, number, number, number] = [0.4, 0, 1, 1];
+
+const slideVariants = {
+  enter: (dir: number) => ({
+    x: dir * 56,
+    opacity: 0,
+    scale: 0.96,
+    filter: SLIDE_BLUR,
+    // Exit is quicker than the entrance: the old slide clears fast so the
+    // new one has room to resolve into focus without the flow lagging.
+    transition: { duration: 0.6, ease: EASE_OUT },
+  }),
+  center: {
+    x: 0,
+    opacity: 1,
+    scale: 1,
+    filter: "blur(0px)",
+    transition: { duration: 0.6, ease: EASE_OUT },
+  },
+  exit: (dir: number) => ({
+    x: dir * -56,
+    opacity: 0,
+    scale: 1.04,
+    filter: SLIDE_BLUR,
+    transition: { duration: 0.35, ease: EXIT_EASE },
+  }),
+};
+
+const fadeVariants = {
+  enter: { opacity: 0, transition: { duration: 0.35, ease: EASE_OUT } },
+  center: { opacity: 1, transition: { duration: 0.35, ease: EASE_OUT } },
+  exit: { opacity: 0, transition: { duration: 0.25, ease: EXIT_EASE } },
 };
 
 export function TutorialGuide({ onComplete }: { onComplete: () => void }) {
   const { t, lang } = useI18n();
+  const reducedMotion = useReducedMotion();
+  const variants = reducedMotion ? fadeVariants : slideVariants;
   const [step, setStep] = useState(0);
   const [dir, setDir] = useState(1);
   const current = steps[step];
@@ -83,11 +119,10 @@ export function TutorialGuide({ onComplete }: { onComplete: () => void }) {
         <AnimatePresence mode="wait" custom={dir}>
           <motion.div
             key={`${step}-${lang}`}
-            variants={slide}
+            variants={variants}
             initial="enter"
             animate="center"
             exit="exit"
-            transition={{ duration: 0.45, ease: EASE_OUT }}
             drag="x"
             dragSnapToOrigin
             dragConstraints={{ left: 0, right: 0 }}
@@ -98,8 +133,10 @@ export function TutorialGuide({ onComplete }: { onComplete: () => void }) {
             }}
             className="flex min-h-0 w-full flex-1 flex-col items-center justify-center text-center"
           >
-            <p className="text-[11px] font-sans tracking-[0.35em] text-zinc-600">
+            <p className="flex items-center gap-3 text-[11px] font-sans tracking-[0.35em] text-zinc-600">
+              <span className="h-px w-6 bg-zinc-700" />
               {kicker}
+              <span className="h-px w-6 bg-zinc-700" />
             </p>
 
             <div className="relative mb-8 mt-7 max-h-[30vh] w-full max-w-[250px] overflow-hidden md:max-h-none md:max-w-[320px]">
