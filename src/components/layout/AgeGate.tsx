@@ -13,6 +13,7 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import { ShieldCheck } from "lucide-react";
 import { storage } from "@/lib/storage";
+import { EASE_OUT } from "@/lib/utils";
 
 export function AgeGate({ onConfirmed }: { onConfirmed: () => void }) {
   const [error, setError] = useState(false);
@@ -31,7 +32,7 @@ export function AgeGate({ onConfirmed }: { onConfirmed: () => void }) {
       <motion.div
         initial={{ opacity: 0, y: 14 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.35, ease: "easeOut" }}
+        transition={{ duration: 0.5, ease: EASE_OUT }}
         className="w-full max-w-md rounded-2xl border border-border bg-card p-8 text-center shadow-sm"
       >
         <ShieldCheck className="mx-auto h-10 w-10 text-primary" aria-hidden="true" />

@@ -20,6 +20,15 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+/**
+ * Shared entrance easing for the onboarding flow (age gate, intro steps,
+ * pet picker, tour): a fast start that settles with a long, gentle
+ * deceleration — no overshoot and no abrupt stop. Framer's default
+ * easeInOut creeps at the start and pairs badly with the CSS transitions on
+ * the same elements, which made every step feel like it slammed into place.
+ */
+export const EASE_OUT: [number, number, number, number] = [0.16, 1, 0.3, 1];
+
 export function formatDate(date: string | Date, fmt: string = "MMM d, yyyy"): string {
   const d = typeof date === "string" ? parseISO(date) : date;
   return format(d, fmt);

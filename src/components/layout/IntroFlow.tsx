@@ -2,10 +2,10 @@
 
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Sun, Moon, Monitor, ListTodo, CheckCircle2, FileText, Flower2, Sparkles, Users, Share2, Search, Newspaper, Globe } from "lucide-react";
+import { Sun, Moon, Monitor, ListTodo, CheckCircle2, FileText, Flower2, Sparkles, Users, Share2, Search, Newspaper, Globe, X } from "lucide-react";
 import { storage } from "@/lib/storage";
 import type { AccentColor } from "@/types";
-import { cn } from "@/lib/utils";
+import { cn, EASE_OUT } from "@/lib/utils";
 import { AgeGate } from "./AgeGate";
 
 // Animated star field for the opening screen: white stars wandering on a
@@ -214,7 +214,7 @@ function WelcomeStep({ onDone }: { onDone: () => void }) {
         <motion.p
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2, duration: 0.9 }}
+          transition={{ delay: 0.15, duration: 0.7, ease: EASE_OUT }}
           className="mb-4 text-center font-sans text-sm tracking-[0.35em] text-zinc-500"
         >
           orleia.
@@ -222,7 +222,7 @@ function WelcomeStep({ onDone }: { onDone: () => void }) {
         <motion.h1
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4, duration: 0.9 }}
+          transition={{ delay: 0.3, duration: 0.7, ease: EASE_OUT }}
           className="text-center font-sans text-4xl font-bold tracking-tight text-white md:text-6xl"
         >
           Do it your way
@@ -230,9 +230,10 @@ function WelcomeStep({ onDone }: { onDone: () => void }) {
         <motion.button
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.75, duration: 0.8 }}
+          transition={{ delay: 0.5, duration: 0.6, ease: EASE_OUT }}
+          whileTap={{ scale: 0.97 }}
           onClick={(e) => { e.stopPropagation(); onDone(); }}
-          className="mt-7 rounded-full bg-white px-9 py-3.5 font-sans text-sm font-medium text-black shadow-[0_0_36px_-8px_rgba(255,255,255,0.5)] transition-all hover:bg-zinc-200 active:scale-[0.97]"
+          className="mt-7 rounded-full bg-white px-9 py-3.5 font-sans text-sm font-medium text-black shadow-[0_0_36px_-8px_rgba(255,255,255,0.5)] transition-colors hover:bg-zinc-200"
         >
           Get started
         </motion.button>
@@ -314,7 +315,7 @@ function EverythingStep({ onDone }: { onDone: () => void }) {
         <motion.h1
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.35, duration: 0.9 }}
+          transition={{ delay: 0.3, duration: 0.7, ease: EASE_OUT }}
           className="text-center font-sans text-3xl font-bold tracking-tight text-white md:text-5xl"
         >
           Everything, one place.
@@ -322,7 +323,7 @@ function EverythingStep({ onDone }: { onDone: () => void }) {
         <motion.p
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ delay: 0.75, duration: 0.8 }}
+          transition={{ delay: 0.55, duration: 0.7, ease: EASE_OUT }}
           className="mt-3 max-w-sm text-center text-xs leading-relaxed text-zinc-500"
         >
           Tasks, habits, notes, journal and Noor live together on one home
@@ -331,9 +332,10 @@ function EverythingStep({ onDone }: { onDone: () => void }) {
         <motion.button
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.95, duration: 0.8 }}
+          transition={{ delay: 0.7, duration: 0.6, ease: EASE_OUT }}
+          whileTap={{ scale: 0.97 }}
           onClick={(e) => { e.stopPropagation(); onDone(); }}
-          className="mt-7 rounded-full bg-white px-9 py-3.5 font-sans text-sm font-medium text-black shadow-[0_0_36px_-8px_rgba(255,255,255,0.5)] transition-all hover:bg-zinc-200 active:scale-[0.97]"
+          className="mt-7 rounded-full bg-white px-9 py-3.5 font-sans text-sm font-medium text-black shadow-[0_0_36px_-8px_rgba(255,255,255,0.5)] transition-colors hover:bg-zinc-200"
         >
           Continue
         </motion.button>
@@ -344,12 +346,40 @@ function EverythingStep({ onDone }: { onDone: () => void }) {
 
 // Goals → saved to profile.goals, which buildProfileBlock() already injects
 // into Noor's system prompt ("tailor suggestions to their goals").
+// A picker, not a blank box: tap any number of preset goals, add your own
+// below; Continue saves everything as one comma-separated string.
+const GOAL_PRESETS = [
+  "Build better habits",
+  "Get more done",
+  "Sleep better",
+  "Get fit",
+  "Read more",
+  "Learn something new",
+  "Reduce stress",
+  "Grow my business",
+  "Save money",
+  "Be more present",
+];
+
 function GoalsStep({ onDone }: { onDone: () => void }) {
-  const [goals, setGoals] = useState("");
+  const [picked, setPicked] = useState<string[]>([]);
+  const [draft, setDraft] = useState("");
+  const toggle = (goal: string) =>
+    setPicked((p) => (p.includes(goal) ? p.filter((g) => g !== goal) : [...p, goal]));
+  const addDraft = () => {
+    const value = draft.trim();
+    if (value && !picked.includes(value)) setPicked((p) => [...p, value]);
+    setDraft("");
+  };
   const save = () => {
-    storage.updateProfile({ goals: goals.trim() });
+    const value = draft.trim();
+    const goals = [...picked, ...(value && !picked.includes(value) ? [value] : [])]
+      .join(", ")
+      .slice(0, 400);
+    storage.updateProfile({ goals });
     onDone();
   };
+  const customs = picked.filter((g) => !GOAL_PRESETS.includes(g));
   return (
     <div className="fixed inset-0 z-[100] flex flex-col overflow-hidden bg-[#050508] outline-none focus-visible:ring-2 focus-visible:ring-white/40 focus-visible:ring-inset">
       <div
@@ -361,54 +391,121 @@ function GoalsStep({ onDone }: { onDone: () => void }) {
       >
         <Constellation />
       </div>
-      <div className="relative z-10 mt-auto flex w-full flex-col items-center px-6 pb-[max(4.5rem,env(safe-area-inset-bottom))]">
-        <motion.h1
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.15, duration: 0.8 }}
-          className="text-center font-sans text-3xl font-bold tracking-tight text-white md:text-5xl"
-        >
-          What are you working toward?
-        </motion.h1>
-        <motion.p
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.35, duration: 0.8 }}
-          className="mt-3 max-w-sm text-center text-xs leading-relaxed text-zinc-500"
-        >
-          Noor reads this and adapts — plans, nudges and check-ins shaped
-          around your goals.
-        </motion.p>
-        <motion.textarea
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.5, duration: 0.8 }}
-          value={goals}
-          onChange={(e) => setGoals(e.target.value)}
-          placeholder="e.g. ship my app, run three times a week, sleep better"
-          aria-label="Your goals"
-          rows={3}
-          maxLength={400}
-          className="mt-6 w-full max-w-sm resize-none rounded-2xl border border-zinc-700 bg-zinc-900 px-4 py-3.5 text-sm leading-relaxed text-zinc-100 shadow-md outline-none placeholder:text-zinc-600 focus:border-zinc-500"
-        />
-        <motion.button
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.65, duration: 0.8 }}
-          onClick={save}
-          className="mt-6 w-full max-w-sm rounded-full bg-white px-9 py-3.5 font-sans text-sm font-medium text-black shadow-[0_0_36px_-8px_rgba(255,255,255,0.5)] transition-all hover:bg-zinc-200 active:scale-[0.98]"
-        >
-          Continue
-        </motion.button>
-        <motion.button
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.8, duration: 0.8 }}
-          onClick={onDone}
-          className="mt-3 py-1 text-xs text-zinc-500 transition-colors hover:text-zinc-300"
-        >
-          Skip for now
-        </motion.button>
+      {/* Scroll container: the inner mt-auto pins content to the bottom when
+          it fits and degrades to a normal top-anchored scroll on short
+          screens, so the chips can never get clipped by the fixed viewport. */}
+      <div className="relative z-10 flex min-h-0 flex-1 flex-col overflow-y-auto px-6 pt-16 pb-[max(4.5rem,env(safe-area-inset-bottom))]">
+        <div className="mx-auto flex w-full max-w-md flex-col items-center">
+          <motion.h1
+            initial={{ opacity: 0, y: 14 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.15, duration: 0.7, ease: EASE_OUT }}
+            className="text-center font-sans text-3xl font-bold tracking-tight text-white md:text-4xl"
+          >
+            What are you working toward?
+          </motion.h1>
+          <motion.p
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.3, duration: 0.7, ease: EASE_OUT }}
+            className="mt-3 max-w-sm text-center text-xs leading-relaxed text-zinc-500"
+          >
+            Noor reads this and adapts — plans, nudges and check-ins shaped
+            around your goals.
+          </motion.p>
+
+          <div className="mt-6 flex w-full flex-wrap justify-center gap-2">
+            {GOAL_PRESETS.map((goal, i) => {
+              const on = picked.includes(goal);
+              return (
+                <motion.button
+                  key={goal}
+                  type="button"
+                  aria-pressed={on}
+                  onClick={() => toggle(goal)}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.35 + i * 0.04, duration: 0.5, ease: EASE_OUT }}
+                  whileTap={{ scale: 0.96 }}
+                  className={
+                    on
+                      ? "rounded-full border border-white bg-white px-3.5 py-2 text-xs font-medium text-black"
+                      : "rounded-full border border-zinc-700 bg-zinc-900 px-3.5 py-2 text-xs font-medium text-zinc-300 transition-colors hover:border-zinc-500 hover:text-white"
+                  }
+                >
+                  {goal}
+                </motion.button>
+              );
+            })}
+            {customs.map((goal) => (
+              <motion.button
+                key={goal}
+                type="button"
+                aria-label={`Remove ${goal}`}
+                onClick={() => toggle(goal)}
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.4, ease: EASE_OUT }}
+                whileTap={{ scale: 0.96 }}
+                className="group flex items-center gap-1.5 rounded-full border border-white bg-white px-3.5 py-2 text-xs font-medium text-black"
+              >
+                {goal}
+                <X className="h-3 w-3 opacity-40 group-hover:opacity-90" aria-hidden="true" />
+              </motion.button>
+            ))}
+          </div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.6, duration: 0.5, ease: EASE_OUT }}
+            className="mt-5 flex w-full items-center gap-2"
+          >
+            <input
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  addDraft();
+                }
+              }}
+              placeholder="…or type your own"
+              aria-label="Add a goal of your own"
+              maxLength={60}
+              className="min-w-0 flex-1 rounded-full border border-zinc-700 bg-zinc-900 px-4 py-3 text-sm text-zinc-100 outline-none transition-colors placeholder:text-zinc-600 focus:border-zinc-500"
+            />
+            <motion.button
+              type="button"
+              onClick={addDraft}
+              disabled={!draft.trim()}
+              whileTap={{ scale: 0.96 }}
+              className="shrink-0 rounded-full border border-zinc-700 px-4 py-3 text-xs font-medium text-zinc-300 transition-colors hover:border-zinc-500 hover:text-white disabled:opacity-40"
+            >
+              Add
+            </motion.button>
+          </motion.div>
+
+          <motion.button
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.7, duration: 0.5, ease: EASE_OUT }}
+            whileTap={{ scale: 0.97 }}
+            onClick={save}
+            className="mt-7 w-full rounded-full bg-white px-9 py-3.5 font-sans text-sm font-medium text-black shadow-[0_0_36px_-8px_rgba(255,255,255,0.5)] transition-colors hover:bg-zinc-200"
+          >
+            Continue
+          </motion.button>
+          <motion.button
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.85, duration: 0.5, ease: EASE_OUT }}
+            onClick={onDone}
+            className="mt-3 py-1 text-xs text-zinc-500 transition-colors hover:text-zinc-300"
+          >
+            Skip for now
+          </motion.button>
+        </div>
       </div>
     </div>
   );
@@ -448,7 +545,7 @@ function SourceStep({ onDone }: { onDone: () => void }) {
         <motion.h1
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.15, duration: 0.8 }}
+          transition={{ delay: 0.15, duration: 0.7, ease: EASE_OUT }}
           className="text-center font-sans text-3xl font-bold tracking-tight text-white md:text-5xl"
         >
           Where did you hear about us?
@@ -459,15 +556,16 @@ function SourceStep({ onDone }: { onDone: () => void }) {
               key={key}
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.3 + i * 0.07, duration: 0.7 }}
+              transition={{ delay: 0.2 + i * 0.05, duration: 0.6, ease: EASE_OUT }}
+              whileTap={{ scale: 0.98 }}
               onClick={() => pick(key)}
               aria-pressed={picked === key}
               className={
                 picked && picked !== key
-                  ? "flex items-center gap-3 rounded-2xl border border-zinc-800 bg-zinc-950 px-4 py-3.5 text-sm text-zinc-600 opacity-40 shadow-md transition-all"
+                  ? "flex items-center gap-3 rounded-2xl border border-zinc-800 bg-zinc-950 px-4 py-3.5 text-sm text-zinc-600 opacity-40 shadow-md transition-colors"
                   : picked === key
-                    ? "flex items-center gap-3 rounded-2xl border border-white/60 bg-zinc-800 px-4 py-3.5 text-sm font-medium text-white shadow-md transition-all"
-                    : "flex items-center gap-3 rounded-2xl border border-zinc-700 bg-zinc-900 px-4 py-3.5 text-sm text-zinc-200 shadow-md transition-all hover:border-zinc-500 hover:bg-zinc-800 active:scale-[0.98]"
+                    ? "flex items-center gap-3 rounded-2xl border border-white/60 bg-zinc-800 px-4 py-3.5 text-sm font-medium text-white shadow-md transition-colors"
+                    : "flex items-center gap-3 rounded-2xl border border-zinc-700 bg-zinc-900 px-4 py-3.5 text-sm text-zinc-200 shadow-md transition-colors hover:border-zinc-500 hover:bg-zinc-800"
               }
             >
               <Icon className="h-4 w-4 shrink-0 text-primary-500" />
@@ -476,7 +574,7 @@ function SourceStep({ onDone }: { onDone: () => void }) {
                 <motion.span
                   initial={{ scale: 0 }}
                   animate={{ scale: 1 }}
-                  transition={{ type: "spring", stiffness: 500, damping: 20 }}
+                  transition={{ duration: 0.4, ease: EASE_OUT }}
                   className="ml-auto"
                 >
                   <CheckCircle2 className="h-4 w-4 text-emerald-400" />
@@ -488,7 +586,7 @@ function SourceStep({ onDone }: { onDone: () => void }) {
         <motion.button
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ delay: 0.75, duration: 0.8 }}
+          transition={{ delay: 0.55, duration: 0.6, ease: EASE_OUT }}
           onClick={() => { if (!picked) onDone(); }}
           className="mt-5 py-1 text-xs text-zinc-500 transition-colors hover:text-zinc-300"
         >
@@ -513,7 +611,7 @@ function NameStep({ onDone }: { onDone: (name: string) => void }) {
   return (
     <div className="fixed inset-0 z-[100] flex flex-col overflow-hidden bg-background">
       <div className="mt-14 flex w-full justify-center md:mt-16"><p className="text-xs tracking-[0.5em] text-muted-foreground/40">ORLEIA</p></div>
-      <motion.h1 initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }} className="mt-10 text-center font-serif text-3xl font-light tracking-tight md:text-4xl">What should we call you?</motion.h1>
+      <motion.h1 initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, ease: EASE_OUT }} className="mt-10 text-center font-serif text-3xl font-light tracking-tight md:text-4xl">What should we call you?</motion.h1>
       <p className="mt-3 text-center text-sm text-muted-foreground">Just a name — it stays on your device and greets you every morning.</p>
       <div className="mt-8 flex w-full flex-1 flex-col items-center px-6">
         <input
@@ -544,7 +642,7 @@ function AppearanceStep({ onDone }: { onDone: () => void }) {
   return (
     <div className="fixed inset-0 z-[100] flex flex-col overflow-hidden bg-background">
       <div className="mt-14 flex w-full justify-center md:mt-16"><p className="text-xs tracking-[0.5em] text-muted-foreground/40">ORLEIA</p></div>
-      <motion.h1 initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }} className="mt-10 text-center font-serif text-3xl font-light tracking-tight md:text-4xl">Pick your look</motion.h1>
+      <motion.h1 initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, ease: EASE_OUT }} className="mt-10 text-center font-serif text-3xl font-light tracking-tight md:text-4xl">Pick your look</motion.h1>
       <div className="mt-8 w-full flex-1 overflow-y-auto px-6 pb-4">
         <div className="mx-auto flex w-full max-w-sm flex-col gap-8">
           <div><p className="mb-2.5 text-sm font-medium text-muted-foreground">Theme</p>
@@ -579,15 +677,17 @@ export function IntroFlow({ onComplete }: { onComplete: () => void }) {
   const afterUnified = () => setStep("goals");
   const afterHear = () => setStep(storage.isAgeConfirmed() ? "name" : "age");
   const finish = () => { localStorage.removeItem(INTRO_STEP_KEY); storage.completeOnboarding(); onComplete(); };
+  // Crossfades between steps use an explicit symmetric ease — smooth on
+  // the way out and back in, no snap at either end.
   return (
     <AnimatePresence mode="wait">
-      {step === "welcome" && <motion.div key="welcome" exit={{ opacity: 0 }} transition={{ duration: 0.3 }}><WelcomeStep onDone={afterWelcome} /></motion.div>}
-      {step === "unified" && <motion.div key="unified" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }}><EverythingStep onDone={afterUnified} /></motion.div>}
-      {step === "goals" && <motion.div key="goals" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }}><GoalsStep onDone={() => setStep("hear")} /></motion.div>}
-      {step === "hear" && <motion.div key="hear" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }}><SourceStep onDone={afterHear} /></motion.div>}
+      {step === "welcome" && <motion.div key="welcome" exit={{ opacity: 0 }} transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}><WelcomeStep onDone={afterWelcome} /></motion.div>}
+      {step === "unified" && <motion.div key="unified" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}><EverythingStep onDone={afterUnified} /></motion.div>}
+      {step === "goals" && <motion.div key="goals" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}><GoalsStep onDone={() => setStep("hear")} /></motion.div>}
+      {step === "hear" && <motion.div key="hear" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}><SourceStep onDone={afterHear} /></motion.div>}
       {step === "age" && <AgeGate key="age" onConfirmed={() => setStep("name")} />}
-      {step === "name" && <motion.div key="name" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }}><NameStep onDone={() => setStep("appearance")} /></motion.div>}
-      {step === "appearance" && <motion.div key="appearance" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }}><AppearanceStep onDone={finish} /></motion.div>}
+      {step === "name" && <motion.div key="name" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}><NameStep onDone={() => setStep("appearance")} /></motion.div>}
+      {step === "appearance" && <motion.div key="appearance" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}><AppearanceStep onDone={finish} /></motion.div>}
     </AnimatePresence>
   );
 }

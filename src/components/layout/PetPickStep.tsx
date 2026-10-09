@@ -8,10 +8,12 @@
 // ============================================================
 
 import { useState } from "react";
+import { motion } from "framer-motion";
 import { Check, Heart, Pencil } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { storage } from "@/lib/storage";
 import { PETS, petById, petSvg } from "@/lib/pets";
+import { EASE_OUT } from "@/lib/utils";
 
 export function PetPickStep({ onDone }: { onDone: (petId: string) => void }) {
   const { t } = useI18n();
@@ -35,27 +37,45 @@ export function PetPickStep({ onDone }: { onDone: (petId: string) => void }) {
         <div className="h-full w-full bg-white" />
       </div>
 
-      <p className="text-center text-[10px] font-sans tracking-[0.35em] text-zinc-500 md:text-[11px]">
+      <motion.p
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.05, duration: 0.6, ease: EASE_OUT }}
+        className="text-center text-[10px] font-sans tracking-[0.35em] text-zinc-500 md:text-[11px]"
+      >
         {t("tutorial.pet.kicker")}
-      </p>
-      <h2 className="mt-3 text-center font-sans text-3xl font-bold tracking-tight text-white md:text-5xl">
+      </motion.p>
+      <motion.h2
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.12, duration: 0.6, ease: EASE_OUT }}
+        className="mt-3 text-center font-sans text-3xl font-bold tracking-tight text-white md:text-5xl"
+      >
         {t("tutorial.pet.title")}
-      </h2>
-      <p className="mx-auto mt-4 max-w-md text-center text-sm leading-relaxed text-zinc-500 md:text-base">
+      </motion.h2>
+      <motion.p
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.2, duration: 0.6, ease: EASE_OUT }}
+        className="mx-auto mt-4 max-w-md text-center text-sm leading-relaxed text-zinc-500 md:text-base"
+      >
         {t("tutorial.pet.desc")}
-      </p>
+      </motion.p>
 
       {/* Pet grid */}
       <div className="mx-auto mt-8 grid w-full max-w-md grid-cols-3 gap-3">
-        {PETS.map((p) => {
+        {PETS.map((p, i) => {
           const active = pet === p.id;
           return (
-            <button
+            <motion.button
               key={p.id}
               type="button"
               onClick={() => setPet(active ? "" : p.id)}
               aria-pressed={active}
               aria-label={`${p.name} pet`}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.28 + i * 0.045, duration: 0.55, ease: EASE_OUT }}
               className={cnCard(active)}
             >
               <div
@@ -65,14 +85,19 @@ export function PetPickStep({ onDone }: { onDone: (petId: string) => void }) {
               <span className="mt-2 block text-center text-[11px] font-medium text-zinc-400">
                 {p.name}
               </span>
-            </button>
+            </motion.button>
           );
         })}
       </div>
 
       {/* Name field (appears once chosen) */}
       {chosen && (
-        <div className="mx-auto mt-6 w-full max-w-md">
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.35, ease: EASE_OUT }}
+          className="mx-auto mt-6 w-full max-w-md"
+        >
           {naming ? (
             <div className="flex items-center gap-2">
               <input
@@ -112,7 +137,7 @@ export function PetPickStep({ onDone }: { onDone: (petId: string) => void }) {
               </button>
             </div>
           )}
-        </div>
+        </motion.div>
       )}
 
       {/* Actions — required step: Continue locked until a pet is chosen */}
