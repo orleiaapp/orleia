@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { Moon, Sun, Monitor } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Theme } from "@/types";
+import { isDarkTheme } from "@/lib/theme-mode";
 import { storage } from "@/lib/storage";
 
 export function ThemeToggle() {
@@ -19,8 +20,8 @@ export function ThemeToggle() {
 
   const applyTheme = (t: Theme) => {
     const root = document.documentElement;
-    const isDark = t === "dark" || (t === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches);
-    root.classList.toggle("dark", isDark);
+    root.classList.toggle("dark", isDarkTheme(t));
+    root.setAttribute("data-theme-mode", t);
   };
 
   const setTheme = (t: Theme) => {

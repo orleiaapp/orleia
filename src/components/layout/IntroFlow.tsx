@@ -2,173 +2,57 @@
 
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Sun, Moon, Monitor, ListTodo, CheckCircle2, FileText, Flower2, Sparkles, Users, Share2, Search, Newspaper, Globe, X } from "lucide-react";
+import { ListTodo, CheckCircle2, FileText, Flower2, Sparkles, Users, Share2, Search, Newspaper, Globe, X } from "lucide-react";
 import { storage } from "@/lib/storage";
-import type { AccentColor } from "@/types";
+import type { AccentColor, Theme } from "@/types";
 import { cn, EASE_OUT } from "@/lib/utils";
+import { isDarkTheme } from "@/lib/theme-mode";
 import { AgeGate } from "./AgeGate";
+import { Constellation } from "./Constellation";
 
-// Animated star field for the opening screen: white stars wandering on a
-// near-black sky, hairline links that breathe as neighbours approach, and
-// the occasional meteor streaking past. Renders a single static frame
-// under prefers-reduced-motion.
-function Constellation() {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    let raf = 0;
-    let w = 0;
-    let h = 0;
-    let lastT = 0;
-    type Star = {
-      bx: number; by: number; // anchor point, drifts slowly across the sky
-      vx: number; vy: number; // anchor drift, px per ms
-      ax: number; ay: number; // wobble amplitudes, px
-      sp: number; ph: number; // wobble speed (rad/ms) and phase
-      r: number; a: number; // radius and base alpha
-      wf: number; wp: number; // twinkle frequency and phase
-    };
-    type Meteor = { x: number; y: number; vx: number; vy: number; born: number; life: number };
-    let stars: Star[] = [];
-    let meteors: Meteor[] = [];
-    let nextMeteor = 900;
-    const seed = () => {
-      const dpr = Math.min(window.devicePixelRatio || 1, 2);
-      const rect = canvas.getBoundingClientRect();
-      w = Math.max(1, rect.width);
-      h = Math.max(1, rect.height);
-      canvas.width = Math.round(w * dpr);
-      canvas.height = Math.round(h * dpr);
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      const count = Math.round(Math.min(110, Math.max(45, (w * h) / 9000)));
-      stars = Array.from({ length: count }, () => ({
-        bx: Math.random() * w,
-        by: Math.random() * h,
-        vx: (Math.random() - 0.5) * 0.008,
-        vy: (Math.random() - 0.5) * 0.008,
-        ax: 6 + Math.random() * 16,
-        ay: 5 + Math.random() * 13,
-        sp: 0.0002 + Math.random() * 0.00045,
-        ph: Math.random() * Math.PI * 2,
-        r: 0.4 + Math.random() * 1.3,
-        a: 0.3 + Math.random() * 0.65,
-        wf: 0.001 + Math.random() * 0.0025,
-        wp: Math.random() * Math.PI * 2,
-      }));
-      meteors = [];
-      nextMeteor = 900;
-    };
-    const LINK = 110; // px — beyond this two stars aren't connected
-    const frame = (t: number) => {
-      const dt = lastT === 0 ? 16 : Math.min(50, t - lastT);
-      lastT = t;
-      ctx.clearRect(0, 0, w, h);
-      // Per-star position: anchor drift + a slow elliptical wobble, so the
-      // whole sky is in motion instead of only creeping one way.
-      const px: number[] = [];
-      const py: number[] = [];
-      for (let i = 0; i < stars.length; i++) {
-        const s = stars[i];
-        if (!reduced) {
-          s.bx += s.vx * dt;
-          s.by += s.vy * dt;
-          if (s.bx < -40) s.bx = w + 40;
-          else if (s.bx > w + 40) s.bx = -40;
-          if (s.by < -40) s.by = h + 40;
-          else if (s.by > h + 40) s.by = -40;
-        }
-        px[i] = s.bx + (reduced ? 0 : s.ax * Math.sin(t * s.sp + s.ph));
-        py[i] = s.by + (reduced ? 0 : s.ay * Math.cos(t * s.sp * 0.8 + s.ph));
-      }
-      // Hairlines between near neighbours — quadratic falloff makes links
-      // brighten and dim on their own as the stars wander.
-      ctx.lineWidth = 1;
-      for (let i = 0; i < stars.length; i++) {
-        for (let j = i + 1; j < stars.length; j++) {
-          const dx = px[i] - px[j];
-          const dy = py[i] - py[j];
-          const d = Math.hypot(dx, dy);
-          if (d < LINK) {
-            const near = 1 - d / LINK;
-            ctx.strokeStyle = `rgba(255,255,255,${(near * near * 0.3).toFixed(3)})`;
-            ctx.beginPath();
-            ctx.moveTo(px[i], py[i]);
-            ctx.lineTo(px[j], py[j]);
-            ctx.stroke();
-          }
-        }
-      }
-      // Stars: deep twinkle, each on its own beat, plus a breathing radius.
-      for (let i = 0; i < stars.length; i++) {
-        const s = stars[i];
-        const tw = reduced ? 1 : 0.35 + 0.65 * (0.5 + 0.5 * Math.sin(t * s.wf + s.wp));
-        ctx.fillStyle = `rgba(255,255,255,${(s.a * tw).toFixed(3)})`;
-        ctx.beginPath();
-        ctx.arc(px[i], py[i], s.r * (0.75 + 0.5 * tw), 0, Math.PI * 2);
-        ctx.fill();
-      }
-      // Meteors: a bright head with a fading tail, every few seconds.
-      if (!reduced) {
-        if (t > nextMeteor) {
-          const fromLeft = Math.random() < 0.5;
-          const ang = ((fromLeft ? 38 : 142) + (Math.random() - 0.5) * 24) * (Math.PI / 180);
-          const spd = 0.5 + Math.random() * 0.4; // px per ms
-          meteors.push({
-            x: fromLeft ? Math.random() * w * 0.35 : w * 0.65 + Math.random() * w * 0.35,
-            y: Math.random() * h * 0.3,
-            vx: Math.cos(ang) * spd,
-            vy: Math.sin(ang) * spd,
-            born: t,
-            life: 900 + Math.random() * 700,
-          });
-          nextMeteor = t + 1500 + Math.random() * 3000;
-        }
-        meteors = meteors.filter((m) => t - m.born < m.life);
-        for (const m of meteors) {
-          const age = (t - m.born) / m.life;
-          const fade = age < 0.12 ? age / 0.12 : (1 - age) / 0.88;
-          m.x += m.vx * dt;
-          m.y += m.vy * dt;
-          const len = Math.hypot(m.vx, m.vy) || 1;
-          const tail = 130;
-          const tx = m.x - (m.vx / len) * tail;
-          const ty = m.y - (m.vy / len) * tail;
-          const grad = ctx.createLinearGradient(m.x, m.y, tx, ty);
-          grad.addColorStop(0, `rgba(255,255,255,${(0.9 * fade).toFixed(3)})`);
-          grad.addColorStop(1, "rgba(255,255,255,0)");
-          ctx.strokeStyle = grad;
-          ctx.lineWidth = 1.4;
-          ctx.beginPath();
-          ctx.moveTo(m.x, m.y);
-          ctx.lineTo(tx, ty);
-          ctx.stroke();
-          ctx.fillStyle = `rgba(255,255,255,${fade.toFixed(3)})`;
-          ctx.beginPath();
-          ctx.arc(m.x, m.y, 1.6, 0, Math.PI * 2);
-          ctx.fill();
-        }
-        ctx.lineWidth = 1;
-      }
-      if (!reduced) raf = requestAnimationFrame(frame);
-    };
-    seed();
-    if (reduced) frame(0);
-    else raf = requestAnimationFrame(frame);
-    const onResize = () => {
-      seed();
-      if (reduced) frame(0);
-    };
-    window.addEventListener("resize", onResize);
-    return () => {
-      cancelAnimationFrame(raf);
-      window.removeEventListener("resize", onResize);
-    };
-  }, []);
-  return <canvas ref={canvasRef} className="h-full w-full" aria-hidden />;
+
+const THEME_OPTIONS: { m: Theme; label: string }[] = [
+  { m: "light", label: "Light" },
+  { m: "dark", label: "Dark" },
+  { m: "system", label: "System" },
+  { m: "constellation", label: "Constellation" },
+];
+
+/** Miniature preview of each theme so the picker reads visually, not by name.
+ *  Light = white window, Dark = near-black, System = split light/dark, and
+ *  Constellation = a dark window with a sprinkle of stars in the top half —
+ *  echoing the full-screen starfield the theme paints behind the app. */
+function ThemeSwatch({ mode }: { mode: Theme }) {
+  if (mode === "light") {
+    return <span className="flex w-full flex-col gap-1 rounded-md bg-white p-1.5"><span className="h-1 w-2/3 rounded-full bg-zinc-300" /><span className="h-1 w-1/2 rounded-full bg-zinc-200" /><span className="mt-auto h-1 w-1/3 rounded-full bg-zinc-200" /></span>;
+  }
+  if (mode === "dark") {
+    return <span className="flex w-full flex-col gap-1 rounded-md bg-zinc-950 p-1.5"><span className="h-1 w-2/3 rounded-full bg-zinc-600" /><span className="h-1 w-1/2 rounded-full bg-zinc-700" /><span className="mt-auto h-1 w-1/3 rounded-full bg-zinc-700" /></span>;
+  }
+  if (mode === "system") {
+    return (
+      <span className="flex w-full overflow-hidden rounded-md">
+        <span className="flex w-1/2 flex-col gap-1 bg-white p-1.5"><span className="h-1 w-2/3 rounded-full bg-zinc-300" /><span className="h-1 w-1/2 rounded-full bg-zinc-200" /></span>
+        <span className="flex w-1/2 flex-col gap-1 bg-zinc-950 p-1.5"><span className="h-1 w-2/3 rounded-full bg-zinc-600" /><span className="h-1 w-1/2 rounded-full bg-zinc-700" /></span>
+      </span>
+    );
+  }
+  // constellation — dark window with a small starfield up top
+  return (
+    <span className="relative flex w-full flex-col gap-1 rounded-md bg-zinc-950 p-1.5">
+      <span className="pointer-events-none absolute inset-x-0 top-0 h-[60%]" style={{ maskImage: "linear-gradient(to bottom, black 55%, transparent)", WebkitMaskImage: "linear-gradient(to bottom, black 55%, transparent)" }}>
+        <span className="absolute left-[18%] top-[30%] h-1 w-1 rounded-full bg-white/90" />
+        <span className="absolute left-[42%] top-[18%] h-1 w-1 rounded-full bg-white/70" />
+        <span className="absolute left-[63%] top-[40%] h-1 w-1 rounded-full bg-white/85" />
+        <span className="absolute left-[80%] top-[22%] h-1 w-1 rounded-full bg-white/60" />
+        <span className="absolute left-[30%] top-[46%] h-1 w-1 rounded-full bg-white/50" />
+        <span className="absolute left-[18%] top-[30%] h-px w-[46%] bg-white/15" style={{ transform: "rotate(9deg)" }} />
+      </span>
+      <span className="relative h-1 w-2/3 rounded-full bg-zinc-700" />
+      <span className="relative h-1 w-1/2 rounded-full bg-zinc-800" />
+      <span className="relative mt-auto h-1 w-1/3 rounded-full bg-zinc-800" />
+    </span>
+  );
 }
 
 const ACCENT_COLORS: { key: AccentColor; label: string; cls: string }[] = [
@@ -637,10 +521,10 @@ function NameStep({ onDone }: { onDone: (name: string) => void }) {
 }
 function AppearanceStep({ onDone }: { onDone: () => void }) {
   const initial = storage.getData().theme;
-  const [mode, setMode] = useState(initial.theme || "system");
+  const [mode, setMode] = useState<Theme>(initial.theme || "system");
   const [accent, setAccent] = useState<AccentColor>(initial.accentColor || "slate");
   const [size, setSize] = useState(initial.fontSize || "md");
-  const pickTheme = (m: "light" | "dark" | "system") => { storage.updateTheme({ theme: m }); const isDark = m === "dark" || (m === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches); document.documentElement.classList.toggle("dark", isDark); setMode(m); };
+  const pickTheme = (m: Theme) => { storage.updateTheme({ theme: m }); document.documentElement.classList.toggle("dark", isDarkTheme(m)); document.documentElement.setAttribute("data-theme-mode", m); setMode(m); };
   const pickSize = (s: "sm" | "md" | "lg") => { storage.updateTheme({ fontSize: s }); document.documentElement.setAttribute("data-font-size", s); setSize(s); };
   return (
     <div className="fixed inset-0 z-[100] flex flex-col overflow-hidden bg-background md:justify-center">
@@ -649,9 +533,12 @@ function AppearanceStep({ onDone }: { onDone: () => void }) {
       <div className="mt-8 w-full flex-1 md:flex-none md:overflow-visible overflow-y-auto px-6 pb-4">
         <div className="mx-auto flex w-full max-w-sm flex-col gap-8">
           <div><p className="mb-2.5 text-sm font-medium text-muted-foreground">Theme</p>
-            <div className="grid grid-cols-3 gap-2">{([{ m: "light", icon: Sun, label: "Light" }, { m: "dark", icon: Moon, label: "Dark" }, { m: "system", icon: Monitor, label: "System" }] as const).map(({ m, icon: Icon, label }) => (
-              <button key={m} onClick={() => pickTheme(m)} className={cn("flex flex-col items-center gap-1.5 rounded-xl border px-3 py-3 text-xs transition-all", mode === m ? "border-primary bg-primary/10 text-foreground" : "border-border bg-secondary/40 text-muted-foreground hover:border-muted-foreground/30")}>
-                <Icon className="h-4 w-4" />{label}
+            <div className="grid grid-cols-2 gap-2.5">{THEME_OPTIONS.map(({ m, label }) => (
+              <button key={m} onClick={() => pickTheme(m)} aria-pressed={mode === m} className={cn("group flex flex-col items-center gap-2 rounded-2xl border p-3 transition-all", mode === m ? "border-primary bg-primary/10" : "border-border bg-secondary/40 hover:border-muted-foreground/30")}>
+                <span className="flex aspect-[16/10] w-full items-stretch gap-1 overflow-hidden rounded-lg border border-black/10 p-1.5">
+                  <ThemeSwatch mode={m} />
+                </span>
+                <span className={cn("text-xs font-medium", mode === m ? "text-foreground" : "text-muted-foreground")}>{label}</span>
               </button>))}</div></div>
           <div><p className="mb-2.5 text-sm font-medium text-muted-foreground">Accent colour</p>
             <div className="flex gap-2">{ACCENT_COLORS.map(c => (

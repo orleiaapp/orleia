@@ -2,7 +2,7 @@
 // Core Types
 // ============================================================
 
-export type Theme = "light" | "dark" | "system";
+export type Theme = "light" | "dark" | "system" | "constellation";
 export type ViewMode = "list" | "grid" | "kanban" | "calendar";
 export type AccentColor = "slate" | "amber" | "emerald" | "sky" | "violet" | "rose" | "orange";
 export type OrleiaMode = "workspace" | "canvas" | "clone";

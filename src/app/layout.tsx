@@ -101,8 +101,9 @@ export default function RootLayout({
                 try {
                   var saved = JSON.parse(localStorage.getItem('orleia-data') || '{}');
                   var theme = saved.theme?.theme || 'dark';
-                  var isDark = theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+                  var isDark = theme === 'dark' || theme === 'constellation' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
                   document.documentElement.classList.toggle('dark', isDark);
+                  document.documentElement.setAttribute('data-theme-mode', theme);
                   var fontSize = saved.theme?.fontSize || 'md';
                   document.documentElement.setAttribute('data-font-size', fontSize);
                   var th = saved.theme || {};

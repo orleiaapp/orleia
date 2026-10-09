@@ -745,6 +745,11 @@ class Storage {
     try {
       localStorage.setItem("orleia-tutorial-pending", "true");
     } catch { /* private mode */ }
+    // Re-arm the plan intro: clearing data re-runs onboarding, so the paywall
+    // shows again on every fresh onboarding. Mirrors the tutorial flag above.
+    try {
+      localStorage.removeItem("orleia.planIntroSeen.v1");
+    } catch { /* private mode */ }
   }
 
   isOnboardingCompleted(): boolean {

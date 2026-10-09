@@ -19,6 +19,7 @@ import { ensureNoorBackground } from "@/lib/noor-background";
 import { NoorToast } from "./NoorToast";
 import { UndoToast } from "./UndoToast";
 import { PlanIntro } from "./PlanIntro";
+import { ThemeBackdrop } from "./ThemeBackdrop";
 import { RoutePrefetcher } from "./RoutePrefetcher";
 import { cn } from "@/lib/utils";
 
@@ -259,6 +260,9 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
   return (
     <MotionConfig reducedMotion={reducedMotion ? "always" : "never"}>
 <>
+      {/* 'constellation' theme: starfield behind the whole app (z-0, below
+          the card's z-50). Invisible for every other theme. */}
+      <ThemeBackdrop />
       <GlobalSearch open={searchOpen} onClose={() => setSearchOpen(false)} />
       <NoorToast />
       <UndoToast />

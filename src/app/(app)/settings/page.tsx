@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useMemo, type ReactNode } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
+import { isDarkTheme } from "@/lib/theme-mode";
 import {
   Download,
   Upload,
@@ -720,17 +721,13 @@ export default function SettingsPage() {
                 {t("settings.theme")}
               </label>
               <div className="flex gap-2">
-                {(["light", "dark", "system"] as const).map((mode) => (
+                {(["light", "dark", "system", "constellation"] as const).map((mode) => (
                   <button
                     key={mode}
                     onClick={() => {
-                      storage.updateTheme({ theme: mode as any });
-                      const isDark =
-                        mode === "dark" ||
-                        (mode === "system" &&
-                          window.matchMedia("(prefers-color-scheme: dark)")
-                            .matches);
-                      document.documentElement.classList.toggle("dark", isDark);
+                      storage.updateTheme({ theme: mode });
+                      document.documentElement.classList.toggle("dark", isDarkTheme(mode));
+                      document.documentElement.setAttribute("data-theme-mode", mode);
                       refresh();
                     }}
                     className={cn(
