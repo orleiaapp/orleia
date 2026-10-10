@@ -146,7 +146,7 @@ export default function RootLayout({
                 "Accessibility features",
                 "Multi-language support (19 languages)"
               ],
-              "softwareVersion": "2.6.0",
+              "softwareVersion": "2.7.0",
               "author": {
                 "@type": "Organization",
                 "name": "Orleia"

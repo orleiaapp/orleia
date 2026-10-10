@@ -18,6 +18,24 @@ interface Release {
 
 const RELEASES: Release[] = [
   {
+    version: "2.7.0",
+    date: "October 10, 2026",
+    tag: "Feature",
+    highlight: "Constellation mode. Noor that never cuts off.",
+    items: [
+      "New Constellation theme: a live starfield behind your workspace, picked from visual cards in Settings → Appearance.",
+      "Adopting your pet now deserves a moment: confetti, your new companion front and centre, and a nudge to go look around Orleia.",
+      "Editing a message in Noor takes the whole screen on mobile — a big field with your text on top, and one confirm drops you back into the chat.",
+      "Noor replies stop cutting off mid-sentence: streams that hit the token cap continue seamlessly, and truncated actions are rescued and executed instead of apologising.",
+      "Raw action JSON can never render as scrap — unmarked action blocks execute for real and show a proper confirmation.",
+      "Leaked AI reasoning can no longer reach your thread: internal monologue is filtered to the hidden thinking channel, and any already-stored monologue is cleaned up when the conversation loads.",
+      "\"Search my notes for …\" stays a local search instead of being hijacked to a web search.",
+      "Mindfulness session controls move to the bottom on mobile, out from under the floating top bar.",
+      "The theme picker wraps into a grid — Constellation no longer pokes out of the Appearance card.",
+      "Onboarding polish: centred welcome flow, goals as a multi-select picker, bolder tour mockups, and a cookie banner that stays on the landing page.",
+    ],
+  },
+  {
     version: "2.6.0",
     date: "October 2026",
     tag: "Feature",

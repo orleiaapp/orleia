@@ -10,13 +10,33 @@
 import { useState } from "react";
 import { TutorialGuide } from "./TutorialGuide";
 import { PetPickStep } from "./PetPickStep";
+import { PetCelebrate } from "./PetCelebrate";
 import { storage } from "@/lib/storage";
+import { petById } from "@/lib/pets";
 
 export function TutorialFlow({ onComplete }: { onComplete: () => void }) {
   const [pickingPet, setPickingPet] = useState(false);
+  const [picked, setPicked] = useState<{ id: string; name: string } | null>(null);
+
+  // After the pet is chosen: a confetti send-off that tells the user to go
+  // look around Orleia. Only shown for an ACTUAL pick (returning users who
+  // already own a pet skip the step entirely and never see it).
+  if (picked) {
+    return <PetCelebrate petId={picked.id} displayName={picked.name} onEnter={onComplete} />;
+  }
 
   if (pickingPet) {
-    return <PetPickStep onDone={onComplete} />;
+    return (
+      <PetPickStep
+        onDone={(id) => {
+          const profile = storage.getData().profile;
+          setPicked({
+            id,
+            name: (profile?.petName || "").trim() || petById(id)?.name || "",
+          });
+        }}
+      />
+    );
   }
 
   return (

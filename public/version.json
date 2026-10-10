@@ -1,6 +1,6 @@
 {
-  "version": "2.6.0",
-  "releaseDate": "2026-10-04",
+  "version": "2.7.0",
+  "releaseDate": "2026-10-10",
   "downloadUrl": "https://app.orleia.app/#download",
-  "changelog": "Orleia 2.6.0 - Novella 5.0 with six effort levels, pets on duty 24/7, Pets Chat with @mentions, research replies with cited sources, and the mobile top-bar fix. Grid retires for now. Under the hood: model fallbacks hardened and a daily AI health probe."
+  "changelog": "Orleia 2.7.0 - Constellation theme with a visual picker, full-screen message editing on mobile, and a confetti send-off when you adopt your pet. Noor chats got a quality overhaul: replies continue instead of cutting off, truncated actions rescue and run for real, local search stays local, and leaked AI reasoning never reaches your thread. Mindfulness controls move to the bottom on mobile so nothing overlaps."
 }
