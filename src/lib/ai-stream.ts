@@ -55,7 +55,9 @@ async function streamLLM(
   onToken: (delta: string) => void,
   opts?: ChatOpts,
   /** Agent-only extra context (device environment + screen description). */
-  agentContext = ""
+  agentContext = "",
+  /** True for the token-cap continuation pass (prevents recursion). */
+  isContinuation = false
 ): Promise<string | null> {
   // ---- Local AI (Ollama) ----
   // Runs entirely on the user's machine: same Noor prompt + guards, but no
@@ -244,6 +246,9 @@ async function streamLLM(
     const decoder = new TextDecoder();
     let buffer = "";
     let full = "";
+    // finish_reason "length" = the provider stopped at the token budget,
+    // i.e. the reply was cut mid-sentence (or mid ORLEIA_ACTION JSON).
+    let finishReason = "";
     // ---- Thinking separation ----
     // Reasoning models surface their thinking in two ways: a dedicated
     // delta.reasoning_content field, or inline <think>...</think> tags inside
@@ -304,6 +309,8 @@ async function streamLLM(
         if (data === "[DONE]") continue;
         try {
           const json = JSON.parse(data);
+          const fr = json?.choices?.[0]?.finish_reason;
+          if (typeof fr === "string" && fr) finishReason = fr;
           const d = json?.choices?.[0]?.delta;
           const rc = d?.reasoning_content;
           if (typeof rc === "string" && rc) onThinking?.(rc);
@@ -316,6 +323,32 @@ async function streamLLM(
     }
     flushHeld();
     clearStreamTimers();
+
+    // ---- Token-cap continuation ----
+    // Effort tiers run short budgets, so a long answer (or an action block)
+    // could end mid-sentence / mid-JSON — the user saw replies "cut off in
+    // the middle" and truncated actions that never executed. When the
+    // provider says finish_reason=length, ask ONE continuation round that
+    // picks up exactly where the text stopped. Deltas flow through the same
+    // onToken, so the action interceptor keeps working across the seam.
+    if (!isContinuation && finishReason === "length" && full.trim() && !signal?.aborted) {
+      const partial = full;
+      const cont = await streamLLM(
+        "Continue exactly where your previous reply stopped. Output only the continuation text - no preamble, no repetition, no closing notes.",
+        [
+          ...conversationHistory,
+          { id: "cont-u", role: "user", content: query, timestamp: new Date().toISOString() },
+          { id: "cont-a", role: "assistant", content: partial, timestamp: new Date().toISOString() },
+        ],
+        modelId,
+        signal,
+        (d) => { full += d; onToken(d); },
+        opts,
+        agentContext,
+        true
+      );
+      if (cont) full = (partial + cont).trim();
+    }
     return full.trim() || null;
   } catch (e) {
     clearStreamTimers();
@@ -347,6 +380,61 @@ export interface StreamOpts {
    *  raw block never reaches the visible text. Omit to auto-execute
    *  (voice, background asks, and the offline engine keep that behavior). */
   onProposeAction?: (proposal: { action: string; params: Record<string, unknown> }) => void;
+}
+
+/**
+ * Execute action JSON the model emitted WITHOUT the ORLEIA_ACTION marker
+ * (bare in the prose, or inside a ```json fence) and return the text with
+ * every raw block replaced by its natural confirmation. Without this, an
+ * unmarked action block rendered as raw JSON "scrap" in the chat AND the
+ * action never ran. Returns null when no block is a real action payload
+ * (chart/table fences are left untouched).
+ */
+function consumeLooseActions(text: string): string | null {
+  if (!text || text.indexOf("{") === -1) return null;
+  const confirms: string[] = [];
+  let out = text;
+  // Fenced blocks: only ```json bodies that parse as actions; chart/table
+  // fences (```chart, ```text, or a non-action JSON body) are preserved.
+  out = out.replace(/```(?:json)?\s*([\s\S]*?)```/gi, (full, body: string) => {
+    const trimmed = body.trim();
+    if (!trimmed.startsWith("{") || !/"action"\s*:|"(?:frequency|timeOfDay|category|priority|dueDate|mood|content)"\s*:/.test(trimmed)) return full;
+    const c = tryExecuteJsonAction(trimmed);
+    if (!c) return full;
+    confirms.push(c);
+    return "";
+  });
+  // Bare balanced {...} objects that carry an action shape.
+  let idx = 0;
+  for (;;) {
+    const start = out.indexOf("{", idx);
+    if (start === -1) break;
+    let depth = 0;
+    let end = -1;
+    for (let i = start; i < out.length; i++) {
+      const ch = out[i];
+      if (ch === "{") depth++;
+      else if (ch === "}") {
+        depth--;
+        if (depth === 0) { end = i; break; }
+      }
+    }
+    if (end === -1) break;
+    const candidate = out.slice(start, end + 1);
+    if (/"action"\s*:/.test(candidate)) {
+      const c = tryExecuteJsonAction(candidate);
+      if (c) {
+        confirms.push(c);
+        out = out.slice(0, start) + out.slice(end + 1);
+        continue; // rescanning from the same spot catches a following block
+      }
+    }
+    idx = end + 1;
+  }
+  if (!confirms.length) return null;
+  const base = out.replace(/\n{3,}/g, "\n\n").trim();
+  const tail = confirms.join("\n\n");
+  return base ? base + "\n\n" + tail : tail;
 }
 
 export async function chatStream(
@@ -588,6 +676,35 @@ export async function chatStream(
         }
       }
     }
+    // The marker started but the JSON never closed (usually the token cap
+    // cutting the stream). BEFORE apologizing, rescue it: one continuation
+    // ask that emits ONLY the action line, then run it for real — the old
+    // "mind asking me again?" note fired for cases we can just complete.
+    if (truncatedAction) {
+      const rescueQ =
+        "PROCEED NOW: emit the ORLEIA_ACTION line(s) for the action you were performing. " +
+        "Output ONLY the ORLEIA_ACTION line(s) - no prose, no markdown, no confirmation.";
+      const rescued = await streamLLM(
+        rescueQ,
+        [
+          ...conversationHistory,
+          { id: "rescue-u", role: "user", content: query, timestamp: new Date().toISOString() },
+          { id: "rescue-a", role: "assistant", content: actionText, timestamp: new Date().toISOString() },
+        ],
+        modelId,
+        opts.signal,
+        () => {},
+        opts
+      ).catch(() => null);
+      if (rescued && /ORLEIA_ACTION/i.test(rescued)) {
+        const done = processActionReply(rescued) || tryExecuteJsonAction(rescued);
+        if (done && done.trim()) {
+          // Keep the prose already shown, append the real confirmation.
+          opts.onToken("\n\n" + done.trim());
+          return (actionText.trim() + "\n\n" + done.trim());
+        }
+      }
+    }
     // The action never completed: always tell the user honestly, even when
     // the model wrote prose before the marker (never a silent "Sure!" lie).
     if (truncatedAction) {
@@ -612,6 +729,13 @@ export async function chatStream(
       if (handled) {
         opts.onToken(handled);
         return handled;
+      }
+      // Unmarked action JSON (bare or ```json fenced): run it for real and
+      // replace the scrap with its confirmation instead of showing code.
+      const loose = consumeLooseActions(t);
+      if (loose) {
+        opts.onToken("\n\n" + loose);
+        return loose;
       }
       // Final net: never let a raw/truncated ORLEIA_ACTION line reach the UI.
       const cleaned = stripActionRemnants(t);

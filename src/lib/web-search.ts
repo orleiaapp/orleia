@@ -62,7 +62,17 @@ const LIVE_INTENTS =
 const FRESH_INTENT =
   /\b(latest|newest|current|recent|just (released|launched|announced)|new(est)? version|who (is|was) the|what('s| is) the (best|top)|upcoming|unreleased|in \d{4}|this (year|month|week)|yesterday|today)\b/i;
 
+/**
+ * Queries explicitly scoped to the user's own data ("search my notes for
+ * gemini", "what does my journal say about the launch") — even when the
+ * topic is a live keyword, the answer lives locally, so the web gate must
+ * not hijack it away from the local search/action engine.
+ */
+const LOCAL_SCOPE_RE =
+  /\b(?:my|our)\s+(?:notes?|tasks?|journals?|entries|habits?|documents?|files?|lists?|calendar|data|workspace)\b/i;
+
 export function isLiveQuery(q: string): boolean {
+  if (LOCAL_SCOPE_RE.test(q)) return false;
   return LIVE_INTENTS.test(q);
 }
 

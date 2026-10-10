@@ -21,6 +21,7 @@ import { ArrowUpRight, ArrowRight, Menu, X, Shield, Check, Sparkles } from "luci
 import { PAID_PLANS } from "@/lib/plans";
 import { GMAIL_COMPOSE_HREF } from "@/lib/contact";
 import InteractiveNeuralVortex from "@/components/ui/interactive-neural-vortex-background";
+import { isDarkTheme } from "@/lib/theme-mode";
 
 const STATS = [
   { value: "Free", label: "tools, Noor plans optional" },
@@ -271,14 +272,17 @@ export default function LandingPage() {
         window.location.hostname === "www.orleia.app" ||
         window.location.hostname.includes("orleia-suite") ||
         window.location.hostname.includes("orleia-landing"));
-    if (isLandingHost) root.classList.add("dark");
+    /* APP HOST: never touch the theme classes. The dashboard lazy-mounts
+       this component on every visit (and remounts it on every tab switch
+       back), so the old unconditional cleanup below ran there too — and
+       its isDark check predated "constellation", so it stripped the dark
+       class and flashed the whole workspace white on every return. */
+    if (!isLandingHost) return;
+    root.classList.add("dark");
     return () => {
       try {
         const th = JSON.parse(localStorage.getItem("orleia-data") || "{}").theme || {};
-        const isDark =
-          th.theme === "dark" ||
-          !th.theme ||
-          (th.theme === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches);
+        const isDark = isDarkTheme(th.theme || "system");
         root.classList.toggle("dark", isDark);
       } catch {
         root.classList.add("dark");

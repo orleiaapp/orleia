@@ -633,12 +633,16 @@ function SessionOverlay({
 
   return (
     <div
-      className="fixed inset-0 z-[90] flex flex-col items-center justify-center bg-black/85 backdrop-blur-md p-4"
+      className="fixed inset-0 z-[90] flex flex-col items-center justify-center bg-black/85 backdrop-blur-md p-4 pb-24 md:pb-4"
       role="dialog"
       aria-modal="true"
     >
-      {/* top bar */}
-      <div className="absolute top-0 inset-x-0 flex items-center justify-between px-4 py-3 sm:px-6">
+      {/* Controls bar — BOTTOM on mobile (< md): the floating glass top bar
+          (hamburger/search/settings/bell, z-70 at root level) paints OVER
+          anything inside the card's z-50 stacking context, so a top bar here
+          was unreachable under the default top buttons. md+ has no floating
+          bar, so it returns to the top there. */}
+      <div className="absolute inset-x-0 bottom-0 flex items-center justify-between px-4 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] pt-3 sm:px-6 md:top-0 md:bottom-auto md:pb-3">
         <span className="text-sm font-medium text-white/80">{title}</span>
         <div className="flex items-center gap-2">
           <button

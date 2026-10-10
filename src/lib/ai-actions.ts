@@ -387,6 +387,18 @@ function extractHabitDetails(query: string): {
   return { frequency, timeOfDay, cleaned: q };
 }
 
+/**
+ * True when a search-style target ("my notes", "dashboard", "the journal")
+ * mentions ONLY navigation pages + fillers — i.e. the user means "open that
+ * page", not "search my data for this term". A target carrying any other
+ * word ("gemini", "plan") is a real local search.
+ */
+function isPurePageNav(target: string, navPages: string[]): boolean {
+  const FILLERS = new Set(["my", "our", "the", "a", "an", "some", "this", "that", "for", "in", "about", "of", "and", "or", "to", "all", "me", "page", "list"]);
+  const words = target.toLowerCase().split(/[^a-z]+/).filter(Boolean);
+  return words.length > 0 && words.every((w) => FILLERS.has(w) || navPages.includes(w));
+}
+
 export function detectAction(query: string): AIAction {
   const q = query.toLowerCase().trim();
   // A "?" is always a question. Otherwise only pure question words count -
@@ -620,16 +632,21 @@ export function detectAction(query: string): AIAction {
     };
   }
 
-  // --- SEARCH (excluding navigation pages) ---
+  // --- SEARCH (excluding pure page navigation) ---
   const navPages = ['dashboard', 'habits', 'tasks', 'notes', 'noor', 'mindfulness', 'documents', 'settings', 'deck', 'calendar', 'journal'];
+  const searchMatch = q.match(
+    /\b(?:search|find|look\s+(?:up|for)|show\s+me)\b\s+(.+?)(?:\s+(?:in|about|for))?\s*(?:$|\.)/i
+  );
   if (
-    /\b(?:search|find|look\s+(?:up|for)|show\s+me)\b\s+(.+?)(?:\s+(?:in|about|for))?\s*(?:$|\.)/i.test(q) &&
+    searchMatch &&
     !/(?:create|add|make|write|delete|remove|log)\b/i.test(q) &&
-    !navPages.some(p => q.includes(p))
+    // "find my notes" / "search dashboard" = navigate to the page — the
+    // words after the verb are ONLY page names + fillers. "search my notes
+    // for gemini" carries a real term, so it's a LOCAL SEARCH even when the
+    // term is also a web keyword (the old q.includes(page) check killed it
+    // and the live-query gate then hijacked it to a web search).
+    !isPurePageNav(searchMatch[1], navPages)
   ) {
-    const searchMatch = q.match(
-      /\b(?:search|find|look\s+(?:up|for)|show\s+me)\b\s+(.+?)(?:\s+(?:in|about|for))?\s*(?:$|\.)/i
-    );
     if (searchMatch) {
       return {
         matched: true,

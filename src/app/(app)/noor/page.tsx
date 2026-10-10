@@ -2583,7 +2583,7 @@ try {
                           }}
                           autoFocus
                           rows={3}
-                          className="w-full min-w-[260px] max-w-[420px] resize-none bg-transparent outline-none leading-relaxed"
+                          className="w-full min-w-0 max-w-full resize-none bg-transparent text-base outline-none leading-relaxed"
                         />
                       ) : (
                         <div className="whitespace-pre-wrap leading-relaxed">{msg.content}</div>
@@ -2616,13 +2616,13 @@ try {
                         <button
                           onClick={() => void saveEdit(msg.id)}
                           disabled={loading || !editText.trim()}
-                          className="inline-flex items-center gap-1 rounded-full bg-foreground px-3 py-1 text-[11px] font-medium text-background transition-all hover:opacity-90 disabled:opacity-40"
+                          className="inline-flex items-center gap-1 rounded-full bg-foreground px-4 py-2 text-xs font-medium text-background transition-all hover:opacity-90 disabled:opacity-40"
                         >
-                          <Check className="h-3 w-3" /> Save
+                          <Check className="h-3.5 w-3.5" /> Save
                         </button>
                         <button
                           onClick={() => { setEditingId(null); setEditText(""); }}
-                          className="rounded-full border border-border px-3 py-1 text-[11px] text-muted-foreground transition-colors hover:bg-secondary"
+                          className="rounded-full border border-border px-4 py-2 text-xs text-muted-foreground transition-colors hover:bg-secondary"
                         >
                           Cancel
                         </button>
@@ -3452,7 +3452,7 @@ try {
                       ? t("assistant.quickQuestion")
                       : t("assistant.messageNoor")
                 }
-                className="noor-chat-font flex-1 bg-transparent resize-none outline-none focus-visible:ring-0 focus-visible:ring-offset-0 text-[15px] py-2 max-h-40 leading-relaxed"
+                className="noor-chat-font flex-1 bg-transparent resize-none outline-none focus-visible:ring-0 focus-visible:ring-offset-0 text-base sm:text-[15px] py-2 max-h-40 leading-relaxed"
                 rows={1}
               />
               </div>
