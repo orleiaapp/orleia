@@ -52,7 +52,12 @@ export function PetCelebrate({
     const canvas = canvasRef.current;
     if (!canvas) return;
     // Reduced motion: the celebration copy still shows, the burst doesn't.
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    // Honours BOTH sources — the OS preference and Orleia's own accessibility
+    // toggle (html[data-reduced-motion], same as the starfield canvas).
+    if (
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches ||
+      document.documentElement.getAttribute("data-reduced-motion") === "true"
+    ) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 

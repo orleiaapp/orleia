@@ -1,22 +1,37 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useLayoutEffect, useRef } from "react";
 
 /**
  * Animated starfield: drifting stars that twinkle on their own beat, hairline
- * links between near neighbours, and occasional meteors. Pure canvas, respects
- * prefers-reduced-motion (draws a single static frame). Used both by the
- * onboarding welcome/goals/hear steps and by the global "constellation" theme
- * (ThemeBackdrop).
+ * links between near neighbours, and occasional meteors. Pure canvas.
+ *
+ * Motion honours BOTH reduced-motion sources: the OS preference
+ * (prefers-reduced-motion) and Orleia's own Settings → Accessibility toggle
+ * (`html[data-reduced-motion]`, which the global CSS and MotionConfig already
+ * obey — the canvas used to ignore it and kept drifting). Either source ON
+ * freezes the sky to a single static frame; both are watched live, so
+ * flipping the in-app toggle stops/starts the drift without a reload.
+ *
+ * Used by the onboarding welcome/goals/hear steps and by the global
+ * "constellation" theme (ThemeBackdrop).
  */
 export function Constellation() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  useEffect(() => {
+  // Layout effect (never server-rendered — parents gate it client-side):
+  // seed + draw synchronously before the browser paints, so the canvas is
+  // never a blank frame on mount. The static CSS sky (.theme-sky) covers
+  // the pre-hydration gap; this covers the mount frame.
+  useLayoutEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
-    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const isReduced = () =>
+      mq.matches ||
+      document.documentElement.getAttribute("data-reduced-motion") === "true";
+    let reduced = isReduced();
     let raf = 0;
     let w = 0;
     let h = 0;
@@ -150,19 +165,61 @@ export function Constellation() {
         }
         ctx.lineWidth = 1;
       }
-      if (!reduced) raf = requestAnimationFrame(frame);
+      if (!reduced && raf) raf = requestAnimationFrame(frame);
+    };
+    const start = () => {
+      if (raf || reduced) return;
+      lastT = 0; // fresh dt baseline (post-hidden gap must not jump)
+      raf = requestAnimationFrame(frame);
+    };
+    const stop = () => {
+      if (!raf) return;
+      cancelAnimationFrame(raf);
+      raf = 0;
+    };
+    // Reduced-motion flipped (OS preference OR the in-app toggle): freeze to
+    // one static frame, or resume the drift. Live — no reload required.
+    const syncMotion = () => {
+      const next = isReduced();
+      if (next === reduced) return;
+      reduced = next;
+      meteors = [];
+      if (next) {
+        stop();
+        frame(0);
+      } else {
+        start();
+      }
     };
     seed();
     if (reduced) frame(0);
-    else raf = requestAnimationFrame(frame);
+    else start();
     const onResize = () => {
       seed();
       if (reduced) frame(0);
     };
+    // Mobile browsers discard the canvas bitmap for hidden tabs; redraw the
+    // moment the tab is shown again so the sky is back instantly, and stop
+    // burning frames while hidden.
+    const onVis = () => {
+      if (document.hidden) stop();
+      else if (reduced) frame(0);
+      else start();
+    };
     window.addEventListener("resize", onResize);
+    document.addEventListener("visibilitychange", onVis);
+    const obs = new MutationObserver(syncMotion);
+    obs.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["data-reduced-motion"],
+    });
+    mq.addEventListener?.("change", syncMotion);
     return () => {
-      cancelAnimationFrame(raf);
+      stop();
       window.removeEventListener("resize", onResize);
+      document.removeEventListener("visibilitychange", onVis);
+      obs.disconnect();
+      mq.removeEventListener?.("change", syncMotion);
     };
   }, []);
   return <canvas ref={canvasRef} className="h-full w-full" aria-hidden />;

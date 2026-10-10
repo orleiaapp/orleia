@@ -17,7 +17,7 @@ export function SyncSettings({ refresh }: { refresh: () => void }) {
     : "Unknown";
 
   return (
-    <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-4">
+    <motion.div className="space-y-4 settings-detail-enter">
       <div className="flex items-center gap-2 mb-1">
         <Cloud className="h-5 w-5 text-primary" />
         <h2 className="text-lg font-bold">{t("settings.sync")}</h2>

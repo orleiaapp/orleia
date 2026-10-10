@@ -210,6 +210,54 @@ html[data-reduced-motion="true"] *::after {
   }
 }
 
+/* Settings DETAIL view entrance — also pure CSS, same reasoning as the hub
+   above plus two more: framer-motion's spring overshot past rest and crept
+   back (judder at the end of the entrance), and it tore down its will-change
+   layer when the animation finished, re-rasterizing the whole card on mobile
+   GPUs — the blink users saw right AFTER the card landed. One keyframe
+   animation, no inline styles, no layer churn. */
+html:not([data-reduced-motion="true"]) .settings-detail-enter {
+  animation: settings-detail-in 0.3s ease-out backwards;
+}
+@keyframes settings-detail-in {
+  from { opacity: 0; transform: translateX(20px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+/* Constellation theme — static sky, painted by the server HTML before any
+   JS runs (see app/(app)/layout.tsx). The live canvas mounts on top within
+   a frame; this fills the pre-hydration gap so the starfield is never
+   "loading". Dots only, no animation — reduced motion is unaffected. */
+.theme-sky {
+  display: none;
+  position: fixed;
+  inset: 0 0 auto 0;
+  height: 64%;
+  z-index: 0;
+  pointer-events: none;
+  background-image:
+    radial-gradient(1.6px 1.6px at 9% 14%, rgb(255 255 255 / 0.7), transparent 100%),
+    radial-gradient(1.2px 1.2px at 21% 7%, rgb(255 255 255 / 0.45), transparent 100%),
+    radial-gradient(1px 1px at 34% 19%, rgb(255 255 255 / 0.35), transparent 100%),
+    radial-gradient(1.8px 1.8px at 47% 10%, rgb(255 255 255 / 0.65), transparent 100%),
+    radial-gradient(1.2px 1.2px at 58% 22%, rgb(255 255 255 / 0.4), transparent 100%),
+    radial-gradient(1px 1px at 66% 6%, rgb(255 255 255 / 0.3), transparent 100%),
+    radial-gradient(1.7px 1.7px at 78% 15%, rgb(255 255 255 / 0.6), transparent 100%),
+    radial-gradient(1.2px 1.2px at 90% 9%, rgb(255 255 255 / 0.45), transparent 100%),
+    radial-gradient(1px 1px at 15% 30%, rgb(255 255 255 / 0.3), transparent 100%),
+    radial-gradient(1.5px 1.5px at 28% 40%, rgb(255 255 255 / 0.5), transparent 100%),
+    radial-gradient(1px 1px at 41% 33%, rgb(255 255 255 / 0.28), transparent 100%),
+    radial-gradient(1.3px 1.3px at 53% 44%, rgb(255 255 255 / 0.38), transparent 100%),
+    radial-gradient(1px 1px at 70% 36%, rgb(255 255 255 / 0.26), transparent 100%),
+    radial-gradient(1.5px 1.5px at 84% 42%, rgb(255 255 255 / 0.45), transparent 100%),
+    radial-gradient(1px 1px at 95% 28%, rgb(255 255 255 / 0.3), transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom, black 55%, transparent);
+  mask-image: linear-gradient(to bottom, black 55%, transparent);
+}
+html[data-theme-mode="constellation"] .theme-sky {
+  display: block;
+}
+
 
 
   body {

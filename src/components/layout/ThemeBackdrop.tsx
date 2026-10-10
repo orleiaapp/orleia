@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useLayoutEffect, useState } from "react";
 import type { Theme } from "@/types";
 import { storage } from "@/lib/storage";
 import { Constellation } from "./Constellation";
@@ -16,7 +16,10 @@ import { Constellation } from "./Constellation";
 export function ThemeBackdrop() {
   const [active, setActive] = useState(false);
 
-  useEffect(() => {
+  // Layout effect: the attribute is already set by the head script before
+  // hydration, so the canvas mounts inside the hydration commit instead of
+  // a paint later — no black gap between the two.
+  useLayoutEffect(() => {
     const read = () => {
       const mode = document.documentElement.getAttribute("data-theme-mode");
       // Fall back to storage when the attribute isn't set yet (first paint).

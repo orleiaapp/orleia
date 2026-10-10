@@ -669,9 +669,7 @@ export default function SettingsPage() {
       {/* ---- APPEARANCE ---- */}
       {activeCategory === "appearance" && (
         <motion.div
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
-          className="card"
+          className="card settings-detail-enter"
         >
           <DetailHeader />
           <div className="flex items-center gap-2 mb-4">
@@ -837,9 +835,7 @@ export default function SettingsPage() {
       {/* ---- ACCESSIBILITY ---- */}
       {activeCategory === "accessibility" && (
         <motion.div
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
-          className="card"
+          className="card settings-detail-enter"
         >
           <DetailHeader />
           <div className="flex items-center gap-2 mb-4">
@@ -910,9 +906,7 @@ export default function SettingsPage() {
 
       {activeCategory === "noor" && (
         <motion.div
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
-          className="space-y-4"
+          className="space-y-4 settings-detail-enter"
         >
           <DetailHeader />
           {/* Relationship */}
@@ -1016,9 +1010,7 @@ export default function SettingsPage() {
       {/* ---- REMINDERS ---- */}
       {activeCategory === "reminders" && (
         <motion.div
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
-          className="card"
+          className="card settings-detail-enter"
         >
           <DetailHeader />
           <div className="flex items-center gap-2 mb-4">
@@ -1143,9 +1135,7 @@ export default function SettingsPage() {
       {/* ---- LEGAL ---- */}
       {activeCategory === "billing" && (
         <motion.div
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
-          className="space-y-4"
+          className="space-y-4 settings-detail-enter"
         >
           <DetailHeader />
           <h2 className="text-lg font-bold">{t("settings.billing")}</h2>
@@ -1154,9 +1144,7 @@ export default function SettingsPage() {
       )}
       {activeCategory === "skills" && (
         <motion.div
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
-          className="space-y-4"
+          className="space-y-4 settings-detail-enter"
         >
           <DetailHeader />
           <h2 className="text-lg font-bold">{t("skills.title")}</h2>
@@ -1166,9 +1154,7 @@ export default function SettingsPage() {
       )}
       {activeCategory === "import" && (
         <motion.div
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
-          className="space-y-4"
+          className="space-y-4 settings-detail-enter"
         >
           <DetailHeader />
           <h2 className="text-lg font-bold">{t("settings.import")}</h2>
@@ -1177,9 +1163,7 @@ export default function SettingsPage() {
       )}
       {activeCategory === "legal" && (
         <motion.div
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
-          className="card"
+          className="card settings-detail-enter"
         >
           <DetailHeader />
           <div className="flex items-center gap-2 mb-4">
@@ -1207,9 +1191,7 @@ export default function SettingsPage() {
       {/* ---- DATA ---- */}
       {activeCategory === "data" && (
         <motion.div
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
-          className="space-y-4"
+          className="space-y-4 settings-detail-enter"
         >
           <DetailHeader />
           <h2 className="text-lg font-bold">{t("settings.data")}</h2>
@@ -1258,9 +1240,7 @@ export default function SettingsPage() {
       {/* ---- SHORTCUTS ---- */}
       {activeCategory === "shortcuts" && (
         <motion.div
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
-          className="space-y-4"
+          className="space-y-4 settings-detail-enter"
         >
           <DetailHeader />
           <h2 className="text-lg font-bold">{t("settings.shortcuts")}</h2>
@@ -1300,9 +1280,7 @@ export default function SettingsPage() {
       {/* ---- UPDATE ---- */}
       {activeCategory === "about" && (
         <motion.div
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
-          className="space-y-4"
+          className="space-y-4 settings-detail-enter"
         >
           <DetailHeader />
           <h2 className="text-lg font-bold">{t("settings.about")}</h2>
