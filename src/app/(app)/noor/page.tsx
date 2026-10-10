@@ -963,6 +963,16 @@ export default function AssistantPage() {
     URL.revokeObjectURL(url);
   };
 
+  // Full-screen editor open -> freeze the page behind it (iOS would
+  // otherwise scroll the chat under the fixed overlay while typing).
+  const editOverlayOpen = editingId !== null;
+  useEffect(() => {
+    if (!editOverlayOpen) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = prev; };
+  }, [editOverlayOpen]);
+
   // Edit a past user message -> truncate the conversation there, then resend.
   const saveEdit = async (msgId: string) => {
     const text = editText.trim();
@@ -2566,28 +2576,10 @@ try {
           <div className="noor-chat-font mx-auto w-full py-6 space-y-6 md:py-8">
             {messages.map((msg) => {
               if (msg.role === "user") {
-                const isEditing = editingId === msg.id;
                 return (
                   <motion.div key={msg.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }} className="group flex flex-col items-end">
-                    <div className="max-w-[85%] rounded-[28px] rounded-br-lg bg-primary-500/15 border border-primary-500/20 px-5 py-3 text-[15px] text-foreground">
-                      {isEditing ? (
-                        <textarea
-                          value={editText}
-                          onChange={(e) => setEditText(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter" && !e.shiftKey) {
-                              e.preventDefault();
-                              void saveEdit(msg.id);
-                            }
-                            if (e.key === "Escape") { setEditingId(null); setEditText(""); }
-                          }}
-                          autoFocus
-                          rows={3}
-                          className="w-full min-w-0 max-w-full resize-none bg-transparent text-base outline-none leading-relaxed"
-                        />
-                      ) : (
-                        <div className="whitespace-pre-wrap leading-relaxed">{msg.content}</div>
-                      )}
+                    <div className={cn("max-w-[85%] rounded-[28px] rounded-br-lg bg-primary-500/15 border border-primary-500/20 px-5 py-3 text-[15px] text-foreground", editingId === msg.id && "ring-2 ring-primary-500/40")}>
+                      <div className="whitespace-pre-wrap leading-relaxed">{msg.content}</div>
                       {msg.attachments && msg.attachments.length > 0 && (
                         <div className="mt-2 flex flex-wrap gap-2">
                           {msg.attachments.map((a) =>
@@ -2611,32 +2603,17 @@ try {
                         </div>
                       )}
                     </div>
-                    {isEditing ? (
-                      <div className="mt-1.5 flex items-center gap-2">
-                        <button
-                          onClick={() => void saveEdit(msg.id)}
-                          disabled={loading || !editText.trim()}
-                          className="inline-flex items-center gap-1 rounded-full bg-foreground px-4 py-2 text-xs font-medium text-background transition-all hover:opacity-90 disabled:opacity-40"
-                        >
-                          <Check className="h-3.5 w-3.5" /> Save
-                        </button>
-                        <button
-                          onClick={() => { setEditingId(null); setEditText(""); }}
-                          className="rounded-full border border-border px-4 py-2 text-xs text-muted-foreground transition-colors hover:bg-secondary"
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                    ) : (
-                      <button
-                        onClick={() => { setEditingId(msg.id); setEditText(msg.content); }}
-                        disabled={loading}
-                        title={t("assistant.editMessage")}
-                        className="touch-reveal mt-1.5 flex h-6 w-6 items-center justify-center rounded-full text-muted-foreground/40 opacity-0 transition-all hover:bg-secondary hover:text-foreground group-hover:opacity-100 disabled:opacity-0"
-                      >
-                        <Pencil className="h-3 w-3" />
-                      </button>
-                    )}
+                    {/* Opens the FULL-SCREEN editor (portal at the bottom of
+                        this file) — a bubble-sized textarea was unusable on
+                        mobile keyboards. */}
+                    <button
+                      onClick={() => { setEditingId(msg.id); setEditText(msg.content); }}
+                      disabled={loading}
+                      title={t("assistant.editMessage")}
+                      className="touch-reveal mt-1.5 flex h-6 w-6 items-center justify-center rounded-full text-muted-foreground/40 opacity-0 transition-all hover:bg-secondary hover:text-foreground group-hover:opacity-100 disabled:opacity-0"
+                    >
+                      <Pencil className="h-3 w-3" />
+                    </button>
                   </motion.div>
                 );
               }
@@ -3629,6 +3606,62 @@ try {
           {chatsPanel(() => setShowChats(false))}
         </div>
       </aside>
+
+      {/* Full-screen message editor — Gemini-style: the whole screen becomes
+          the field (text at the top, big area below); Save/Cancel sit in the
+          header so the soft keyboard can never cover them, and confirming
+          returns straight to the chat (saveEdit branches the conversation).
+          Portaled to <body>: the page wrapper's stacking context means no
+          in-page z-index can beat the root Liquid Glass bar — z-[80] at body
+          level covers it, giving the editor the ENTIRE screen. */}
+      {typeof document !== "undefined" && editingId !== null && createPortal(
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.15 }}
+          role="dialog"
+          aria-modal="true"
+          aria-label={t("assistant.editMessage")}
+          className="fixed inset-0 z-[80] flex flex-col bg-background"
+        >
+          <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border/60 px-4 pb-3 pt-[calc(env(safe-area-inset-top,0px)+0.75rem)] sm:px-6">
+            <button
+              onClick={() => { setEditingId(null); setEditText(""); }}
+              className="rounded-full border border-border px-4 py-2 text-sm text-muted-foreground transition-colors hover:bg-secondary"
+            >
+              {t("common.cancel")}
+            </button>
+            <span className="min-w-0 flex-1 truncate text-center text-sm font-medium text-foreground">
+              {t("assistant.editMessage")}
+            </span>
+            <button
+              onClick={() => { if (editingId) void saveEdit(editingId); }}
+              disabled={loading || !editText.trim()}
+              className="inline-flex items-center gap-1.5 rounded-full bg-foreground px-5 py-2 text-sm font-medium text-background transition-all hover:opacity-90 disabled:opacity-40"
+            >
+              <Check className="h-4 w-4" /> {t("common.save")}
+            </button>
+          </div>
+          <textarea
+            value={editText}
+            onChange={(e) => setEditText(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                if (editingId) void saveEdit(editingId);
+              }
+              if (e.key === "Escape") { setEditingId(null); setEditText(""); }
+            }}
+            autoFocus
+            spellCheck
+            className="noor-chat-font min-h-0 flex-1 resize-none overscroll-contain bg-transparent px-4 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] pt-4 text-base leading-relaxed text-foreground outline-none sm:px-6 sm:pb-4 sm:text-[15px]"
+          />
+          <div className="hidden shrink-0 border-t border-border/60 px-6 pb-3 pt-2 text-center text-[11px] text-muted-foreground/60 sm:block">
+            Enter to save · Esc to cancel
+          </div>
+        </motion.div>,
+        document.body
+      )}
 
       {/* Mobile chats drawer — mirrors the Reminders sheet. Portaled to
           <body>: the page wrapper carries framer's will-change (a stacking

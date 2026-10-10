@@ -1647,12 +1647,14 @@ import {
   ACTION_BLOCK_RE,
   stripActionRemnants,
   sanitizeStoredReply,
+  looksLikeReasoning,
 } from "./action-clean";
 export {
   ACTION_MARKER_VARIANTS,
   ACTION_MARKER_RE,
   ACTION_BLOCK_RE,
   stripActionRemnants,
+  looksLikeReasoning,
   sanitizeStoredReply,
 };
 

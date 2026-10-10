@@ -41,6 +41,37 @@ export function stripActionRemnants(text: string): string {
   return out.replace(/\n{3,}/g, "\n\n").trim();
 }
 
+/**
+ * Detects a reply that is actually the model's INTERNAL REASONING dumped
+ * into the visible content (happens on fallback endpoints that don't
+ * separate reasoning_content when the thinking flag mismatches). If such a
+ * reply reaches the thread, the user sees 15k chars of raw monologue cut
+ * mid-sentence — the "scrap" complaint. Checked on the FIRST line only:
+ * every opener below is something a real assistant reply never starts with.
+ */
+const REASONING_OPENER_RE = new RegExp(
+  String.raw`^\s*(?:` +
+    // "The user says \"...\". This seems like..."
+    String.raw`the user (?:says|wants|asked|is asking|meant|needs|is trying)` +
+    // "Here's a thinking process:\n\n1. ..."
+    String.raw`|here(?:'|’)s (?:a|my|the) (?:thinking|reasoning|thought) process` +
+    // "Let me look at the situation / check the context / analyze the data"
+    String.raw`|let me (?:look at|check|analyze|review|examine) (?:the|this|these) (?:situation|context|data|stats|numbers|conversation|history|request)` +
+    // "Analysis: ..." / "Reasoning: ..." as an opener
+    String.raw`|(?:thinking|reasoning|internal analysis):` +
+    String.raw`)`,
+  "i"
+);
+
+/** True when a reply's first line marks it as leaked internal reasoning. */
+export function looksLikeReasoning(text: string): boolean {
+  if (!text) return false;
+  const nl = text.indexOf("\n");
+  const firstLine = (nl === -1 ? text.slice(0, 300) : text.slice(0, nl)).trim();
+  if (!firstLine) return false;
+  return REASONING_OPENER_RE.test(firstLine);
+}
+
 // ============================================================
 // Pet flavor-text emotes ("Blob waves a tiny paw.", "Ears perk up at
 // the mention of friends").
@@ -103,6 +134,10 @@ export function stripPetFlavor(text: string): string {
  */
 export function sanitizeStoredReply(text: string): string {
   if (!text) return text;
+  // Leaked internal reasoning saved before the stream classifier existed:
+  // the whole reply IS the monologue — drop it (same contract as pure
+  // flavor: returns "").
+  if (looksLikeReasoning(text)) return "";
   let out = text;
   if (ACTION_MARKER_RE.test(out)) out = stripActionRemnants(out);
   const flavor = stripPetFlavor(out);

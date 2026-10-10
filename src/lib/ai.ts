@@ -15,6 +15,7 @@ import {
   tryExecuteJsonAction,
   processActionReply,
   stripActionRemnants,
+  looksLikeReasoning,
   ACTION_MARKER_RE,
 } from "./ai-actions";
 import { MODEL_PROFILES, ModelProfile, DEFAULT_MODEL } from "./ai-models";
@@ -1541,7 +1542,12 @@ async function callLLM(
         } catch { /* malformed header - ignore */ }
         const data = (await res.json()) as { content?: string };
         if (data && typeof data.content === "string" && data.content.trim()) {
-          return data.content.trim();
+          const txt = data.content.trim();
+          // Leaked internal reasoning (fallback endpoint without field
+          // separation): never hand the monologue to the user — treat the
+          // attempt as failed so the next model (or the offline engine)
+          // answers instead.
+          if (!looksLikeReasoning(txt)) return txt;
         }
       }
     } catch (e) {

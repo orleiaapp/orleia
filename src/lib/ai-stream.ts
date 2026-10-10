@@ -40,6 +40,7 @@ import {
   parseActionPayload,
   processActionReply,
   stripActionRemnants,
+  looksLikeReasoning,
   ACTION_MARKER_VARIANTS,
 } from "./ai-actions";
 
@@ -259,7 +260,26 @@ async function streamLLM(
     const onThinking = opts?.onThinking;
     let inThink = false; // inside an inline <think> block
     let wbuf = "";       // held-back text (may end with a partial tag)
+    // ---- Leaked-reasoning classifier (first content line) ----
+    // Fallback endpoints can dump the model's INTERNAL monologue into
+    // `content` instead of `reasoning_content` ("The user says ... Let me
+    // look at the situation ..."). Held until the first line arrives: if it
+    // opens like reasoning, the entire content stream goes to onThinking and
+    // never reaches the thread as a reply (an empty reply then falls back to
+    // the offline engine) — instead of 15k chars of raw scrap cut mid-sentence.
+    let openerHeld = true;
+    let contentIsReasoning = false;
     const flushHeld = () => {
+      if (openerHeld && wbuf) {
+        openerHeld = false;
+        if (looksLikeReasoning(wbuf)) {
+          contentIsReasoning = true;
+          onThinking?.(wbuf);
+          wbuf = "";
+          return;
+        }
+        // Real content — fall through to the normal flush below.
+      }
       if (!wbuf) return;
       if (inThink) onThinking?.(wbuf);
       else { full += wbuf; onToken(wbuf); }
@@ -267,7 +287,21 @@ async function streamLLM(
     };
     // Route one content delta through the <think> state machine.
     const routeContent = (delta: string) => {
+      if (contentIsReasoning) { onThinking?.(delta); return; }
       wbuf += delta;
+      if (openerHeld) {
+        const nl = wbuf.indexOf("\n");
+        if (nl === -1 && wbuf.length < 160) return; // hold for the first line
+        openerHeld = false;
+        const firstLine = (nl === -1 ? wbuf : wbuf.slice(0, nl)).trim();
+        if (looksLikeReasoning(firstLine)) {
+          contentIsReasoning = true;
+          onThinking?.(wbuf);
+          wbuf = "";
+          return;
+        }
+        // Real content — fall through to the tag/emission loop below.
+      }
       for (;;) {
         if (inThink) {
           const close = wbuf.indexOf("</think>");
@@ -331,7 +365,15 @@ async function streamLLM(
     // provider says finish_reason=length, ask ONE continuation round that
     // picks up exactly where the text stopped. Deltas flow through the same
     // onToken, so the action interceptor keeps working across the seam.
-    if (!isContinuation && finishReason === "length" && full.trim() && !signal?.aborted) {
+    // NEVER continue leaked reasoning (see classifier above): extending a
+    // monologue with "continue" just produces a longer monologue.
+    if (
+      !isContinuation &&
+      finishReason === "length" &&
+      full.trim() &&
+      !looksLikeReasoning(full) &&
+      !signal?.aborted
+    ) {
       const partial = full;
       const cont = await streamLLM(
         "Continue exactly where your previous reply stopped. Output only the continuation text - no preamble, no repetition, no closing notes.",

@@ -2,7 +2,7 @@
 // and duplicate handling. Run with: npx tsx scripts-test/noor-fixes.test.ts
 import { detectAction } from "../src/lib/ai-actions";
 import { processActionReply } from "../src/lib/ai-actions";
-import { stripActionRemnants, sanitizeStoredReply } from "../src/lib/ai-actions";
+import { stripActionRemnants, sanitizeStoredReply, looksLikeReasoning } from "../src/lib/ai-actions";
 import { isLiveQuery } from "../src/lib/web-search";
 
 let failures = 0;
@@ -96,6 +96,27 @@ check(
   !!typoExec && /Typo marker task/.test(typoExec) && !/LEVIS_ACTION/.test(typoExec),
   typoExec || "(null)"
 );
+
+console.log("== 7. Leaked-reasoning classifier (real incident strings) ==");
+// Captured from a production reply where a fallback endpoint dumped its
+// internal monologue into `content` (15,421 chars, cut mid-sentence).
+const incidentHead =
+  'The user says "Actually make it 43 — edited on mobile full screen". This seems like they want me to set something to 43. But what?';
+check("incident monologue opener is detected", looksLikeReasoning(incidentHead));
+check(
+  "lightning-style reasoning opener is detected",
+  looksLikeReasoning("Here's a thinking process:\n\n1. **Analyze User Input:** - User says: ...")
+);
+check("'Let me look at the situation' opener is detected", looksLikeReasoning("Let me look at the situation first."));
+check("normal greeting is NOT reasoning", !looksLikeReasoning("Good morning! Welcome back. Fresh start to your day! How can I help?"));
+check("action confirmation is NOT reasoning", !looksLikeReasoning('📓 Created a new document: **Test value reminder**.'));
+check("numbered list reply is NOT reasoning", !looksLikeReasoning("1. **Morning Stretching** — daily at 09:00"));
+check("casual 'Let me think' opener is NOT flagged", !looksLikeReasoning("Let me think about that for a sec..."));
+check(
+  "stored monologue reply is emptied on load",
+  sanitizeStoredReply(incidentHead + "\n\n...more monologue...") === ""
+);
+check("healthy stored reply survives the reasoning check", sanitizeStoredReply("Sure! I created the habit.") === "Sure! I created the habit.");
 
 console.log(failures === 0 ? "\nALL CHECKS PASSED" : `\n${failures} CHECK(S) FAILED`);
 process.exit(failures === 0 ? 0 : 1);
