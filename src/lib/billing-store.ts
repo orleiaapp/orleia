@@ -26,8 +26,15 @@ const USAGE_PREFIX = "billing/usage/";
 
 // ---------------- Supabase (primary) ----------------
 
-const SB_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || "";
-const SB_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
+// Strip stray literal "\n" sequences from env values (same guard as
+// push-store): the production NEXT_PUBLIC_SUPABASE_URL had one glued on,
+// which 404'd every Supabase call and silently dropped billing to the
+// Blob fallback - which is suspended, so codes/licenses vanished.
+const SB_URL = (process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || "")
+  .replace(/\\n|\r/g, "")
+  .trim();
+const SB_SERVICE_KEY = (process.env.SUPABASE_SERVICE_ROLE_KEY || "").replace(/\\n|\r/g, "").trim();
+
 
 function sbConfigured(): boolean {
   return Boolean(SB_URL && SB_SERVICE_KEY);
