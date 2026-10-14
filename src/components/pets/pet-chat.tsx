@@ -22,7 +22,7 @@ import {
   agentTurns,
   ensureGroupConversation,
   ensurePetConversation,
-  petPersonaPrefix,
+  petSystemPrompt,
 } from "@/lib/pet-agent";
 import { assignScoutJob, kickScoutRunner } from "@/lib/scout-jobs";
 import { stripPetFlavor } from "@/lib/action-clean";
@@ -333,25 +333,24 @@ export function PetChat({ agents, onChanged }: { agents: PetAgent[]; onChanged?:
         if (researched) continue;
       }
 
-      let prefix = petPersonaPrefix(agent);
-      if (isGroup) {
-        const others = agents.filter((a) => a.id !== agent.id).map((a) => a.name);
-        prefix +=
-          `\n\nGROUP CHAT: you are chatting in a team group thread with ` +
-          `${others.length ? others.join(", ") + " and " : ""}the user. ` +
-          `Reply ONLY as yourself ("${agent.name}") — never write lines as another agent. ` +
-          `Keep it to 1-3 sentences.` +
-          (turns.length > 1
-            ? ` The user addressed several teammates at once; the text below is YOUR part only — answer just that, do not cover the other parts.`
-            : ` The user can @mention a teammate to address them directly.`) +
-          `\n`;
-      }
-      const query = prefix + "\n\n---\nUser: " + clean;
+      // Persona lives in the SYSTEM prompt (systemOverride) - not glued
+      // onto the user's message. Noor's identity prompt used to win every
+      // time and pets reverted to canned, repetitive Noor-isms.
+      const query = clean;
+      const systemOverride = petSystemPrompt(agent, {
+        group: isGroup,
+        otherNames: isGroup ? agents.filter((a) => a.id !== agent.id).map((a) => a.name) : undefined,
+        turnNote:
+          isGroup && turns.length > 1
+            ? "The user addressed several teammates at once; the text above is YOUR part only — answer just that, do not cover the other parts."
+            : undefined,
+      });
 
       const proposals: ProposedAction[] = [];
       let acc = "";
       const response = await chatStream(query, history, streamModel, {
         signal: controller.signal,
+        systemOverride,
         // Pet replies are 1-3 sentences: a small budget caps worst-case
         // latency (measured ~2-3x faster to first token vs 4096).
         maxTokens: 700,

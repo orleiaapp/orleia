@@ -108,7 +108,14 @@ async function streamLLM(
   // Skills: user-authored standing instructions (local-only). Injected for
   // every Noor surface that streams through here (main chat, research).
   const skillsBlock = buildSkillsBlock();
-  const systemPrompt = `${model.systemPrompt}\n\nToday is ${getToday()}.\n\n${stats}${profileBlock}${noorBlock}${searchBlock}${usageBlock}${skillsBlock}${extraContext}${agentContext}`;
+  // systemOverride (pet chats): the surface supplies its OWN identity -
+  // Noor's prompt starts with "you are ALWAYS Noor. Never become anyone
+  // else", and a persona blob on the user message loses that fight every
+  // time (pets reverted to canned Noor-isms mid-conversation). Neutral
+  // blocks (date, stats, sources, usage) are kept either way.
+  const systemPrompt = opts?.systemOverride
+    ? `${opts.systemOverride}\n\nToday is ${getToday()}.\n\n${stats}${searchBlock}${extraContext}${agentContext}`
+    : `${model.systemPrompt}\n\nToday is ${getToday()}.\n\n${stats}${profileBlock}${noorBlock}${searchBlock}${usageBlock}${skillsBlock}${extraContext}${agentContext}`;
 
   // Never feed JSON-looking assistant replies back to the model.
   const history = conversationHistory
@@ -417,6 +424,14 @@ export interface StreamOpts {
   onThinking?: (delta: string) => void;
   signal?: AbortSignal;
   sources?: AISource[];
+  /**
+   * Replace the system prompt entirely (pet chats). Noor's prompt opens
+   * with "you are ALWAYS Noor. Never become anyone else" - a persona
+   * glued onto the user message loses that fight every time, which is how
+   * pets ended up reverting to canned Noor-isms mid-conversation. When
+   * set, only the neutral blocks (date, stats, sources) are kept.
+   */
+  systemOverride?: string;
   /** Confirm-chips mode: when set, proposed actions are NOT executed —
    *  the proposal is handed to the UI as a tappable confirmation and the
    *  raw block never reaches the visible text. Omit to auto-execute

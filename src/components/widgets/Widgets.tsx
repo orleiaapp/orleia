@@ -105,23 +105,32 @@ export function StatsWidget() {
     return streak;
   })();
 
+  // Each stat jumps to the tab it summarizes (habits, tasks, journal, notes).
   const stats = [
-    { label: t("dash.habitsToday"), value: `${completedToday}/${habits.length}`, icon: CheckCircle2 },
-    { label: t("dash.tasksToday"), value: `${todayDone}/${todayTasks.length}`, icon: Target },
-    { label: t("dash.journalStreak"), value: journalStreak > 0 ? `${journalStreak}d` : "-", icon: Flame },
-    { label: "Notes", value: String(data.notes.length), icon: FileText },
+    { label: t("dash.habitsToday"), value: `${completedToday}/${habits.length}`, icon: CheckCircle2, href: "/habits" },
+    { label: t("dash.tasksToday"), value: `${todayDone}/${todayTasks.length}`, icon: Target, href: "/tasks" },
+    { label: t("dash.journalStreak"), value: journalStreak > 0 ? `${journalStreak}d` : "-", icon: Flame, href: "/journal" },
+    { label: "Notes", value: String(data.notes.length), icon: FileText, href: "/documents" },
   ];
 
   return (
     <div className="grid grid-cols-2 gap-3">
       {stats.map((stat) => (
-        <div key={stat.label} className="card">
+        <Link
+          key={stat.label}
+          href={stat.href}
+          aria-label={`${stat.label}: ${stat.value} — open ${stat.href.slice(1)}`}
+          className="card card-hover group block cursor-pointer hover:border-foreground/25 dark:hover:border-foreground/40"
+        >
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-muted">
             <stat.icon className="h-5 w-5 text-primary-500" />
           </div>
           <p className="mt-3 text-2xl font-bold">{stat.value}</p>
-          <p className="text-sm text-muted-foreground mt-1">{stat.label}</p>
-        </div>
+          <p className="flex items-center gap-1 text-sm text-muted-foreground mt-1">
+            {stat.label}
+            <ArrowRight className="h-3 w-3 opacity-0 transition-opacity group-hover:opacity-60" />
+          </p>
+        </Link>
       ))}
     </div>
   );

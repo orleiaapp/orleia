@@ -86,7 +86,7 @@ import { shareText } from "@/lib/share";
 import ImageLoader from "@/components/ui/image-loading";
 import { MiniCamera, type CapturedPhoto } from "@/components/noor/MiniCamera";
 import { PawPrint } from "lucide-react";
-import { roster as petRoster, petPersonaPrefix, ensurePetConversation, roleHasJob, runRoleNow, resolveMention, agentTurns } from "@/lib/pet-agent";
+import { roster as petRoster, petSystemPrompt, ensurePetConversation, roleHasJob, runRoleNow, resolveMention, agentTurns } from "@/lib/pet-agent";
 import { stripPetFlavor } from "@/lib/action-clean";
 import { runResearchPipeline, wantsResearch } from "@/lib/research-run";
 import { jobByRole } from "@/lib/pet-jobs";
@@ -1561,12 +1561,15 @@ export default function AssistantPage() {
       setAttachments([]);
     }
 
-    // Pet chat: speak as the hired pet — persona prefix on the FINAL query
-    // (after attachment enrichment). Everything else (cap, actions, chips,
-    // sources) flows through the normal Noor path untouched.
+    // Pet chat: speak as the hired pet — the persona goes in the SYSTEM
+    // prompt (systemOverride), not glued onto the user's message: Noor's
+    // "you are ALWAYS Noor" identity prompt used to win every time and pets
+    // reverted to canned, repetitive replies. Everything else (cap, actions,
+    // chips, sources) flows through the normal Noor path untouched.
+    let petSystemOverride: string | undefined;
     if (activePetId) {
       const petAgentForTurn = petRoster().find((a) => a.id === activePetId);
-      if (petAgentForTurn) llmQuery = petPersonaPrefix(petAgentForTurn) + "\n\n---\nUser: " + llmQuery;
+      if (petAgentForTurn) petSystemOverride = petSystemPrompt(petAgentForTurn);
     }
 
     // SCOUT JOB DISPATCH: "assign: <topic>" in a scout's thread enqueues a
@@ -1660,16 +1663,17 @@ export default function AssistantPage() {
           continue;
         }
 
-        const q =
-          petPersonaPrefix(agent) +
-          `\n\nThe user addressed several teammates at once; the text below is YOUR part only - answer just that, do not cover the other parts.\n\n---\nUser: ` +
-          seg;
+        const q = seg;
         setStreamText("");
         try {
           let acc = "";
           const props: ProposedAction[] = [];
           const response = await chatStream(q, updatedMessages, selectedModel, {
             ...sendOpts,
+            systemOverride: petSystemPrompt(agent, {
+              turnNote:
+                "The user addressed several teammates at once; the text above is YOUR part only - answer just that, do not cover the other parts.",
+            }),
             signal: controller.signal,
             onToken: (delta) => {
               if (controller.signal.aborted) return;
@@ -1829,6 +1833,7 @@ try {
           usedModel,
           {
             ...sendOpts,
+            ...(petSystemOverride ? { systemOverride: petSystemOverride } : {}),
             signal: controller.signal,
             onToken: (delta) => {
               if (controller.signal.aborted) return; // deleted mid-stream

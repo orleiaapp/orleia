@@ -1454,6 +1454,14 @@ export interface ChatOpts {
   sources?: AISource[];
   /** Extra context appended to the system prompt. */
   extraSystem?: string;
+  /**
+   * Replace the system prompt entirely (pet chats). Noor's prompt opens
+   * with "you are ALWAYS Noor. Never become anyone else" - a persona
+   * glued onto the user message loses that fight every time, which is
+   * how pets ended up reverting to canned Noor-isms mid-conversation.
+   * When set, only the neutral blocks (date, stats, sources) are kept.
+   */
+  systemOverride?: string;
   /** Streaming callback for the model's internal reasoning (thinking tokens). Never part of the visible reply. */
   onThinking?: (delta: string) => void;
   /** Reply token-budget override (pet chats pass a small cap for snappy replies). */
@@ -1472,7 +1480,9 @@ async function callLLM(
   const searchBlock = buildSearchBlock(opts?.sources || []);
   const extraContext = opts?.extraSystem ? `\n\n${opts.extraSystem}` : "";
   const skillsBlock = buildSkillsBlock();
-  const systemPrompt = `${model.systemPrompt}\n\nToday is ${getToday()}.\n\n${stats}${profileBlock}${noorBlock}${searchBlock}${usageLine()}${skillsBlock}${extraContext}`;
+  const systemPrompt = opts?.systemOverride
+    ? `${opts.systemOverride}\n\nToday is ${getToday()}.\n\n${stats}${searchBlock}${extraContext}`
+    : `${model.systemPrompt}\n\nToday is ${getToday()}.\n\n${stats}${profileBlock}${noorBlock}${searchBlock}${usageLine()}${skillsBlock}${extraContext}`;
   // Never feed JSON-looking assistant replies back to the model - it should
   // always reply in natural language.
   const history = conversationHistory
