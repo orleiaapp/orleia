@@ -1788,13 +1788,14 @@ export default function AssistantPage() {
     if (attachments.length === 0 && isImageRequest(queryText)) {
       setGeneratingImage(true);
       const prompt = cleanImagePrompt(queryText);
+      let imageFailMsg: AIMessage | null = null;
       try {
         const res = await fetch("/api/image", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ prompt }),
         });
-        const data = (await res.json()) as { imageDataUrl?: string };
+        const data = (await res.json()) as { imageDataUrl?: string; error?: string };
         if (res.ok && data.imageDataUrl) {
           const imgMsg: AIMessage = {
             id: generateId(),
@@ -1811,8 +1812,33 @@ export default function AssistantPage() {
           refresh();
           return;
         }
-      } catch {
-        // Image generation failed - fall through to a normal chat reply.
+        imageFailMsg = {
+          id: generateId(),
+          role: "assistant",
+          content: data.error
+            ? `I couldn't generate that image - ${data.error}.`
+            : "I couldn't generate that image right now. Please try again in a moment.",
+          timestamp: new Date().toISOString(),
+          model: selectedModel,
+        };
+      } catch (e) {
+        // Network/parse failure - tell the user rather than silently replying as text.
+        const m = e instanceof Error ? e.message : "";
+        imageFailMsg = {
+          id: generateId(),
+          role: "assistant",
+          content: `I couldn't reach the image service${m ? ` (${m})` : ""}. Please try again in a moment.`,
+          timestamp: new Date().toISOString(),
+          model: selectedModel,
+        };
+      }
+      if (imageFailMsg) {
+        storage.addMessage(currentConvId, imageFailMsg);
+        setMessages((prev) => [...prev, imageFailMsg as AIMessage]);
+        setLoading(false);
+        setGeneratingImage(false);
+        refresh();
+        return;
       }
       setGeneratingImage(false);
     }

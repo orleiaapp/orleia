@@ -39,6 +39,13 @@ const FALLBACKS: Record<string, string> = {
   "moonshotai/kimi-k2.6": "nvidia/nemotron-3-ultra-550b-a55b",
   "moonshotai/kimi-k3": "nvidia/nemotron-3-ultra-550b-a55b",
   "z-ai/glm-5.3": "nvidia/nemotron-3-ultra-550b-a55b",
+  // Vision chain (meta/llama-3.2-11b-vision-instruct): without this entry the
+  // first vision stall dead-ended every image analysis ("could not be
+  // described") because callChat only walks models present in this map.
+  // Both siblings are multimodal vision-capable endpoints on the same key.
+  "meta/llama-3.2-11b-vision-instruct": "meta/llama-3.2-90b-vision-instruct",
+  "meta/llama-3.2-90b-vision-instruct": "qwen/qwen2-vl-72b-instruct",
+  "qwen/qwen2-vl-72b-instruct": "meta/llama-3.2-11b-vision-instruct",
 };
 
 // Per-model thinking mode, measured live against the endpoint:

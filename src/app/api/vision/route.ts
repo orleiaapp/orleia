@@ -33,14 +33,14 @@ export async function POST(req: Request) {
             {
               type: "text",
               text: hint
-                ? `Describe this image in 1-2 concise sentences. Be literal and precise - describe shapes, colors, and text exactly as they appear; never guess, interpret, or invent letters/symbols/details you cannot clearly see. Focus on: ${hint}`
-                : "Describe this image in 1-2 concise sentences. Be literal and precise - describe shapes, colors, and text exactly as they appear; never guess, interpret, or invent letters/symbols/details you cannot clearly see. If something is unclear, say what you see plainly.",
+                ? `Describe this image precisely - shapes, colors, and any text exactly as they appear. Then, if it contains readable text, a diagram, a table, or a problem/question, go beyond literal description and actually address it: transcribe legible text, and if it is a question, math problem, or assignment, work through it and give the answer. Never invent letters, symbols, or details you cannot clearly see - if something is illegible, say so plainly. Focus on: ${hint}`
+                : `Describe this image precisely - shapes, colors, and any text exactly as they appear. Then, if it contains readable text, a diagram, a table, or a problem/question, go beyond literal description and actually address it: transcribe legible text, and if it is a question, math problem, or assignment, work through it and give the answer. Never invent letters, symbols, or details you cannot clearly see - if something is illegible, say what you see plainly.`,
             },
             { type: "image_url", image_url: { url: imageDataUrl } },
           ],
         },
       ],
-      max_tokens: 220,
+      max_tokens: 800,
       timeoutMs: 50_000,
     });
     if (!call.ok || !call.response) return NextResponse.json({ error: "vision failed" }, { status: 502 });
