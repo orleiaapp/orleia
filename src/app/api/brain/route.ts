@@ -70,7 +70,7 @@ const BRIEFING_PROMPT = `You are Noor, the warm, wise AI companion inside Orleia
 Rules:
 - Return ONLY a JSON object: {"briefing":"...","chips":[{"label":"...","href":"..."}]}
 - briefing: 2-3 warm, human sentences in a mentor voice. Reference real specifics from the SITUATION (names of habits/tasks, streaks at risk, connections). Never invent numbers.
-- chips: exactly 2-3 short action suggestions (max 28 chars each) with href one of /tasks, /habits, /journal, /documents, /noor.
+- chips: exactly 2-3 short action suggestions (max 28 chars each) with href one of /tasks, /habits, /journal, /notes, /noor.
 - Your entire response must be the JSON object and nothing else. Never describe the instructions, never narrate your process, no markdown, no code fences.`;
 
 function parseBriefing(raw: string): { briefing: string; chips: { label: string; href: string }[] } | null {

@@ -110,7 +110,7 @@ export function StatsWidget() {
     { label: t("dash.habitsToday"), value: `${completedToday}/${habits.length}`, icon: CheckCircle2, href: "/habits" },
     { label: t("dash.tasksToday"), value: `${todayDone}/${todayTasks.length}`, icon: Target, href: "/tasks" },
     { label: t("dash.journalStreak"), value: journalStreak > 0 ? `${journalStreak}d` : "-", icon: Flame, href: "/journal" },
-    { label: "Notes", value: String(data.notes.length), icon: FileText, href: "/documents" },
+    { label: "Notes", value: String(data.notes.length), icon: FileText, href: "/notes" },
   ];
 
   return (
@@ -263,18 +263,18 @@ export function NotesWidget() {
           <FileText className="h-4 w-4 text-muted-foreground" />
           <h3 className="text-sm font-semibold">Recent Notes</h3>
         </div>
-        <Link href="/documents" className="text-xs text-primary-500 hover:text-primary-600 flex items-center gap-1">
+        <Link href="/notes" className="text-xs text-primary-500 hover:text-primary-600 flex items-center gap-1">
           {t("dash.viewAll")} <ArrowRight className="h-3 w-3" />
         </Link>
       </div>
       {notes.length === 0 ? (
         <p className="text-xs text-muted-foreground py-3 text-center">
-          No notes yet — <Link href="/documents" className="text-primary-500 hover:underline">create one</Link>
+          No notes yet — <Link href="/notes" className="text-primary-500 hover:underline">create one</Link>
         </p>
       ) : (
         <div className="space-y-1.5">
           {notes.map((note) => (
-            <Link key={note.id} href="/documents" className="flex items-start gap-2.5 rounded-lg p-2 hover:bg-secondary transition-colors">
+            <Link key={note.id} href="/notes" className="flex items-start gap-2.5 rounded-lg p-2 hover:bg-secondary transition-colors">
               <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-secondary border border-border/60">
                 <FileText className="h-3.5 w-3.5 text-muted-foreground" />
               </div>

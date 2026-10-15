@@ -58,7 +58,7 @@ export interface SituationModel {
 }
 
 const kindHref: Record<string, string> = {
-  note: "/documents",
+  note: "/notes",
   task: "/tasks",
   habit: "/habits",
   journal: "/journal",

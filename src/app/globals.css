@@ -258,6 +258,59 @@ html[data-theme-mode="constellation"] .theme-sky {
   display: block;
 }
 
+/* Frutiger Aero theme (BETA) — glossy sky-and-grass, Vista-era look.
+   Light theme: pale sky canvas, white glass cards, azure primary.
+   Pure CSS, no canvas and no animation: paints instantly and is
+   reduced-motion safe by construction. */
+html[data-theme-mode="aero"] {
+  --background: 224 241 254;
+  --foreground: 10 45 80;
+  --card: 255 255 255;
+  --card-foreground: 10 45 80;
+  --popover: 255 255 255;
+  --popover-foreground: 10 45 80;
+  --primary: 20 134 232;
+  --primary-foreground: 255 255 255;
+  --secondary: 236 246 255;
+  --secondary-foreground: 10 45 80;
+  --muted: 231 243 254;
+  --muted-foreground: 62 102 138;
+  --accent: 223 246 224;
+  --accent-foreground: 16 88 42;
+  --border: 176 217 250;
+  --input: 176 217 250;
+  --ring: 20 134 232;
+  --sidebar: 232 244 255;
+  --sidebar-hover: 214 236 253;
+}
+
+/* aero backdrop: sky gradient, sun, clouds and a distant grass hill —
+   same fixed z-0 slot as the Constellation starfield (content cards
+   sit at z-50 and always paint above it). */
+html[data-theme-mode="aero"] body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image:
+    radial-gradient(circle at 86% 9%, rgb(255 246 180 / 0.85) 0%, rgb(255 246 180 / 0) 26%),
+    radial-gradient(ellipse 9% 5% at 18% 20%, rgb(255 255 255 / 0.95) 0%, rgb(255 255 255 / 0) 70%),
+    radial-gradient(ellipse 7% 4% at 27% 15%, rgb(255 255 255 / 0.85) 0%, rgb(255 255 255 / 0) 70%),
+    radial-gradient(ellipse 10% 5% at 72% 13%, rgb(255 255 255 / 0.8) 0%, rgb(255 255 255 / 0) 70%),
+    radial-gradient(ellipse 6% 3.5% at 82% 22%, rgb(255 255 255 / 0.65) 0%, rgb(255 255 255 / 0) 70%),
+    radial-gradient(ellipse 5% 3% at 45% 9%, rgb(255 255 255 / 0.6) 0%, rgb(255 255 255 / 0) 70%),
+    radial-gradient(120% 46% at 50% 114%, rgb(104 190 92 / 0.45) 0%, rgb(104 190 92 / 0) 58%),
+    linear-gradient(to bottom, #3f9fe8 0%, #8ccdf5 40%, #d6eefc 76%, #e8f5ff 100%);
+}
+
+/* Signature aero glass sheen on cards. */
+html[data-theme-mode="aero"] .card {
+  background-image: linear-gradient(to bottom, rgb(255 255 255 / 0.92), rgb(255 255 255 / 0.68));
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.9), 0 8px 24px rgb(31 97 158 / 0.12);
+  border-color: rgb(176 217 250);
+}
+
 
 
   body {

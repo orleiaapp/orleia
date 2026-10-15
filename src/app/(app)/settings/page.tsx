@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useRef, useMemo, type ReactNode } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { isDarkTheme } from "@/lib/theme-mode";
@@ -572,70 +573,21 @@ export default function SettingsPage() {
 
         {/* Clear Confirmation Modal */}
         {showConfirm && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="fixed inset-0 z-[90] flex items-center justify-center bg-black/70 backdrop-blur-md p-4"
-            onClick={() => setShowConfirm(false)}
-          >
-            <motion.div
-              initial={{ scale: 0.95 }}
-              animate={{ scale: 1 }}
-              className="w-full max-w-sm rounded-2xl bg-card border border-border shadow-2xl p-6 text-center"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="mb-4 flex justify-center">
-                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-muted">
-                  <AlertTriangle className="h-7 w-7 text-muted-foreground" />
-                </div>
-              </div>
-              <h3 className="text-lg font-bold mb-2">
-                {t("settings.clearTitle")}
-              </h3>
-              <p className="text-sm text-muted-foreground mb-4">
-                {t("settings.clearDesc")}
-              </p>
-              {isPasswordSet() && (
-                <div className="mb-4">
-                  <input
-                    type="password"
-                    value={clearPassword}
-                    onChange={(e) => {
-                      setClearPassword(e.target.value);
-                      setClearPasswordError("");
-                    }}
-                    placeholder="Enter your password to confirm"
-                    className="w-full rounded-xl border border-border bg-background px-4 py-2.5 text-sm outline-none focus:ring-1 focus:ring-primary-500/40"
-                    autoFocus
-                  />
-                  {clearPasswordError && (
-                    <p className="mt-1.5 text-xs text-red-400">
-                      {clearPasswordError}
-                    </p>
-                  )}
-                </div>
-              )}
-              <div className="flex gap-3">
-                <button
-                  onClick={() => {
-                    setShowConfirm(false);
-                    setClearPassword("");
-                    setClearPasswordError("");
-                  }}
-                  className="btn-secondary flex-1"
-                >
-                  {t("common.cancel")}
-                </button>
-                <button
-                  onClick={handleClear}
-                  disabled={clearing}
-                  className="flex-1 rounded-xl bg-zinc-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-zinc-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {t("settings.deleteEverything")}
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
+          <ClearConfirm
+            clearing={clearing}
+            password={clearPassword}
+            onPassword={(v) => {
+              setClearPassword(v);
+              setClearPasswordError("");
+            }}
+            error={clearPasswordError}
+            onClear={handleClear}
+            onClose={() => {
+              setShowConfirm(false);
+              setClearPassword("");
+              setClearPasswordError("");
+            }}
+          />
         )}
 
         {showSwitch && (
@@ -721,8 +673,8 @@ export default function SettingsPage() {
               {/* Grid, not a flex row: four labelled buttons overflow the
                   card on narrow screens and the last one ("Constellation")
                   stuck out past the edge. 2 cols on mobile, 4 on sm+. */}
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                {(["light", "dark", "system", "constellation"] as const).map((mode) => (
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
+                {(["light", "dark", "system", "constellation", "aero"] as const).map((mode) => (
                   <button
                     key={mode}
                     onClick={() => {
@@ -740,6 +692,11 @@ export default function SettingsPage() {
                   >
                     <Monitor className="h-4 w-4" />
                     {t("settings." + mode)}
+                    {mode === "aero" && (
+                      <span className="rounded-md bg-primary-500/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary-500">
+                        Beta
+                      </span>
+                    )}
                   </button>
                 ))}
               </div>
@@ -1362,70 +1319,21 @@ export default function SettingsPage() {
       {/* ---- ABOUT (legacy, now merged above) ---- */}
       {/* ---- Modals ---- */}
       {showConfirm && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="fixed inset-0 z-[90] flex items-center justify-center bg-black/70 backdrop-blur-md p-4"
-          onClick={() => setShowConfirm(false)}
-        >
-          <motion.div
-            initial={{ scale: 0.95 }}
-            animate={{ scale: 1 }}
-            className="w-full max-w-sm rounded-2xl bg-card border border-border shadow-2xl p-6 text-center"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="mb-4 flex justify-center">
-              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-muted">
-                <AlertTriangle className="h-7 w-7 text-muted-foreground" />
-              </div>
-            </div>
-            <h3 className="text-lg font-bold mb-2">
-              {t("settings.clearTitle")}
-            </h3>
-            <p className="text-sm text-muted-foreground mb-4">
-              {t("settings.clearDesc")}
-            </p>
-            {isPasswordSet() && (
-              <div className="mb-4">
-                <input
-                  type="password"
-                  value={clearPassword}
-                  onChange={(e) => {
-                    setClearPassword(e.target.value);
-                    setClearPasswordError("");
-                  }}
-                  placeholder="Enter your password to confirm"
-                  className="w-full rounded-xl border border-border bg-background px-4 py-2.5 text-sm outline-none focus:ring-1 focus:ring-primary-500/40"
-                  autoFocus
-                />
-                {clearPasswordError && (
-                  <p className="mt-1.5 text-xs text-red-400">
-                    {clearPasswordError}
-                  </p>
-                )}
-              </div>
-            )}
-            <div className="flex gap-3">
-              <button
-                onClick={() => {
-                  setShowConfirm(false);
-                  setClearPassword("");
-                  setClearPasswordError("");
-                }}
-                className="btn-secondary flex-1"
-              >
-                {t("common.cancel")}
-              </button>
-              <button
-                onClick={handleClear}
-                disabled={clearing}
-                className="flex-1 rounded-xl bg-zinc-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-zinc-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {t("settings.deleteEverything")}
-              </button>
-            </div>
-          </motion.div>
-        </motion.div>
+        <ClearConfirm
+          clearing={clearing}
+          password={clearPassword}
+          onPassword={(v) => {
+            setClearPassword(v);
+            setClearPasswordError("");
+          }}
+          error={clearPasswordError}
+          onClear={handleClear}
+          onClose={() => {
+            setShowConfirm(false);
+            setClearPassword("");
+            setClearPasswordError("");
+          }}
+        />
       )}
 
       {showSwitch && (
@@ -1442,6 +1350,154 @@ export default function SettingsPage() {
       )}
 
     </div>
+  );
+}
+
+
+/* ------------------------------------------------------------------ */
+/* Clear-all confirmation.                                              */
+/*  - Mobile: bottom sheet up from the bottom (WidgetCatalog pattern):  */
+/*    grabber, swipe-down dismiss, slide-up/down animations.            */
+/*  - Desktop (>=1024px): centered popup, pop in/out (same CSS media    */
+/*    query as the sheet classes, so motion always matches              */
+/*    presentation).                                                    */
+/*  - Warning styling: red alert tile + red-tinted border, red grabber, */
+/*    red proceed button.                                               */
+/* ------------------------------------------------------------------ */
+function ClearConfirm({
+  clearing,
+  password,
+  onPassword,
+  error,
+  onClear,
+  onClose,
+}: {
+  clearing: boolean;
+  password: string;
+  onPassword: (value: string) => void;
+  error: string;
+  onClear: () => void;
+  onClose: () => void;
+}) {
+  const { t } = useI18n();
+  const [exiting, setExiting] = useState(false);
+  const sheetRef = useRef<HTMLDivElement>(null);
+  const dragStart = useRef<number | null>(null);
+
+  /* Slide-down exit: play once, then unmount (WidgetCatalog pattern).
+     Destructive op in flight? Ignore dismissal so the sheet stays. */
+  const dismiss = useCallback(() => {
+    if (clearing) return;
+    setExiting((x) => {
+      if (x) return x;
+      window.setTimeout(onClose, 290);
+      return true;
+    });
+  }, [onClose, clearing]);
+
+  /* Drag-to-dismiss: grabber zone ONLY (mobile). */
+  const onTouchStart = useCallback((e: React.TouchEvent) => {
+    dragStart.current = e.touches[0].clientY;
+  }, []);
+
+  const onTouchMove = useCallback((e: React.TouchEvent) => {
+    if (dragStart.current == null || !sheetRef.current) return;
+    const dy = Math.max(0, e.touches[0].clientY - dragStart.current);
+    sheetRef.current.style.transition = "none";
+    sheetRef.current.style.transform = `translateY(${dy}px)`;
+  }, []);
+
+  const onTouchEnd = useCallback((e: React.TouchEvent) => {
+    if (dragStart.current == null || !sheetRef.current) return;
+    const dy = e.changedTouches[0].clientY - dragStart.current;
+    dragStart.current = null;
+    const el = sheetRef.current;
+    if (dy > 80) {
+      el.style.transition = "transform .28s cubic-bezier(.32,.72,0,1)";
+      el.style.transform = "translateY(110%)";
+      window.setTimeout(onClose, 260);
+    } else {
+      el.style.transition = "transform .34s cubic-bezier(.32,.72,0,1)";
+      el.style.transform = "translateY(0)";
+    }
+  }, [onClose]);
+
+  if (typeof document === "undefined") return null;
+
+  return createPortal(
+    <div
+      role="alertdialog"
+      aria-modal="true"
+      aria-labelledby="orleia-clear-title"
+      onClick={dismiss}
+      className={cn(
+        "fixed inset-0 z-[90] flex items-end justify-center bg-black/70 backdrop-blur-md lg:items-center",
+        exiting ? "orleia-backdrop-out" : "orleia-sheet-backdrop"
+      )}
+    >
+      <div
+        ref={sheetRef}
+        onClick={(e) => e.stopPropagation()}
+        className={cn(
+          "max-h-[86dvh] w-full sm:max-w-sm overflow-y-auto overscroll-contain rounded-t-3xl border border-red-500/30 bg-card shadow-2xl lg:rounded-2xl",
+          exiting ? "orleia-sheet-out" : "orleia-sheet"
+        )}
+      >
+        {/* Grabber = swipe-down dismiss zone on mobile. */}
+        <div
+          onTouchStart={onTouchStart}
+          onTouchMove={onTouchMove}
+          onTouchEnd={onTouchEnd}
+          className="shrink-0 touch-none lg:touch-auto"
+        >
+          <div className="pt-2.5 lg:hidden">
+            <div className="mx-auto h-1.5 w-10 rounded-full bg-red-500/60" />
+          </div>
+        </div>
+
+        <div className="px-6 pt-3 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))] text-center lg:pt-6 lg:pb-6">
+          <div className="mb-4 flex justify-center">
+            <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-red-500/25 bg-red-500/10">
+              <AlertTriangle className="h-7 w-7 text-red-500" />
+            </div>
+          </div>
+          <h3 id="orleia-clear-title" className="text-lg font-bold mb-2">
+            {t("settings.clearTitle")}
+          </h3>
+          <p className="text-sm text-muted-foreground mb-4">
+            {t("settings.clearDesc")}
+          </p>
+          {isPasswordSet() && (
+            <div className="mb-4">
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => onPassword(e.target.value)}
+                placeholder="Enter your password to confirm"
+                className="w-full rounded-xl border border-border bg-background px-4 py-2.5 text-sm outline-none focus:ring-1 focus:ring-red-500/40"
+                autoFocus
+              />
+              {error && (
+                <p className="mt-1.5 text-xs text-red-400">{error}</p>
+              )}
+            </div>
+          )}
+          <div className="flex gap-3">
+            <button onClick={onClose} className="btn-secondary flex-1">
+              {t("common.cancel")}
+            </button>
+            <button
+              onClick={onClear}
+              disabled={clearing}
+              className="flex-1 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-red-500 active:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {t("settings.deleteEverything")}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>,
+    document.body
   );
 }
 
