@@ -9,7 +9,7 @@
 // ============================================================
 
 import { useEffect, useState, useCallback } from "react";
-import { CreditCard, Check, Sparkles, ExternalLink, Loader2 } from "lucide-react";
+import { CreditCard, Check, Sparkles, ExternalLink, Loader2, Ticket } from "lucide-react";
 import { getDeviceId } from "@/lib/device-id";
 import { PAID_PLANS, NOOR_DAILY_LIMIT, fmtPrice, type Tier } from "@/lib/plans";
 import { cn } from "@/lib/utils";
@@ -33,6 +33,9 @@ export function BillingPanel() {
   const [busyTier, setBusyTier] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [confirmingCancel, setConfirmingCancel] = useState(false);
+  const [codeInput, setCodeInput] = useState("");
+  const [redeeming, setRedeeming] = useState(false);
+  const [redeemMsg, setRedeemMsg] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
   const deviceId = getDeviceId();
 
   const load = useCallback(async () => {
@@ -101,6 +104,34 @@ export function BillingPanel() {
       setError("Could not reach the billing service.");
     } finally {
       setBusyTier(null);
+    }
+  };
+
+  const redeemCode = async () => {
+    const raw = codeInput.trim();
+    if (!raw) return;
+    setRedeeming(true);
+    setRedeemMsg(null);
+    try {
+      const res = await fetch("/api/billing/redeem", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: raw, deviceId }),
+      });
+      const data = (await res.json()) as { ok?: boolean; tier?: string; periodEnd?: string; error?: string };
+      if (res.ok && data.ok) {
+        const until = data.periodEnd ? new Date(data.periodEnd).toLocaleDateString() : "";
+        const name = (data.tier || "").charAt(0).toUpperCase() + (data.tier || "").slice(1);
+        setRedeemMsg({ kind: "ok", text: `🎉 Orleia ${name} is now active on this device${until ? ` until ${until}` : ""}.` });
+        setCodeInput("");
+        await load();
+      } else {
+        setRedeemMsg({ kind: "err", text: data.error || "Could not redeem the code." });
+      }
+    } catch {
+      setRedeemMsg({ kind: "err", text: "Could not reach the billing service." });
+    } finally {
+      setRedeeming(false);
     }
   };
 
@@ -194,6 +225,11 @@ export function BillingPanel() {
             ⏳ Your plan ends on {state?.periodEnd ? new Date(state.periodEnd).toLocaleDateString() : "your renewal date"} — you keep full access until then, then it moves to the free plan. No further charges.
           </p>
         )}
+        {isPaid && state?.managed === false && !state?.cancelAtPeriodEnd && (
+          <p className="text-xs text-emerald-600 dark:text-emerald-400">
+            ✓ Active until {state?.periodEnd ? new Date(state.periodEnd).toLocaleDateString() : "—"} · activated with a one-time code
+          </p>
+        )}
       </div>
 
       {isPaid && state?.managed !== false && !state?.cancelAtPeriodEnd && (
@@ -231,6 +267,47 @@ export function BillingPanel() {
       )}
 
       {error && <p className="text-xs text-red-500">{error}</p>}
+
+      {/* One-time code redemption */}
+      <div className="rounded-xl border border-border bg-card p-4 space-y-2.5">
+        <div className="flex items-center gap-2">
+          <Ticket className="h-4 w-4 text-primary" />
+          <p className="text-sm font-semibold">Have a one-time code?</p>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          Redeem it to activate a plan on <span className="font-mono">this device</span> — each code works once.
+        </p>
+        <div className="flex gap-2">
+          <input
+            value={codeInput}
+            onChange={(e) => {
+              setCodeInput(e.target.value.toUpperCase());
+              setRedeemMsg(null);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") void redeemCode();
+            }}
+            placeholder="ORL-XXXX-XXXX-XXXX"
+            spellCheck={false}
+            autoCapitalize="characters"
+            autoComplete="off"
+            className="flex-1 min-w-0 rounded-lg border border-border bg-background px-3 py-2 text-sm font-mono tracking-wider uppercase placeholder:text-muted-foreground/40 focus:outline-none focus:border-primary/60 transition-colors"
+          />
+          <button
+            onClick={() => void redeemCode()}
+            disabled={redeeming || !codeInput.trim()}
+            className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50 flex items-center gap-1.5 shrink-0"
+          >
+            {redeeming && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+            Redeem
+          </button>
+        </div>
+        {redeemMsg && (
+          <p className={redeemMsg.kind === "ok" ? "text-xs text-emerald-600 dark:text-emerald-400" : "text-xs text-red-500"}>
+            {redeemMsg.text}
+          </p>
+        )}
+      </div>
 
       {/* Launching-soon state */}
       {state && !state.billingConfigured && !isPaid && (
