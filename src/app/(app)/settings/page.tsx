@@ -673,8 +673,8 @@ export default function SettingsPage() {
               {/* Grid, not a flex row: four labelled buttons overflow the
                   card on narrow screens and the last one ("Constellation")
                   stuck out past the edge. 2 cols on mobile, 4 on sm+. */}
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
-                {(["light", "dark", "system", "constellation", "aero"] as const).map((mode) => (
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                {(["light", "dark", "system", "constellation"] as const).map((mode) => (
                   <button
                     key={mode}
                     onClick={() => {
@@ -692,11 +692,6 @@ export default function SettingsPage() {
                   >
                     <Monitor className="h-4 w-4" />
                     {t("settings." + mode)}
-                    {mode === "aero" && (
-                      <span className="rounded-md bg-primary-500/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary-500">
-                        Beta
-                      </span>
-                    )}
                   </button>
                 ))}
               </div>

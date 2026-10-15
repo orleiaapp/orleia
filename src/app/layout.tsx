@@ -101,6 +101,7 @@ export default function RootLayout({
                 try {
                   var saved = JSON.parse(localStorage.getItem('orleia-data') || '{}');
                   var theme = saved.theme?.theme || 'dark';
+                  if (theme === 'aero') { theme = 'light'; saved.theme.theme = 'light'; localStorage.setItem('orleia-data', JSON.stringify(saved)); }
                   var isDark = theme === 'dark' || theme === 'constellation' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
                   document.documentElement.classList.toggle('dark', isDark);
                   document.documentElement.setAttribute('data-theme-mode', theme);
