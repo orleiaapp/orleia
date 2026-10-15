@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { timingSafeEqual, createHash } from "node:crypto";
 import {
   listScheduledEndpoints,
   getSchedule,
@@ -28,6 +29,13 @@ const VAPID_PRIVATE = process.env.VAPID_PRIVATE_KEY ?? "";
 const VAPID_SUBJECT = process.env.VAPID_SUBJECT || "mailto:support@orleia.app";
 const CRON_SECRET = process.env.CRON_SECRET ?? "";
 
+/** Constant-time secret compare (SHA-256 both sides so lengths match). */
+function secretsMatch(a: string, b: string): boolean {
+  const ha = createHash("sha256").update(a).digest();
+  const hb = createHash("sha256").update(b).digest();
+  return timingSafeEqual(ha, hb);
+}
+
 /**
  * GET /api/reminders/cron[?secret=...]  (also accepts Authorization: Bearer)
  *
@@ -56,7 +64,11 @@ async function cronHandler(req: Request) {
   // Secret is REQUIRED in production — an empty CRON_SECRET env means the
   // deployment is misconfigured, and an open cron endpoint would let anyone
   // trigger pushes. (Locally, with no secret set, we still allow it.)
-  if (provided !== CRON_SECRET) {
+  if (!CRON_SECRET) {
+    if (process.env.NODE_ENV === "production") {
+      return NextResponse.json({ error: "cron not configured" }, { status: 503 });
+    }
+  } else if (!secretsMatch(provided, CRON_SECRET)) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
   if (!VAPID_PUBLIC || !VAPID_PRIVATE) {

@@ -244,6 +244,37 @@ export async function listScheduledEndpoints(): Promise<string[]> {
   return out;
 }
 
+// ---------------- push endpoint allowlist ----------------
+// Web Push endpoints are SERVER-DESTINED URLs: the cron POSTs the payload
+// to them. Accepting arbitrary endpoints would turn the cron into an SSRF
+// relay (attacker registers http://169.254.169.254/ as their "browser").
+// Only real browser-vendor push services are accepted. Suffix match on
+// the hostname so per-instance subdomains (Edge's *.notify.windows.com)
+// still work, but evil-windows.com does not.
+const PUSH_SERVICE_SUFFIXES = [
+  "fcm.googleapis.com", // Chrome / Android
+  "updates.push.services.mozilla.com", // Firefox
+  "notify.windows.com", // Edge / Windows
+  "notify.windowsphone.com", // legacy Edge
+  "web.push.apple.com", // Safari on iOS/macOS
+  "web.push.hms.apple.com", // Safari (Huawei HMS interop)
+  "opera.push.notify.opera.com", // Opera
+  "sap.samsungosp.com", // Samsung Internet
+];
+
+export function isAllowedPushEndpoint(raw: unknown): boolean {
+  if (typeof raw !== "string" || raw.length > 2000) return false;
+  let u: URL;
+  try {
+    u = new URL(raw);
+  } catch {
+    return false;
+  }
+  if (u.protocol !== "https:") return false;
+  const host = u.hostname.toLowerCase();
+  return PUSH_SERVICE_SUFFIXES.some((s) => host === s || host.endsWith(`.${s}`));
+}
+
 function endpointKey(endpoint: string): string {
   return Buffer.from(endpoint, "utf-8").toString("base64url");
 }

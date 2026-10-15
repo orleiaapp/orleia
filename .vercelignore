@@ -16,3 +16,6 @@ lexis-agents
 *.zip
 *.blockmap
 *.yml
+/_tmp/
+.celeb-dev.log
+.fix-dev.log

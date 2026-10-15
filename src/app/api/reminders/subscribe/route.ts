@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { putSubscription, putSchedule, deleteSubscription, type ScheduledItem } from "@/lib/push-store";
+import { putSubscription, putSchedule, deleteSubscription, isAllowedPushEndpoint, type ScheduledItem } from "@/lib/push-store";
 import { guardApi, bodyTooLarge } from "@/lib/apiGuard";
 
 export const runtime = "nodejs";
@@ -34,6 +34,12 @@ export async function POST(req: Request) {
   const keys = body?.keys;
   if (!endpoint || !keys?.p256dh || !keys?.auth) {
     return NextResponse.json({ error: "endpoint + keys.p256dh + keys.auth required" }, { status: 400 });
+  }
+  // The cron POSTs notification payloads to this URL server-side. Only real
+  // browser push services are accepted, otherwise this endpoint (and the
+  // schedule route) would turn the cron into an open SSRF relay.
+  if (!isAllowedPushEndpoint(endpoint)) {
+    return NextResponse.json({ error: "endpoint is not a recognized push service" }, { status: 400 });
   }
 
   try {

@@ -41,11 +41,37 @@ function inlineToMarkdown(html: string): string {
 }
 
 /** Markdown inline syntax -> HTML (escape first, then apply marks). */
+
+// URL scheme allowlist. This HTML is rendered via dangerouslySetInnerHTML
+// in the note preview, so a raw href="javascript:..." link would be a
+// stored XSS on click. escapeHtml() runs first (so quotes/tags cannot
+// break out of the attribute and entity obfuscation like java&#115;cript
+// stays double-escaped), which means a plain scheme check here is sound.
+const SAFE_URL_RE = /^(https?:\/\/|mailto:|tel:|\/\/|\/|\?|#)/i;
+const SAFE_IMG_RE = /^(https?:\/\/|data:image\/(png|jpe?g|gif|webp|avif|svg\+xml)[;,]|\/)/i;
+
+function safeLinkHref(href: string): string | null {
+  return SAFE_URL_RE.test(href) ? href : null;
+}
+
+function safeImgSrc(src: string): string | null {
+  // data:image is fine for <img>; anything else data: (text/html etc.) is not.
+  return SAFE_IMG_RE.test(src) ? src : null;
+}
+
 function inlineToHtml(md: string): string {
   let s = escapeHtml(md);
   // images must run before links
-  s = s.replace(/!\[([^\]]*)\]\(([^)\s]+)\)/g, (_m, alt, src) => `<img src="${src}" alt="${alt}"/>`);
-  s = s.replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, (_m, text, href) => `<a href="${href}" target="_blank" rel="noopener noreferrer">${text}</a>`);
+  s = s.replace(/!\[([^\]]*)\]\(([^)\s]+)\)/g, (_m, alt, src) => {
+    const safe = safeImgSrc(src);
+    return safe ? `<img src="${safe}" alt="${alt}"/>` : alt || "";
+  });
+  s = s.replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, (_m, text, href) => {
+    const safe = safeLinkHref(href);
+    return safe
+      ? `<a href="${safe}" target="_blank" rel="noopener noreferrer">${text}</a>`
+      : text; // unsafe scheme -> render the text, no link
+  });
   s = s.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
   s = s.replace(/(^|\W)\*([^*\n]+)\*(?=\W|$)/g, "$1<em>$2</em>");
   s = s.replace(/(^|\W)_([^_\n]+)_(?=\W|$)/g, "$1<em>$2</em>");

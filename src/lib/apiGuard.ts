@@ -1,4 +1,12 @@
 import { NextResponse } from "next/server";
+import { createHash, timingSafeEqual } from "node:crypto";
+
+/** Constant-time secret compare (SHA-256 both sides so lengths match). */
+export function secretsMatch(a: string, b: string): boolean {
+  const ha = createHash("sha256").update(a).digest();
+  const hb = createHash("sha256").update(b).digest();
+  return timingSafeEqual(ha, hb);
+}
 
 // ============================================================
 // API Guard - protects the NVIDIA-backed endpoints from abuse.
@@ -61,7 +69,7 @@ export function isSparkClient(req: Request): boolean {
   const secret = process.env.SPARK_CLIENT_SECRET || process.env.CRON_SECRET || "";
   const given = req.headers.get("x-orleia-spark") || "";
   const device = req.headers.get("x-orleia-spark-device") || "";
-  return secret.length >= 24 && given === secret && device.length >= 8 && device.length <= 64;
+  return secret.length >= 24 && secretsMatch(given, secret) && device.length >= 8 && device.length <= 64;
 }
 
 export function isAllowedRequest(req: Request): boolean {
