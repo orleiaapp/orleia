@@ -245,6 +245,7 @@ const GOAL_PRESETS = [
 function GoalsStep({ onDone }: { onDone: () => void }) {
   const [picked, setPicked] = useState<string[]>([]);
   const [draft, setDraft] = useState("");
+  const [showCustom, setShowCustom] = useState(false);
   const toggle = (goal: string) =>
     setPicked((p) => (p.includes(goal) ? p.filter((g) => g !== goal) : [...p, goal]));
   const addDraft = () => {
@@ -347,47 +348,52 @@ function GoalsStep({ onDone }: { onDone: () => void }) {
             ))}
           </div>
 
-          {/* Anything not on the list — caption, then one pill to type it in. */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.6, duration: 0.5, ease: EASE_OUT }}
-            className="mb-2.5 mt-6 flex w-full max-w-sm items-center gap-3"
-          >
-            <span className="h-px flex-1 bg-zinc-800" />
-            <span className="text-[10px] font-medium uppercase tracking-[0.3em] text-zinc-600">Something else</span>
-            <span className="h-px flex-1 bg-zinc-800" />
-          </motion.div>
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.65, duration: 0.5, ease: EASE_OUT }}
-            className="flex w-full max-w-sm items-center gap-2 rounded-full border border-zinc-700 bg-zinc-900 py-1.5 pl-4 pr-1.5 transition-colors focus-within:border-zinc-500"
-          >
-            <input
-              value={draft}
-              onChange={(e) => setDraft(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  addDraft();
-                }
-              }}
-              placeholder="Type a goal of your own"
-              aria-label="Add a goal of your own"
-              maxLength={60}
-              className="min-w-0 flex-1 bg-transparent text-sm text-zinc-100 outline-none placeholder:text-zinc-600"
-            />
+          {/* Anything not on the list — a quiet clickable line that reveals
+              the type-it-in pill; the pill stays once opened. */}
+          {!showCustom ? (
             <motion.button
               type="button"
-              onClick={addDraft}
-              disabled={!draft.trim()}
-              whileTap={{ scale: 0.96 }}
-              className="shrink-0 rounded-full bg-white px-5 py-2 text-xs font-medium text-black transition-opacity disabled:opacity-40"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.6, duration: 0.5, ease: EASE_OUT }}
+              onClick={() => setShowCustom(true)}
+              className="mt-6 py-1 text-xs text-zinc-500 transition-colors hover:text-zinc-300"
             >
-              Add
+              Something else
             </motion.button>
-          </motion.div>
+          ) : (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, ease: EASE_OUT }}
+              className="mt-5 flex w-full max-w-sm items-center gap-2 rounded-full border border-zinc-700 bg-zinc-900 py-1.5 pl-4 pr-1.5 transition-colors focus-within:border-zinc-500"
+            >
+              <input
+                autoFocus
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    addDraft();
+                  }
+                }}
+                placeholder="Type a goal of your own"
+                aria-label="Add a goal of your own"
+                maxLength={60}
+                className="min-w-0 flex-1 bg-transparent text-sm text-zinc-100 outline-none placeholder:text-zinc-600"
+              />
+              <motion.button
+                type="button"
+                onClick={addDraft}
+                disabled={!draft.trim()}
+                whileTap={{ scale: 0.96 }}
+                className="shrink-0 rounded-full bg-white px-5 py-2 text-xs font-medium text-black transition-opacity disabled:opacity-40"
+              >
+                Add
+              </motion.button>
+            </motion.div>
+          )}
 
           <motion.button
             initial={{ opacity: 0, y: 10 }}
