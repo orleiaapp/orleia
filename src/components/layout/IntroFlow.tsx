@@ -230,19 +230,16 @@ function EverythingStep({ onDone }: { onDone: () => void }) {
 
 // Goals → saved to profile.goals, which buildProfileBlock() already injects
 // into Noor's system prompt ("tailor suggestions to their goals").
-// A picker, not a blank box: tap any number of preset goals, add your own
-// below; Continue saves everything as one comma-separated string.
+// A single column of big tap rows — the six broadly-useful goals; niche
+// ones (business, money, reading) live under "Something else" where the
+// user can type their own. Continue saves everything comma-separated.
 const GOAL_PRESETS = [
   "Build better habits",
   "Get more done",
   "Sleep better",
   "Get fit",
-  "Read more",
   "Learn something new",
   "Reduce stress",
-  "Grow my business",
-  "Save money",
-  "Be more present",
 ];
 
 function GoalsStep({ onDone }: { onDone: () => void }) {
@@ -298,7 +295,8 @@ function GoalsStep({ onDone }: { onDone: () => void }) {
             around your goals.
           </motion.p>
 
-          <div className="mt-6 flex w-full flex-wrap justify-center gap-2">
+          {/* One column of big tap rows — multi-select, check on the right. */}
+          <div className="mt-6 flex w-full max-w-sm flex-col gap-2.5">
             {GOAL_PRESETS.map((goal, i) => {
               const on = picked.includes(goal);
               return (
@@ -309,15 +307,25 @@ function GoalsStep({ onDone }: { onDone: () => void }) {
                   onClick={() => toggle(goal)}
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.35 + i * 0.04, duration: 0.5, ease: EASE_OUT }}
-                  whileTap={{ scale: 0.96 }}
+                  transition={{ delay: 0.35 + i * 0.05, duration: 0.5, ease: EASE_OUT }}
+                  whileTap={{ scale: 0.98 }}
                   className={
                     on
-                      ? "rounded-full border border-white bg-white px-3.5 py-2 text-xs font-medium text-black"
-                      : "rounded-full border border-zinc-700 bg-zinc-900 px-3.5 py-2 text-xs font-medium text-zinc-300 transition-colors hover:border-zinc-500 hover:text-white"
+                      ? "flex w-full items-center gap-3 rounded-2xl border border-white bg-white px-4 py-3.5 text-left text-sm font-medium text-black"
+                      : "flex w-full items-center gap-3 rounded-2xl border border-zinc-700 bg-zinc-900 px-4 py-3.5 text-left text-sm text-zinc-200 transition-colors hover:border-zinc-500 hover:bg-zinc-800"
                   }
                 >
                   {goal}
+                  {on && (
+                    <motion.span
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      transition={{ duration: 0.35, ease: EASE_OUT }}
+                      className="ml-auto"
+                    >
+                      <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+                    </motion.span>
+                  )}
                 </motion.button>
               );
             })}
@@ -327,23 +335,34 @@ function GoalsStep({ onDone }: { onDone: () => void }) {
                 type="button"
                 aria-label={`Remove ${goal}`}
                 onClick={() => toggle(goal)}
-                initial={{ opacity: 0, scale: 0.9 }}
+                initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ duration: 0.4, ease: EASE_OUT }}
-                whileTap={{ scale: 0.96 }}
-                className="group flex items-center gap-1.5 rounded-full border border-white bg-white px-3.5 py-2 text-xs font-medium text-black"
+                whileTap={{ scale: 0.98 }}
+                className="group flex w-full items-center gap-3 rounded-2xl border border-white bg-white px-4 py-3.5 text-left text-sm font-medium text-black"
               >
                 {goal}
-                <X className="h-3 w-3 opacity-40 group-hover:opacity-90" aria-hidden="true" />
+                <X className="ml-auto h-3.5 w-3.5 opacity-40 group-hover:opacity-90" aria-hidden="true" />
               </motion.button>
             ))}
           </div>
 
+          {/* Anything not on the list — caption, then one pill to type it in. */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.6, duration: 0.5, ease: EASE_OUT }}
+            className="mb-2.5 mt-6 flex w-full max-w-sm items-center gap-3"
+          >
+            <span className="h-px flex-1 bg-zinc-800" />
+            <span className="text-[10px] font-medium uppercase tracking-[0.3em] text-zinc-600">Something else</span>
+            <span className="h-px flex-1 bg-zinc-800" />
+          </motion.div>
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.6, duration: 0.5, ease: EASE_OUT }}
-            className="mt-5 flex w-full items-center gap-2"
+            transition={{ delay: 0.65, duration: 0.5, ease: EASE_OUT }}
+            className="flex w-full max-w-sm items-center gap-2 rounded-full border border-zinc-700 bg-zinc-900 py-1.5 pl-4 pr-1.5 transition-colors focus-within:border-zinc-500"
           >
             <input
               value={draft}
@@ -354,17 +373,17 @@ function GoalsStep({ onDone }: { onDone: () => void }) {
                   addDraft();
                 }
               }}
-              placeholder="…or type your own"
+              placeholder="Type a goal of your own"
               aria-label="Add a goal of your own"
               maxLength={60}
-              className="min-w-0 flex-1 rounded-full border border-zinc-700 bg-zinc-900 px-4 py-3 text-sm text-zinc-100 outline-none transition-colors placeholder:text-zinc-600 focus:border-zinc-500"
+              className="min-w-0 flex-1 bg-transparent text-sm text-zinc-100 outline-none placeholder:text-zinc-600"
             />
             <motion.button
               type="button"
               onClick={addDraft}
               disabled={!draft.trim()}
               whileTap={{ scale: 0.96 }}
-              className="shrink-0 rounded-full border border-zinc-700 px-4 py-3 text-xs font-medium text-zinc-300 transition-colors hover:border-zinc-500 hover:text-white disabled:opacity-40"
+              className="shrink-0 rounded-full bg-white px-5 py-2 text-xs font-medium text-black transition-opacity disabled:opacity-40"
             >
               Add
             </motion.button>
