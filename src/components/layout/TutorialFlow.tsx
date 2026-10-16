@@ -2,12 +2,11 @@
 
 // ============================================================
 // TutorialFlow — the full first-run sequence: the walkthrough
-// slides, then a REQUIRED pet-pick step ("every explorer needs a
-// companion"), the confetti send-off, and the one-time plans
-// takeover IMMEDIATELY after the confetti — celebration flows
-// straight into the offer with no app flash in between. Users who
-// already have a pet (e.g. chose one in Settings before a reset)
-// skip the pick; plans still get their moment via ClientLayout.
+// slides, then the one-time plans takeover (the offer lands while
+// the user is still in first-run mode), then a REQUIRED pet-pick
+// step ("every explorer needs a companion") and its send-off.
+// Users who already have a pet (e.g. chose one in Settings before
+// a reset) skip the pick and leave as soon as plans are handled.
 // ============================================================
 
 import { useState } from "react";
@@ -19,27 +18,34 @@ import { storage } from "@/lib/storage";
 import { petById } from "@/lib/pets";
 
 export function TutorialFlow({ onComplete }: { onComplete: () => void }) {
-  const [pickingPet, setPickingPet] = useState(false);
+  const [walkDone, setWalkDone] = useState(false);
+  const [plansDone, setPlansDone] = useState(false);
   const [picked, setPicked] = useState<{ id: string; name: string } | null>(null);
-  const [showPlans, setShowPlans] = useState(false);
 
-  // After the pet is chosen: a confetti send-off, then the plans takeover
-  // back-to-back. PlanIntro dismisses into onComplete, ending the tutorial
-  // (and it self-completes immediately if the plans were already seen).
+  // Pet chosen → the send-off: companion + copy, no fireworks.
   if (picked) {
-    if (showPlans) {
-      return <PlanIntro onDone={onComplete} />;
-    }
+    return <PetCelebrate petId={picked.id} displayName={picked.name} onEnter={onComplete} />;
+  }
+
+  // Plans BEFORE the pet pick. PlanIntro self-completes instantly when the
+  // plans were already seen, so this step can never stall the flow.
+  if (walkDone && !plansDone) {
     return (
-      <PetCelebrate
-        petId={picked.id}
-        displayName={picked.name}
-        onEnter={() => setShowPlans(true)}
+      <PlanIntro
+        onDone={() => {
+          // Users who already own a pet skip the pick entirely.
+          if (storage.getData().profile?.pet) {
+            onComplete();
+            return;
+          }
+          setPlansDone(true);
+        }}
       />
     );
   }
 
-  if (pickingPet) {
+  // Pet pick — mandatory for everyone else.
+  if (walkDone) {
     return (
       <PetPickStep
         onDone={(id) => {
@@ -53,16 +59,6 @@ export function TutorialFlow({ onComplete }: { onComplete: () => void }) {
     );
   }
 
-  return (
-    <TutorialGuide
-      onComplete={() => {
-        // Walkthrough finished (or skipped) — the pet step is mandatory.
-        if (storage.getData().profile?.pet) {
-          onComplete();
-          return;
-        }
-        setPickingPet(true);
-      }}
-    />
-  );
+  // The walkthrough comes first.
+  return <TutorialGuide onComplete={() => setWalkDone(true)} />;
 }

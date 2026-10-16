@@ -275,9 +275,10 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
       {/* The 13+ gate renders inside IntroFlow (after the welcome), so a
           fresh visitor sees ONLY the multilingual welcome first. */}
 
-      {/* One-time full-screen plan intro — AFTER the full first-run flow
-          (onboarding → tutorial → pet). The user must reach the aha moment
-          before seeing plans; nothing is gated, one tap dismisses. */}
+      {/* One-time full-screen plan intro — normally shown INSIDE the
+          tutorial (after the walkthrough, before the pet pick). This mount
+          is the fallback for anyone who finished the tutorial without the
+          seen-flag set; nothing is gated, one tap dismisses. */}
       {storageReady && ageGateDone && !needsOnboarding && !showTutorial && !planIntroDone && (
         <PlanIntroKeyed />
       )}
