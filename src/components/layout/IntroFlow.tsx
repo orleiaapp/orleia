@@ -9,6 +9,7 @@ import { cn, EASE_OUT } from "@/lib/utils";
 import { isDarkTheme } from "@/lib/theme-mode";
 import { AgeGate } from "./AgeGate";
 import { Constellation } from "./Constellation";
+import { FeatureSwirl } from "./FeatureSwirl";
 
 
 const THEME_OPTIONS: { m: Theme; label: string }[] = [
@@ -95,6 +96,9 @@ function WelcomeStep({ onDone }: { onDone: () => void }) {
         <Constellation />
       </div>
       <div className="relative z-10 mt-auto md:my-auto flex w-full flex-col items-center px-6 pb-[max(4.5rem,env(safe-area-inset-bottom))]">
+        {/* 3D feature swirl — tasks, habits, Noor AI, agents and friends
+            orbiting a core, tilted over the starfield. */}
+        <FeatureSwirl className="mb-4 sm:mb-6" />
         <motion.p
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
