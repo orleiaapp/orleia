@@ -42,6 +42,7 @@ import { useHydrated, useFirstVisit } from "@/lib/use-hydrated";
 import { cn, getToday, formatDate, generateId } from "@/lib/utils";
 import { useI18n } from "@/lib/i18n";
 import { Task, TaskPriority, TaskStatus, RecurringType, ViewMode, PRIORITY_CONFIG, STATUS_CONFIG, DAYS_OF_WEEK } from "@/types";
+import { CalendarSurface } from "@/components/calendar/CalendarSurface";
 
 export default function TasksPage() {
   const { t } = useI18n();
@@ -191,9 +192,9 @@ export default function TasksPage() {
           </p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          {/* View Toggle - desktop-only (list is the mobile view; kanban &
-              calendar need a wide screen) */}
-          <div className="hidden md:inline-flex items-center rounded-full border border-border bg-muted/40 p-1" role="tablist">
+          {/* View toggle — on every width now: the calendar view IS the
+              calendar (merged into Tasks), so mobile needs a way in. */}
+          <div className="inline-flex items-center rounded-full border border-border bg-muted/40 p-1" role="tablist">
             {[
               { mode: "list" as ViewMode, icon: List },
               { mode: "kanban" as ViewMode, icon: Columns },
@@ -431,9 +432,12 @@ export default function TasksPage() {
         </div>
       )}
 
-      {/* Calendar View */}
+      {/* Calendar — merged into Tasks: the full month/week/day surface
+          (events, due-dated tasks, Noor weekly plan), bounded to the view. */}
       {viewMode === "calendar" && (
-        <CalendarView tasks={tasks} onRefresh={refresh} />
+        <div className="h-[calc(100dvh-14rem)] min-h-[480px]">
+          <CalendarSurface embedded />
+        </div>
       )}        {/* Empty State */}
       {tasks.length === 0 && viewMode === "list" && (
         <motion.div
@@ -681,110 +685,6 @@ function SortableTaskCard({ task, onRefresh, onEdit, onMoveUp, onMoveDown }: {
         </motion.button>
       </div>
     </Reorder.Item>
-  );
-}
-
-function CalendarView({ tasks, onRefresh }: { tasks: Task[]; onRefresh: () => void }) {
-  const { t } = useI18n();
-  const [currentMonth, setCurrentMonth] = useState(new Date().getMonth());
-  const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
-
-  const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
-  const firstDay = new Date(currentYear, currentMonth, 1).getDay();
-  const today = getToday();
-
-  const getTasksForDay = (day: number) => {
-    const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-    return tasks.filter((t) => t.dueDate === dateStr);
-  };
-
-  return (
-    <div className="card">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="font-semibold">
-          {new Date(currentYear, currentMonth).toLocaleString("default", { month: "long", year: "numeric" })}
-        </h3>
-        <div className="flex gap-1">
-          <button
-            onClick={() => {
-              if (currentMonth === 0) { setCurrentMonth(11); setCurrentYear(currentYear - 1); }
-              else setCurrentMonth(currentMonth - 1);
-            }}
-            className="btn-ghost text-sm px-3"
-          >
-            ←
-          </button>
-          <button
-            onClick={() => {
-              setCurrentMonth(new Date().getMonth());
-              setCurrentYear(new Date().getFullYear());
-            }}
-            className="btn-ghost text-sm"
-          >
-            {t("common.today")}
-          </button>
-          <button
-            onClick={() => {
-              if (currentMonth === 11) { setCurrentMonth(0); setCurrentYear(currentYear + 1); }
-              else setCurrentMonth(currentMonth + 1);
-            }}
-            className="btn-ghost text-sm px-3"
-          >
-            →
-          </button>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-7 gap-px bg-muted rounded-xl overflow-hidden">
-        {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
-          <div key={day} className="bg-muted p-2 text-center text-xs font-medium text-muted-foreground">
-            {day}
-          </div>
-        ))}
-        {Array.from({ length: firstDay }).map((_, i) => (
-          <div key={`empty-${i}`} className="bg-card p-2 min-h-[80px]" />
-        ))}
-        {Array.from({ length: daysInMonth }).map((_, i) => {
-          const day = i + 1;
-          const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-          const dayTasks = getTasksForDay(day);
-          const isToday = dateStr === today;
-
-          return (
-            <div
-              key={day}
-              className={cn(
-                "bg-card p-1 md:p-1.5 md:min-h-[80px] transition-colors hover:bg-muted/50",
-                isToday && "ring-1 ring-primary-500"
-              )}
-            >
-              <span className={cn(
-                "inline-flex h-6 w-6 items-center justify-center rounded-full text-xs",
-                isToday && "bg-primary-500 text-white font-bold"
-              )}>
-                {day}
-              </span>
-              <div className="mt-1 space-y-0.5">
-                {dayTasks.map((task) => (
-                  <div
-                    key={task.id}
-                    className={cn(
-                      "text-[10px] px-1 py-0.5 rounded truncate cursor-pointer",
-                      task.status === "done" ? "line-through text-muted-foreground bg-muted" :
-                      task.priority === "urgent" ? "bg-muted text-muted-foreground" :
-                      "bg-primary-500/10 text-primary-500"
-                    )}
-                    onClick={() => { storage.toggleTask(task.id); onRefresh(); }}
-                  >
-                    {task.title}
-                  </div>
-                ))}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </div>
   );
 }
 

@@ -91,6 +91,7 @@ import { stripPetFlavor } from "@/lib/action-clean";
 import { runResearchPipeline, wantsResearch } from "@/lib/research-run";
 import { jobByRole } from "@/lib/pet-jobs";
 import { petById, petSvg } from "@/lib/pets";
+import PetsPage from "@/app/(app)/pets/page";
 import {
   assignScoutJob,
   pendingScoutJob,
@@ -203,6 +204,32 @@ interface Attachment {
 }
 
 // "make an image of X" / "image: X" -> image generation
+/** Noor | Pets — the pet roster + agent chat live inside Noor now. */
+function NoorPetsTab({ value, onChange }: { value: "noor" | "pets"; onChange: (v: "noor" | "pets") => void }) {
+  const { t } = useI18n();
+  const btn = (key: "noor" | "pets", label: string, Icon: typeof Sparkles) => (
+    <button
+      onClick={() => onChange(key)}
+      aria-pressed={value === key}
+      className={cn(
+        "flex items-center gap-1.5 rounded-full px-3 py-1.5 transition-colors",
+        value === key
+          ? "bg-background text-foreground shadow-sm"
+          : "text-muted-foreground hover:text-foreground"
+      )}
+    >
+      <Icon className="h-3.5 w-3.5" />
+      {label}
+    </button>
+  );
+  return (
+    <div className="flex w-fit items-center rounded-full border border-border/60 bg-secondary/40 p-0.5 text-xs font-semibold">
+      {btn("noor", "Noor", Sparkles)}
+      {btn("pets", t("nav.pets"), PawPrint)}
+    </div>
+  );
+}
+
 function isImageRequest(q: string): boolean {
   const t = q.trim().toLowerCase();
   // Explicit "image: <prompt>" - require a real subject after the colon.
@@ -275,6 +302,11 @@ export default function AssistantPage() {
   const { t } = useI18n();
   const [data, setData] = useState(storage.getData());
 
+  // Noor | Pets subtabs — the pet roster/agent chat lives inside Noor.
+  const [subtab, setSubtab] = useState<"noor" | "pets">("noor");
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("tab") === "pets") setSubtab("pets");
+  }, []);
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [messages, setMessages] = useState<AIMessage[]>([]);
   // Chat-with-pet: when set, replies speak as the hired pet (persona) —
@@ -2306,8 +2338,22 @@ try {
     );
   };
 
+  // Pets subtab — its own bounded surface inside the same fullscreen shell.
+  if (subtab === "pets") {
+    return (
+      <div className="fixed inset-0 z-0 flex flex-col overflow-hidden pb-[calc(4.25rem+env(safe-area-inset-bottom))] md:relative md:inset-auto md:h-dvh md:pb-[4.5rem]">
+        <div className="flex shrink-0 items-center px-3 pt-[calc(4rem+env(safe-area-inset-top,0px))] pb-2 md:px-6 md:pt-3">
+          <NoorPetsTab value={subtab} onChange={setSubtab} />
+        </div>
+        <div className="min-h-0 flex-1 overflow-y-auto">
+          <PetsPage />
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div ref={rootRef} className="fixed inset-0 z-0 flex gap-6 overflow-hidden md:relative md:inset-auto md:z-auto md:h-dvh">
+    <div ref={rootRef} className="fixed inset-0 z-0 flex gap-6 overflow-hidden pb-[calc(4.25rem+env(safe-area-inset-bottom))] md:relative md:inset-auto md:z-auto md:h-dvh md:pb-[4.5rem]">
       {/* Main chat */}
       <div className="relative flex-1 flex flex-col min-w-0 min-h-0">
         {/* Header */}
@@ -2316,7 +2362,7 @@ try {
             md where the buttons unmount. */}
         <div className={cn("shrink-0 flex items-center justify-between gap-2 border-border/60 px-3 pt-[calc(4rem+env(safe-area-inset-top,0px))] pb-2.5 md:px-6 md:pt-[calc(0.75rem+env(safe-area-inset-top))] md:pb-3",
           "border-b-0", "md:border-b")}>
-          <div className="flex items-center min-w-0 gap-1">
+          <div className="flex items-center min-w-0 gap-2">
             {!isMobile && (
               <img
                 src="/noor-mark-white.png"
@@ -2324,6 +2370,7 @@ try {
                 className="h-8 w-8 object-contain invert dark:invert-0 sm:h-9 sm:w-9"
               />
             )}
+            <NoorPetsTab value={subtab} onChange={setSubtab} />
           </div>
           {/* Coder mode switch — desktop only (lg+). Free sees it locked
               behind an upgrade; paid tiers see the beta-access card. */}

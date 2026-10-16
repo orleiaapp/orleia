@@ -3,35 +3,41 @@
 // ============================================================
 // Sidebar — desktop rail only.
 // Mobile navigation is a separate full-screen page: MobileNavScreen.
+//
+// The five primary destinations (dashboard, habits, mindfulness,
+// tasks, noor) moved to the bottom row — see BottomNav. This rail
+// keeps the secondary surfaces: recent Noor/agent chats, Deck,
+// the reminder bell and settings. The old "Office" group is gone;
+// for now it is replaced by the recent-chats list (more returns
+// here later).
 // ============================================================
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { motion, AnimatePresence } from "framer-motion";
-import {
-  Home,
-  FileText,
-  ListTodo,
-  CheckCircle2,
-  Settings,
-  ChevronLeft,
-  Briefcase,
-  Presentation,
-  Flower2,
-  PawPrint,
-  CalendarDays,
-} from "lucide-react";
+import { Settings, ChevronLeft, Presentation, MessageSquare, PawPrint } from "lucide-react";
 
-import { NoorMark } from "@/components/NoorMark";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/i18n";
+import { storage } from "@/lib/storage";
+import type { AIConversation } from "@/types";
 import { ReminderBell } from "./ReminderCenter";
+
+/** Most-recent-first slice for the rail. Pet-agent threads get the paw. */
+function recentConversations(): AIConversation[] {
+  try {
+    return [...storage.getConversations()]
+      .sort((a, b) => (b.updatedAt || "").localeCompare(a.updatedAt || ""))
+      .slice(0, 6);
+  } catch {
+    return [];
+  }
+}
 
 export function Sidebar() {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
-  const [toolsOpen, setToolsOpen] = useState(false);
+  const [convos, setConvos] = useState<AIConversation[]>([]);
   const { t } = useI18n();
 
   // Publish the rail width for full-screen takeovers (the notes page
@@ -42,14 +48,12 @@ export function Sidebar() {
     document.documentElement.style.setProperty("--orleia-sidebar-w", collapsed ? "72px" : "260px");
   }, [collapsed]);
 
-  const navItems = [
-    { href: "/", label: t("nav.dashboard"), icon: Home },
-    { href: "/habits", label: t("nav.habits"), icon: CheckCircle2 },
-    { href: "/journal", label: t("nav.journal"), icon: Flower2 },
-    { href: "/tasks", label: t("nav.tasks"), icon: ListTodo },
-    { href: "/noor", label: t("nav.noor"), icon: NoorMark },
-    { href: "/pets", label: t("nav.pets"), icon: PawPrint },
-  ];
+  // Refresh the rail whenever the user moves around (cheap read), and on
+  // storage writes while it's mounted (a chat renamed in Noor updates live).
+  useEffect(() => {
+    setConvos(recentConversations());
+    return storage.subscribe(() => setConvos(recentConversations()));
+  }, [pathname]);
 
   return (
     <aside
@@ -71,61 +75,55 @@ export function Sidebar() {
         )}
       </div>
 
-      {/* Navigation */}
-      <nav className="flex-1 overflow-y-auto px-2 pt-8 pb-4">
-        <ul className="space-y-1" role="list">
-          {navItems.map((item) => {
-            const isActive = pathname === item.href;
-            return (
-              <li key={item.href} role="listitem">
-                <Link
-                  href={item.href}
-                  className={cn(
-                    "group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200",
-                    collapsed && "justify-center px-2",
-                    isActive
-                      ? "bg-primary-500/10 text-primary-500"
-                      : "text-muted-foreground/60 hover:text-muted-foreground hover:bg-sidebar-hover"
-                  )}
-                  aria-current={isActive ? "page" : undefined}
-                >
-                  <item.icon className={cn(
-                    "h-5 w-5 shrink-0 transition-transform duration-200 group-hover:scale-110",
-                    item.href === "/noor" && cn(
-                      "invert dark:invert-0",
-                      // The mark is a white PNG — match the lucide icons'
-                      // muted tone when inactive, full strength when active.
-                      isActive ? "opacity-100" : "opacity-60 group-hover:opacity-90"
-                    )
-                  )} />
-                  {!collapsed && <span className="flex-1">{item.label}</span>}
-                </Link>
-              </li>
-            );
-          })}
-        </ul>
-
-        <div className="my-8" />
-
-      </nav>
-
-      {/* Office tools */}
-      <div className="px-2 pb-2">
-        <button onClick={() => setToolsOpen((v) => !v)} aria-expanded={toolsOpen} className={cn("flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-xs font-medium text-muted-foreground/50 transition-all duration-200 hover:text-muted-foreground", collapsed && "justify-center px-2")}>
-          <Briefcase className="h-5 w-5 shrink-0" />
-          {!collapsed && <span className="flex-1 text-left">{t("nav.office")}</span>}
-        </button>
-        <AnimatePresence initial={false}>
-          {toolsOpen && (
-            <motion.ul initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.2, ease: "easeInOut" }} className="space-y-0.5 overflow-hidden" role="list">
-              {[{ href: "/notes", label: t("nav.notes"), icon: FileText }, { href: "/deck", label: t("nav.deck"), icon: Presentation }, { href: "/calendar", label: t("nav.calendar"), icon: CalendarDays }].map((item) => {
-                const isActive = pathname === item.href;
-                return (<li key={item.href}><Link href={item.href} className={cn("group relative flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-xs font-medium", collapsed && "justify-center px-2", isActive ? "bg-primary-500/10 text-primary-500" : "text-muted-foreground/60 hover:text-muted-foreground hover:bg-sidebar-hover")}><item.icon className="h-5 w-5 shrink-0" />{!collapsed && <span className="flex-1">{item.label}</span>}</Link></li>);
-              })}
-            </motion.ul>
+      {/* Recent Noor + agent chats */}
+      {!collapsed && (
+        <div className="flex-1 overflow-y-auto px-3 pt-6 pb-4">
+          {convos.length > 0 && (
+            <>
+              <p className="px-1 pb-2 text-[11px] font-medium tracking-wide text-muted-foreground/40">
+                {t("nav.recentChats")}
+              </p>
+              <ul className="space-y-0.5" role="list">
+                {convos.map((c) => (
+                  <li key={c.id}>
+                    <Link
+                      href={`/noor?c=${c.id}`}
+                      className={cn(
+                        "group flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-xs font-medium transition-all duration-200",
+                        "text-muted-foreground/60 hover:text-muted-foreground hover:bg-sidebar-hover"
+                      )}
+                    >
+                      {c.petAgentId || c.petAgentGroup ? (
+                        <PawPrint className="h-4 w-4 shrink-0" />
+                      ) : (
+                        <MessageSquare className="h-4 w-4 shrink-0" />
+                      )}
+                      <span className="flex-1 truncate">{c.title || t("nav.noor")}</span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </>
           )}
-        </AnimatePresence>
-      </div>
+
+          <div className="my-4" />
+
+          {/* Deck — its own surface, no longer buried in Office */}
+          <Link
+            href="/deck"
+            className={cn(
+              "group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200",
+              pathname === "/deck"
+                ? "bg-primary-500/10 text-primary-500"
+                : "text-muted-foreground/60 hover:text-muted-foreground hover:bg-sidebar-hover"
+            )}
+          >
+            <Presentation className="h-5 w-5 shrink-0" />
+            <span className="flex-1">{t("nav.deck")}</span>
+          </Link>
+        </div>
+      )}
+      {collapsed && <div className="flex-1" />}
 
       {/* Bottom */}
       <div className="border-t border-border p-3 space-y-1 overflow-hidden">

@@ -33,11 +33,11 @@ const STATS = [
 const RIBBON = [
   "Habits & streaks",
   "Mindfulness journal",
-  "Tasks",
-  "Notes",
+  "Tasks + calendar",
+  "Notes in Habits",
   "Deck presentations",
-  "Calendar",
   "Noor AI — Novella 5.0",
+  "AI pets & agents",
   "Deep research",
   "Free to start",
 ];

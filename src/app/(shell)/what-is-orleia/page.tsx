@@ -32,7 +32,7 @@ const faq = [
   },
   {
     q: "Is Orleia free?",
-    a: "Every Orleia tool - tasks, habits, mindfulness, notes, calendar, widgets and analytics - is free, with no feature paywalls. The only paid thing is heavier use of Noor: the free plan includes 30 Noor messages a day, and optional Plus, Pro or Ultra plans raise that daily limit.",
+    a: "Every Orleia tool - habits with notes, tasks with calendar, mindfulness, widgets and analytics - is free, with no feature paywalls. The only paid thing is heavier use of Noor: the free plan includes 30 Noor messages a day, and optional Plus, Pro or Ultra plans raise that daily limit.",
   },
   {
     q: "Where is my Orleia data stored?",
@@ -100,7 +100,7 @@ export default function WhatIsOrleiaPage() {
       <section className="py-16 border-t border-border/50">
         <Eyebrow>ONE PRIVATE APP, EVERY TOOL</Eyebrow>
         <h2 className="max-w-2xl text-2xl md:text-3xl font-bold tracking-tight">
-          Tasks, habits, mindfulness, notes, calendar - and Noor, the AI that connects them
+          Tasks with calendar, habits with notes, mindfulness - and Noor, the AI that connects them
         </h2>
         <p className="mt-6 max-w-2xl text-base text-muted-foreground/70 font-body leading-relaxed">
           Orleia is built around one idea: productivity tools work better when they share a single
@@ -110,12 +110,12 @@ export default function WhatIsOrleiaPage() {
         </p>
         <ul className="mt-8 grid gap-4 md:grid-cols-2 max-w-3xl">
           {[
-            ["Tasks", "List, kanban and calendar views with priorities, due dates and recurring schedules."],
-            ["Habits", "Daily tracking with streaks, freeze tokens, analytics and a personal stats page."],
+            ["Tasks", "List and kanban views plus the merged calendar - month, week and day - with priorities, due dates and recurring schedules."],
+            ["Habits", "Daily tracking with streaks, freeze tokens, analytics and a personal stats page - plus your notes, right in the same tab."],
             ["Mindfulness", "A private journal with mood tracking, plus guided breathing and meditation."],
-            ["Notes", "Fast, searchable notes - your second brain without the setup."],
-            ["Calendar", "A clean month and day view that keeps tasks and events in one place."],
-            ["Noor (AI)", "Two model tiers (Fast and Core), research mode with cited sources, image understanding, charts - and actions that create real items in your workspace."],
+            ["Notes", "Fast, searchable notes - your second brain without the setup, living inside Habits."],
+            ["Calendar", "Merged into Tasks: a clean month, week and day view that keeps events and due-dated tasks in one place."],
+            ["Noor (AI)", "Two model tiers (Fast and Core), research mode with cited sources, image understanding, charts, actions that create real items in your workspace - and, in the same tab, AI pets and a hired agent team."],
             ["Widgets & analytics", "A customizable dashboard with widget catalog, productivity score and weekly trends."],
           ].map(([t, d]) => (
             <li key={t} className="border border-border/50 p-5">

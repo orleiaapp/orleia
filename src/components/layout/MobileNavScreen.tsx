@@ -8,39 +8,44 @@
 // The floating top bar slides away WITH the main card, leaving this
 // sheet clean; the hamburger reappears on the card's right-edge
 // sliver and closes this screen.
+//
+// The five primary destinations live in the bottom row (BottomNav)
+// now — this sheet keeps the secondary surfaces: recent Noor/agent
+// chats, Deck and Settings. The old "Office" group is gone.
 // ============================================================
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import {
-  Home,
-  FileText,
-  ListTodo,
-  CheckCircle2,
-  Briefcase,
-  Presentation,
-  Flower2,
-  PawPrint,
-  CalendarDays,
-} from "lucide-react";
+import { Settings, Presentation, MessageSquare, PawPrint } from "lucide-react";
 
-import { NoorMark } from "@/components/NoorMark";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/i18n";
 import { haptic } from "@/lib/haptics";
+import { storage } from "@/lib/storage";
+import type { AIConversation } from "@/types";
 
 const tick = (pattern: number | number[]) => {
   haptic.tick();
   void pattern; /* kept for signature compat */
 };
 
+function recentConversations(): AIConversation[] {
+  try {
+    return [...storage.getConversations()]
+      .sort((a, b) => (b.updatedAt || "").localeCompare(a.updatedAt || ""))
+      .slice(0, 5);
+  } catch {
+    return [];
+  }
+}
+
 export function MobileNavScreen({ open, onClose }: { open: boolean; onClose: () => void }) {
   const pathname = usePathname();
   const router = useRouter();
   const { t } = useI18n();
-  const [toolsOpen, setToolsOpen] = useState(false);
+  const [convos, setConvos] = useState<AIConversation[]>([]);
 
   const close = () => {
     tick(6);
@@ -78,27 +83,13 @@ export function MobileNavScreen({ open, onClose }: { open: boolean; onClose: () 
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     document.documentElement.setAttribute("data-nav-open", "");
+    setConvos(recentConversations());
     tick(10);
     return () => {
       document.body.style.overflow = prev;
       document.documentElement.removeAttribute("data-nav-open");
     };
   }, [open]);
-
-  const navItems = [
-    { href: "/", label: t("nav.dashboard"), icon: Home },
-    { href: "/habits", label: t("nav.habits"), icon: CheckCircle2 },
-    { href: "/journal", label: t("nav.journal"), icon: Flower2 },
-    { href: "/tasks", label: t("nav.tasks"), icon: ListTodo },
-    { href: "/noor", label: t("nav.noor"), icon: NoorMark },
-    { href: "/pets", label: t("nav.pets"), icon: PawPrint },
-  ];
-
-  const officeItems = [
-    { href: "/notes", label: t("nav.notes"), icon: FileText },
-    { href: "/deck", label: t("nav.deck"), icon: Presentation },
-    { href: "/calendar", label: t("nav.calendar"), icon: CalendarDays },
-  ];
 
   return (
     <AnimatePresence>
@@ -123,79 +114,65 @@ export function MobileNavScreen({ open, onClose }: { open: boolean; onClose: () 
             <img src="/orleia-wordmark.png" alt="Orleia" className="h-9 w-auto dark:invert" />
           </div>
           <nav className="flex flex-1 flex-col overflow-y-auto px-3 pt-[calc(env(safe-area-inset-top,0px)+1rem)]">
-            <ul className="space-y-1">
-              {navItems.map((item) => {
-                const isActive = pathname === item.href;
-                return (
-                  <li key={item.href}>
-                    <Link
-                      href={item.href}
-                      onClick={() => goTo(item.href)}
-                      className={cn(
-                        "group flex items-center gap-4 rounded-2xl px-4 py-3.5 text-[15px] font-medium transition-all",
-                        isActive ? "bg-primary-500/10 text-primary-500" : "text-muted-foreground/60 hover:text-muted-foreground hover:bg-sidebar-hover"
-                      )}
-                    >
-                      <item.icon className={cn(
-                        "h-[18px] w-[18px] shrink-0",
-                        item.href === "/noor" && cn(
-                          "invert dark:invert-0",
-                          // Match lucide icons' muted tone when inactive.
-                          isActive ? "opacity-100" : "opacity-60 group-hover:opacity-90"
-                        )
-                      )} />
-                      <span>{item.label}</span>
-                    </Link>
-                  </li>
-                );
-              })}
-            </ul>
+            {/* Recent Noor + agent chats */}
+            {convos.length > 0 && (
+              <>
+                <p className="px-2 pb-2 text-[11px] font-medium tracking-wide text-muted-foreground/40">
+                  {t("nav.recentChats")}
+                </p>
+                <ul className="space-y-0.5" role="list">
+                  {convos.map((c) => (
+                    <li key={c.id}>
+                      <Link
+                        href={`/noor?c=${c.id}`}
+                        onClick={() => goTo(`/noor?c=${c.id}`)}
+                        className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-muted-foreground/60 transition-all hover:bg-sidebar-hover hover:text-muted-foreground"
+                      >
+                        {c.petAgentId || c.petAgentGroup ? (
+                          <PawPrint className="h-4 w-4 shrink-0" />
+                        ) : (
+                          <MessageSquare className="h-4 w-4 shrink-0" />
+                        )}
+                        <span className="flex-1 truncate">{c.title || t("nav.noor")}</span>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
 
-            <div className="my-8" />
+            <div className="my-4" />
 
-          </nav>
-
-          {/* Office tools */}
-          <div className="px-2 pb-[max(env(safe-area-inset-bottom,0px),1.5rem)]">
-            <button
-              onClick={() => setToolsOpen((v) => !v)}
-              aria-expanded={toolsOpen}
-              className="flex w-full items-center gap-4 rounded-lg px-4 py-3 text-[14px] font-medium text-muted-foreground/50 transition-all hover:text-muted-foreground"
-            >
-              <Briefcase className="h-[18px] w-[18px] shrink-0" />
-              <span className="flex-1 text-left">{t("nav.office")}</span>
-            </button>
-            <AnimatePresence initial={false}>
-              {toolsOpen && (
-                <motion.ul
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: "auto", opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  transition={{ duration: 0.2 }}
-                  className="space-y-0.5 overflow-hidden"
-                >
-                  {officeItems.map((item) => {
-                    const isActive = pathname === item.href;
-                    return (
-                      <li key={item.href}>
-                        <Link
-                          href={item.href}
-                          onClick={() => goTo(item.href)}
-                          className={cn(
-                            "group flex items-center gap-3 rounded-lg px-3 py-2.5 text-[14px] font-medium",
-                            isActive ? "bg-primary-500/10 text-primary-500" : "text-muted-foreground/60 hover:text-muted-foreground hover:bg-sidebar-hover"
-                          )}
-                        >
-                          <item.icon className="h-4 w-4 shrink-0" />
-                          <span>{item.label}</span>
-                        </Link>
-                      </li>
-                    );
-                  })}
-                </motion.ul>
+            {/* Deck — its own surface, no longer buried in Office */}
+            <Link
+              href="/deck"
+              onClick={() => goTo("/deck")}
+              className={cn(
+                "flex items-center gap-4 rounded-2xl px-4 py-3.5 text-[15px] font-medium transition-all",
+                pathname === "/deck"
+                  ? "bg-primary-500/10 text-primary-500"
+                  : "text-muted-foreground/60 hover:bg-sidebar-hover hover:text-muted-foreground"
               )}
-            </AnimatePresence>
-          </div>
+            >
+              <Presentation className="h-[18px] w-[18px] shrink-0" />
+              <span>{t("nav.deck")}</span>
+            </Link>
+
+            <Link
+              href="/settings"
+              onClick={() => goTo("/settings")}
+              className={cn(
+                "flex items-center gap-4 rounded-2xl px-4 py-3.5 text-[15px] font-medium transition-all",
+                pathname === "/settings"
+                  ? "bg-primary-500/10 text-primary-500"
+                  : "text-muted-foreground/60 hover:bg-sidebar-hover hover:text-muted-foreground"
+              )}
+            >
+              <Settings className="h-[18px] w-[18px] shrink-0" />
+              <span>{t("nav.settings")}</span>
+            </Link>
+          </nav>
+          <div className="pb-[max(env(safe-area-inset-bottom,0px),1.5rem)]" />
         </motion.div>
       )}
     </AnimatePresence>

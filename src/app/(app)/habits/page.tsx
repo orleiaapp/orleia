@@ -32,6 +32,7 @@ import { Habit, HabitFrequency, HabitTimeOfDay, DAYS_OF_WEEK } from "@/types";
 import { useI18n } from "@/lib/i18n";
 import { HABIT_ICONS, TIME_OF_DAY_ICONS, habitIconFor, habitIconName } from "@/lib/habit-icons";
 import { PetMascot } from "@/components/habits/PetMascot";
+import { NotesSurface } from "@/components/notes/NotesSurface";
 import { petById } from "@/lib/pets";
 
 const WEEK_HEADER = ["M", "T", "W", "T", "F", "S", "S"];
@@ -46,7 +47,7 @@ export default function HabitsPage() {
   const [showForm, setShowForm] = useState(false);
   const [editingHabit, setEditingHabit] = useState<Habit | null>(null);
   const [selectedHabit, setSelectedHabit] = useState<string | null>(null);
-  const [tab, setTab] = useState<"habits" | "stats">("habits");
+  const [tab, setTab] = useState<"habits" | "stats" | "notes">("habits");
   const [viewMonth, setViewMonth] = useState(new Date().getMonth());
   const [viewYear, setViewYear] = useState(new Date().getFullYear());
 
@@ -186,9 +187,13 @@ export default function HabitsPage() {
         </button>
       </motion.div>
 
-      {/* Tab pill - Habits / Stats */}
+      {/* Tab pill - Habits / Stats / Notes */}
       <div className="inline-flex items-center rounded-full border border-border bg-muted/40 p-1" role="tablist">
-        {(["habits", "stats"] as const).map((key) => (
+        {[
+          { key: "habits" as const, label: t("habits.title") },
+          { key: "stats" as const, label: t("habits.tabStats") },
+          { key: "notes" as const, label: t("nav.notes") },
+        ].map(({ key, label }) => (
           <button
             key={key}
             role="tab"
@@ -201,7 +206,7 @@ export default function HabitsPage() {
                 : "text-muted-foreground hover:text-foreground border border-transparent"
             )}
           >
-            {t(key === "habits" ? "habits.title" : "habits.tabStats")}
+            {label}
           </button>
         ))}
       </div>
@@ -440,6 +445,13 @@ export default function HabitsPage() {
       )}
 
       {/* ===== Stats tab ===== */}
+      {/* Notes live inside Habits now — the full editor, bounded to the tab. */}
+      {tab === "notes" && (
+        <div className="h-[calc(100dvh-15rem)] min-h-[440px]">
+          <NotesSurface embedded />
+        </div>
+      )}
+
       {tab === "stats" && (
         <div className="space-y-4 sm:space-y-6">
             <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">

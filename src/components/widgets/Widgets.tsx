@@ -22,6 +22,7 @@ import {
   Meh,
   Frown,
   ShieldCheck,
+  PawPrint,
 } from "lucide-react";
 import Link from "next/link";
 import { motion } from "framer-motion";
@@ -105,12 +106,13 @@ export function StatsWidget() {
     return streak;
   })();
 
-  // Each stat jumps to the tab it summarizes (habits, tasks, journal, notes).
+  // Each stat jumps to the surface it summarizes (habits, tasks, journal,
+  // pets — notes moved inside Habits, so the fourth tile tracks hired pets).
   const stats = [
     { label: t("dash.habitsToday"), value: `${completedToday}/${habits.length}`, icon: CheckCircle2, href: "/habits" },
     { label: t("dash.tasksToday"), value: `${todayDone}/${todayTasks.length}`, icon: Target, href: "/tasks" },
     { label: t("dash.journalStreak"), value: journalStreak > 0 ? `${journalStreak}d` : "-", icon: Flame, href: "/journal" },
-    { label: "Notes", value: String(data.notes.length), icon: FileText, href: "/notes" },
+    { label: "Pets hired", value: String(data.petAgents?.roster?.length ?? 0), icon: PawPrint, href: "/noor?tab=pets" },
   ];
 
   return (
