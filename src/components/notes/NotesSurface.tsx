@@ -697,9 +697,9 @@ export function NotesSurface({ embedded, onExit }: { embedded?: boolean; onExit?
 
               {/* Apple-style bottom toolbar: scroll content underneath it
                   (sits on a safe-area-aware gradient, no hard border). */}
-              {/* pb-10 raises BOTH tool rows (formats + actions) further
-                  off the bottom edge (safe-area padding per row below). */}
-              <div className="pointer-events-none absolute inset-x-0 bottom-0 z-30 pb-10">
+              {/* pb-12 raises BOTH tool rows (formats + actions) a bit
+                  further off the bottom edge (safe-area per row below). */}
+              <div className="pointer-events-none absolute inset-x-0 bottom-0 z-30 pb-12">
                 <div className="h-6 bg-gradient-to-t from-background via-background/80 to-transparent" />
 
                 {/* Format tools — BOTTOM of the editor, right above the

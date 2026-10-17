@@ -2360,7 +2360,7 @@ try {
   if (subtab === "pets") {
     return (
       <div className="orleia-bottom-pad-sm fixed inset-0 z-0 flex flex-col overflow-hidden md:relative md:inset-auto md:h-dvh">
-        <div className="flex shrink-0 items-center px-3 pt-[calc(6.5rem+env(safe-area-inset-top,0px))] pb-2 md:px-6 md:pt-3">
+        <div className="flex shrink-0 items-center px-3 pt-[calc(6rem+env(safe-area-inset-top,0px))] pb-2 md:px-6 md:pt-3">
           <NoorPetsTab value={subtab} onChange={setSubtab} />
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto">
@@ -2374,7 +2374,7 @@ try {
   if (subtab === "deck") {
     return (
       <div className="orleia-bottom-pad-sm fixed inset-0 z-0 flex flex-col overflow-hidden md:relative md:inset-auto md:h-dvh">
-        <div className="flex shrink-0 items-center px-3 pt-[calc(6.5rem+env(safe-area-inset-top,0px))] pb-2 md:px-6 md:pt-3">
+        <div className="flex shrink-0 items-center px-3 pt-[calc(6rem+env(safe-area-inset-top,0px))] pb-2 md:px-6 md:pt-3">
           <NoorPetsTab value={subtab} onChange={setSubtab} />
         </div>
         <div className="min-h-0 flex-1 overflow-hidden">
@@ -2393,7 +2393,7 @@ try {
             same 64px clearance the shell gives other pages); at md+ the
             ORIGINAL Noor header: the mark, no subtab pills (those are
             mobile-only — desktop pets/deck live at /pets and /deck). */}
-        <div className={cn("shrink-0 flex items-center justify-between gap-2 border-border/60 px-3 pt-[calc(7.5rem+env(safe-area-inset-top,0px))] pb-2.5 md:px-6 md:pt-[calc(0.75rem+env(safe-area-inset-top))] md:pb-3",
+        <div className={cn("shrink-0 flex items-center justify-between gap-2 border-border/60 px-3 pt-[calc(6.5rem+env(safe-area-inset-top,0px))] pb-2.5 md:px-6 md:pt-[calc(0.75rem+env(safe-area-inset-top))] md:pb-3",
           "border-b-0", "md:border-b")}>
           <div className="flex items-center min-w-0 gap-2">
             {!isMobile && (
@@ -2995,7 +2995,9 @@ try {
         {/* Input */}
         <div
           className={cn(
-            "shrink-0 px-3 pb-12 sm:px-6 sm:pb-6",
+            /* Mobile: pb-8 (was 12) — the typing pill sits a bit lower.
+               Desktop keeps the original spacing. */
+            "shrink-0 px-3 pb-8 sm:px-6 sm:pb-6",
             isEmptyChat
               ? "flex-1 flex flex-col justify-end bg-background/80 backdrop-blur-sm pt-0 sm:pt-4 lg:items-center lg:justify-center lg:bg-transparent lg:backdrop-blur-none lg:pt-0"
               : "bg-background/80 backdrop-blur-sm pt-0 sm:pt-4"
