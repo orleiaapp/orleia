@@ -10,15 +10,17 @@
 // sliver and closes this screen.
 //
 // The five primary destinations live in the bottom row (BottomNav)
-// now — this sheet keeps the secondary surfaces: recent Noor/agent
-// chats, Deck and Settings. The old "Office" group is gone.
+// now — this sheet keeps recent Noor/agent chats, plus a link back to
+// the dashboard. Deck is a subtab inside Noor, and Settings lives in
+// the top bar, so neither is repeated here. The old "Office" group
+// is gone.
 // ============================================================
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { Settings, Presentation, MessageSquare, PawPrint } from "lucide-react";
+import { MessageSquare, PawPrint, LayoutDashboard } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/lib/i18n";
@@ -143,33 +145,21 @@ export function MobileNavScreen({ open, onClose }: { open: boolean; onClose: () 
 
             <div className="my-4" />
 
-            {/* Deck — its own surface, no longer buried in Office */}
+            {/* One grid item so the sheet is never just chat rows:
+                back to the workspace. Deck is a subtab inside Noor and
+                Settings lives in the top bar — neither is repeated here. */}
             <Link
-              href="/deck"
-              onClick={() => goTo("/deck")}
+              href="/"
+              onClick={() => goTo("/")}
               className={cn(
                 "flex items-center gap-4 rounded-2xl px-4 py-3.5 text-[15px] font-medium transition-all",
-                pathname === "/deck"
+                pathname === "/"
                   ? "bg-primary-500/10 text-primary-500"
                   : "text-muted-foreground/60 hover:bg-sidebar-hover hover:text-muted-foreground"
               )}
             >
-              <Presentation className="h-[18px] w-[18px] shrink-0" />
-              <span>{t("nav.deck")}</span>
-            </Link>
-
-            <Link
-              href="/settings"
-              onClick={() => goTo("/settings")}
-              className={cn(
-                "flex items-center gap-4 rounded-2xl px-4 py-3.5 text-[15px] font-medium transition-all",
-                pathname === "/settings"
-                  ? "bg-primary-500/10 text-primary-500"
-                  : "text-muted-foreground/60 hover:bg-sidebar-hover hover:text-muted-foreground"
-              )}
-            >
-              <Settings className="h-[18px] w-[18px] shrink-0" />
-              <span>{t("nav.settings")}</span>
+              <LayoutDashboard className="h-[18px] w-[18px] shrink-0" />
+              <span>{t("nav.dashboard")}</span>
             </Link>
           </nav>
           <div className="pb-[max(env(safe-area-inset-bottom,0px),1.5rem)]" />

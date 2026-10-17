@@ -145,7 +145,7 @@ export default function RootLayout({
                 "No sign-up required",
                 "GDPR compliant",
                 "Accessibility features",
-                "Multi-language support (19 languages)"
+                "Multi-language support (10 languages)"
               ],
               "softwareVersion": "2.7.0",
               "author": {

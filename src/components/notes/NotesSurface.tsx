@@ -363,10 +363,12 @@ export function NotesSurface({ embedded }: { embedded?: boolean }) {
     return () => window.removeEventListener("click", close);
   }, [moreOpen, showTagPicker]);
 
-  // Reset editor chrome when switching notes
+  // Reset editor chrome when switching notes. The format tools are
+  // OPEN by default now — they live at the BOTTOM of the editor (above
+  // the action bar) so they are always one glance away, Apple-Notes style.
   useEffect(() => {
     setMoreOpen(false);
-    setShowFmtRow(false);
+    setShowFmtRow(true);
     setShowTagPicker(null);
   }, [selectedNote?.id]);
 
@@ -419,9 +421,12 @@ export function NotesSurface({ embedded }: { embedded?: boolean }) {
           editor's bottom toolbar. */}
 
       <div className="flex flex-1 overflow-hidden">
-        {/* Sidebar: Folders + Notes List */}
+        {/* Sidebar: Folders + Notes List — desktop only, and only while
+            NO note is open: with a note open the editor takes the full
+            surface (full-screen writing), and the back arrow in the
+            bottom bar brings the list back. */}
         <AnimatePresence>
-          {showSidebar && (
+          {showSidebar && !selectedNote && (
             <motion.div
               initial={{ width: 0, opacity: 0 }}
               animate={{ width: 280, opacity: 1 }}
@@ -573,10 +578,7 @@ export function NotesSurface({ embedded }: { embedded?: boolean }) {
                         setShowMobileList(false);
                       }}
                       {...(() => { const { onContextMenu: _omit, ...p } = noteLongPress.longPressProps(note.id); return p; })()}
-                      className={cn(
-                        "flex w-full flex-col gap-1 border-b border-border/50 px-3 py-3 text-left transition-colors hover:bg-muted/50",
-                        selectedNote?.id === note.id && "bg-muted"
-                      )}
+                      className="flex w-full flex-col gap-1 border-b border-border/50 px-3 py-3 text-left transition-colors hover:bg-muted/50"
                     >
                       <div className="flex items-center gap-1.5">
                         {note.pinned && <Pin className="h-3 w-3 text-primary shrink-0" />}
@@ -653,18 +655,51 @@ export function NotesSurface({ embedded }: { embedded?: boolean }) {
                 )}
               </div>
 
-              {/* Formatting row — hidden by default. Apple Notes keeps a
-                  single Aa control; tapping it reveals the formatters
-                  between title and body instead of crowding the top. */}
-              <AnimatePresence initial={false}>
-                {showFmtRow && (
-                  <motion.div
-                    initial={{ height: 0, opacity: 0 }}
-                    animate={{ height: "auto", opacity: 1 }}
-                    exit={{ height: 0, opacity: 0 }}
-                    className="overflow-hidden"
-                  >
-                    <div className="flex flex-wrap items-center gap-0.5 px-5 pb-2 pt-3 md:px-8" role="toolbar" aria-label="Formatting">
+              {/* Formatting tools moved DOWN: they render inside the
+                  bottom bar stack (below, above the action row) so the
+                  writing surface starts straight after the title. */}
+
+              {/* Content */}
+              <div className={cn("flex-1 overflow-y-auto px-5 pt-1 md:px-8", showFmtRow ? "pb-48" : "pb-28", showNotePreview && "grid grid-cols-1 gap-6 md:grid-cols-2")}>
+                <textarea
+                  ref={contentRef}
+                  value={selectedNote.content}
+                  onChange={(e) =>
+                    updateNoteContent(selectedNote.id, {
+                      content: e.target.value,
+                      contentHtml: e.target.value,
+                    })
+                  }
+                  placeholder={t("notes.contentPlaceholder")}
+                  className="notes-editor min-h-[400px] w-full resize-none bg-transparent text-base leading-relaxed text-foreground outline-none placeholder:text-muted-foreground/40"
+                />
+                {showNotePreview && (
+                  <div className="min-h-[400px] border-l border-border pl-6">
+                    <div
+                      className="prose prose-sm dark:prose-invert max-w-none"
+                      dangerouslySetInnerHTML={{ __html: markdownToHtml(selectedNote.content) }}
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* Apple-style bottom toolbar: scroll content underneath it
+                  (sits on a safe-area-aware gradient, no hard border). */}
+              <div className="pointer-events-none absolute inset-x-0 bottom-0 z-30">
+                <div className="h-6 bg-gradient-to-t from-background via-background/80 to-transparent" />
+
+                {/* Format tools — BOTTOM of the editor, right above the
+                    action row (was: hidden row between title and body).
+                    Open by default; the Aa button still collapses them. */}
+                <AnimatePresence initial={false}>
+                  {showFmtRow && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: "auto", opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      className="pointer-events-auto overflow-hidden bg-background/90 backdrop-blur-xl"
+                    >
+                      <div className="flex flex-wrap items-center gap-0.5 border-t border-border/40 px-2 pb-1 pt-2" role="toolbar" aria-label="Formatting">
                 {[
                   { icon: Bold, label: "Bold", run: () => applyMd("**", "bold") },
                   { icon: Italic, label: "Italic", run: () => applyMd("*", "italic") },
@@ -702,48 +737,25 @@ export function NotesSurface({ embedded }: { embedded?: boolean }) {
                 >
                   <Download className="h-4 w-4" />
                 </button>
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
 
-              {/* Content */}
-              <div className={cn("flex-1 overflow-y-auto px-5 pb-28 pt-1 md:px-8", showNotePreview && "grid grid-cols-1 gap-6 md:grid-cols-2")}>
-                <textarea
-                  ref={contentRef}
-                  value={selectedNote.content}
-                  onChange={(e) =>
-                    updateNoteContent(selectedNote.id, {
-                      content: e.target.value,
-                      contentHtml: e.target.value,
-                    })
-                  }
-                  placeholder={t("notes.contentPlaceholder")}
-                  className="notes-editor min-h-[400px] w-full resize-none bg-transparent text-base leading-relaxed text-foreground outline-none placeholder:text-muted-foreground/40"
-                />
-                {showNotePreview && (
-                  <div className="min-h-[400px] border-l border-border pl-6">
-                    <div
-                      className="prose prose-sm dark:prose-invert max-w-none"
-                      dangerouslySetInnerHTML={{ __html: markdownToHtml(selectedNote.content) }}
-                    />
-                  </div>
-                )}
-              </div>
-
-              {/* Apple-style bottom toolbar: scroll content underneath it
-                  (sits on a safe-area-aware gradient, no hard border). */}
-              <div className="pointer-events-none absolute inset-x-0 bottom-0 z-30">
-                <div className="h-6 bg-gradient-to-t from-background via-background/80 to-transparent" />
                 <div
                   className="pointer-events-auto flex items-center gap-1 bg-background/90 px-3 pb-[max(0.625rem,env(safe-area-inset-bottom))] pt-1.5 backdrop-blur-xl"
                   style={{ marginBottom: "calc(-1 * var(--orleia-notes-kb, 0px))" }}
                 >
                   {/* Back to the list — lives HERE so the top-left stays
-                      free for the app's hamburger (no overlap). */}
+                      free for the app's hamburger (no overlap). Visible on
+                      desktop too: the editor is full-width while writing,
+                      so this is how the folder list comes back. */}
                   <button
-                    onClick={() => setShowMobileList(true)}
-                    className="rounded-lg p-2 text-muted-foreground/80 transition-colors hover:bg-muted hover:text-foreground md:hidden"
+                    onClick={() => {
+                      setSelectedNote(null);
+                      setShowMobileList(true);
+                    }}
+                    className="rounded-lg p-2 text-muted-foreground/80 transition-colors hover:bg-muted hover:text-foreground"
                     aria-label={t("notes.allNotes")}
                   >
                     <ArrowLeft className="h-5 w-5" />

@@ -85,13 +85,14 @@ import { createPortal } from "react-dom";
 import { shareText } from "@/lib/share";
 import ImageLoader from "@/components/ui/image-loading";
 import { MiniCamera, type CapturedPhoto } from "@/components/noor/MiniCamera";
-import { PawPrint } from "lucide-react";
+import { PawPrint, Presentation } from "lucide-react";
 import { roster as petRoster, petSystemPrompt, ensurePetConversation, roleHasJob, runRoleNow, resolveMention, agentTurns } from "@/lib/pet-agent";
 import { stripPetFlavor } from "@/lib/action-clean";
 import { runResearchPipeline, wantsResearch } from "@/lib/research-run";
 import { jobByRole } from "@/lib/pet-jobs";
 import { petById, petSvg } from "@/lib/pets";
 import PetsPage from "@/app/(app)/pets/page";
+import DeckPage from "@/app/(shell)/deck/page";
 import {
   assignScoutJob,
   pendingScoutJob,
@@ -204,10 +205,11 @@ interface Attachment {
 }
 
 // "make an image of X" / "image: X" -> image generation
-/** Noor | Pets — the pet roster + agent chat live inside Noor now. */
-function NoorPetsTab({ value, onChange }: { value: "noor" | "pets"; onChange: (v: "noor" | "pets") => void }) {
+/** Noor | Pets | Deck — the pet roster, agent chat and the deck
+ *  editor all live inside Noor now (Deck replaces the mobile sheet link). */
+function NoorPetsTab({ value, onChange }: { value: "noor" | "pets" | "deck"; onChange: (v: "noor" | "pets" | "deck") => void }) {
   const { t } = useI18n();
-  const btn = (key: "noor" | "pets", label: string, Icon: typeof Sparkles) => (
+  const btn = (key: "noor" | "pets" | "deck", label: string, Icon: typeof Sparkles) => (
     <button
       onClick={() => onChange(key)}
       aria-pressed={value === key}
@@ -226,6 +228,7 @@ function NoorPetsTab({ value, onChange }: { value: "noor" | "pets"; onChange: (v
     <div className="flex w-fit items-center rounded-full border border-border/60 bg-secondary/40 p-0.5 text-xs font-semibold">
       {btn("noor", "Noor", Sparkles)}
       {btn("pets", t("nav.pets"), PawPrint)}
+      {btn("deck", t("nav.deck"), Presentation)}
     </div>
   );
 }
@@ -302,10 +305,12 @@ export default function AssistantPage() {
   const { t } = useI18n();
   const [data, setData] = useState(storage.getData());
 
-  // Noor | Pets subtabs — the pet roster/agent chat lives inside Noor.
-  const [subtab, setSubtab] = useState<"noor" | "pets">("noor");
+  // Noor | Pets | Deck subtabs — the pet roster/agent chat and the
+  // deck editor live inside Noor.
+  const [subtab, setSubtab] = useState<"noor" | "pets" | "deck">("noor");
   useEffect(() => {
-    if (new URLSearchParams(window.location.search).get("tab") === "pets") setSubtab("pets");
+    const tab = new URLSearchParams(window.location.search).get("tab");
+    if (tab === "pets" || tab === "deck") setSubtab(tab);
   }, []);
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [messages, setMessages] = useState<AIMessage[]>([]);
@@ -2342,11 +2347,25 @@ try {
   if (subtab === "pets") {
     return (
       <div className="fixed inset-0 z-0 flex flex-col overflow-hidden pb-[calc(4.25rem+env(safe-area-inset-bottom))] md:relative md:inset-auto md:h-dvh md:pb-[4.5rem]">
-        <div className="flex shrink-0 items-center px-3 pt-[calc(4rem+env(safe-area-inset-top,0px))] pb-2 md:px-6 md:pt-3">
+        <div className="flex shrink-0 items-center px-3 pt-[calc(4.5rem+env(safe-area-inset-top,0px))] pb-2 md:px-6 md:pt-6">
           <NoorPetsTab value={subtab} onChange={setSubtab} />
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto">
           <PetsPage />
+        </div>
+      </div>
+    );
+  }
+
+  // Deck subtab — the full deck library/editor inside the same shell.
+  if (subtab === "deck") {
+    return (
+      <div className="fixed inset-0 z-0 flex flex-col overflow-hidden pb-[calc(4.25rem+env(safe-area-inset-bottom))] md:relative md:inset-auto md:h-dvh md:pb-[4.5rem]">
+        <div className="flex shrink-0 items-center px-3 pt-[calc(4.5rem+env(safe-area-inset-top,0px))] pb-2 md:px-6 md:pt-6">
+          <NoorPetsTab value={subtab} onChange={setSubtab} />
+        </div>
+        <div className="min-h-0 flex-1 overflow-hidden">
+          <DeckPage />
         </div>
       </div>
     );
@@ -2360,7 +2379,7 @@ try {
         {/* Header — mobile clears the floating glass buttons (top-3 + 40px tall,
             same 64px clearance the shell gives other pages); compact again at
             md where the buttons unmount. */}
-        <div className={cn("shrink-0 flex items-center justify-between gap-2 border-border/60 px-3 pt-[calc(4rem+env(safe-area-inset-top,0px))] pb-2.5 md:px-6 md:pt-[calc(0.75rem+env(safe-area-inset-top))] md:pb-3",
+        <div className={cn("shrink-0 flex items-center justify-between gap-2 border-border/60 px-3 pt-[calc(4.5rem+env(safe-area-inset-top,0px))] pb-2.5 md:px-6 md:pt-[calc(1.75rem+env(safe-area-inset-top))] md:pb-3",
           "border-b-0", "md:border-b")}>
           <div className="flex items-center min-w-0 gap-2">
             {!isMobile && (

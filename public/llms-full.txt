@@ -9,7 +9,7 @@ Orleia is a free, local-first AI productivity suite available at https://orleia.
 - **Local-first** — all data stored in IndexedDB/browser storage, never leaves the device
 - **Privacy by design** — GDPR compliant. The developers literally cannot see user data.
 - **AI assistant built in** — Noor with three models (Ethos 4.7, Logos 4.5, Verse 4)
-- **Multi-language** — supports 19 languages
+- **Multi-language** — supports 10 languages
 - **Accessible** — WCAG compliant, font size controls, screen reader support
 - **Cross-platform** — web app, desktop (Electron for Windows/macOS/Linux), mobile (PWA)
 

@@ -25,7 +25,7 @@ import { isDarkTheme } from "@/lib/theme-mode";
 
 const STATS = [
   { value: "Free", label: "tools, Noor plans optional" },
-  { value: "19", label: "interface languages" },
+  { value: "10", label: "interface languages" },
   { value: "3", label: "AI models, zero setup" },
   { value: "100%", label: "of your data, on your device" },
 ];
@@ -552,7 +552,7 @@ export default function LandingPage() {
                 </div>
                 <div className="hidden sm:block h-8 w-px bg-border/60" aria-hidden />
                 <div>
-                  <p className="text-2xl font-bold tracking-tight">19</p>
+                  <p className="text-2xl font-bold tracking-tight">10</p>
                   <p className="text-[11px] text-muted-foreground/50">interface languages</p>
                 </div>
                 <div className="hidden sm:block h-8 w-px bg-border/60" aria-hidden />
@@ -587,7 +587,7 @@ export default function LandingPage() {
                   <p className="mt-3 text-3xl font-bold tracking-tight">$0</p>
                   <p className="mt-1 text-xs text-muted-foreground/50">forever</p>
                   <ul className="mt-5 space-y-2.5 text-sm text-muted-foreground flex-1">
-                    {["All tools, unlimited", "30 Noor messages a day", "Local-first, no account", "19 languages"].map((p) => (
+                    {["All tools, unlimited", "30 Noor messages a day", "Local-first, no account", "10 languages"].map((p) => (
                       <li key={p} className="flex items-start gap-2">
                         <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-500" />{p}
                       </li>
@@ -640,7 +640,7 @@ export default function LandingPage() {
             </Reveal>
             <Reveal delay={0.1}>
               <div className="mt-10 md:mt-12 grid grid-cols-2 md:grid-cols-3 gap-3 max-w-3xl mx-auto">
-                {["High contrast mode", "Reduced motion", "Dyslexia-friendly font", "19 interface languages", "Screen-reader friendly", "Full keyboard control"].map((f) => (
+                {["High contrast mode", "Reduced motion", "Dyslexia-friendly font", "10 interface languages", "Screen-reader friendly", "Full keyboard control"].map((f) => (
                   <div key={f} className="flex items-center gap-2.5 rounded-xl border border-white/10 px-4 py-3.5">
                     <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full border border-white/25">
                       <Check className="h-2.5 w-2.5 text-white/70" strokeWidth={3} aria-hidden />

@@ -5,7 +5,7 @@ All notable changes to Orleia are documented here.
 ## v2.2.0 — Orleia Office — September 9, 2026
 
 ### New: Orleia Office suite
-- **Tools is now Office** — renamed across the sidebar (desktop + mobile) in all 19 languages, with a Briefcase icon. Existing tool names (Notes, Documents, Grid, Deck) are unchanged.
+- **Tools is now Office** — renamed across the sidebar (desktop + mobile) in all shipped languages, with a Briefcase icon. Existing tool names (Notes, Documents, Grid, Deck) are unchanged.
 - **Calendar** (new app) — month and week views, events with time/color/notes, daily/weekly/monthly recurrence, drag-to-reschedule, tasks with due dates shown automatically, day detail panel, and a **Noor weekly planner** that reads your open tasks and habits and drafts a day-by-day plan.
 - **Forms** (new app) — question builder (text, multiple choice, checkboxes, rating, date), required-field validation, shareable links, in-app fill mode, per-question response charts, and CSV export. **Noor generates entire forms** from a one-line description.
 - **Board** (new app) — freeform whiteboard with sticky notes (draggable, editable, 5 colors), freehand pen, rectangles, ellipses, and arrows on a dot grid. **Noor brainstorm** scatters AI idea stickies onto the board from a prompt.
