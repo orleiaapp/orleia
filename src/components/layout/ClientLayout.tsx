@@ -320,7 +320,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
           <div className="orleia-card">
             <div className={`orleia-app-shell flex min-h-screen ${isFullWidth ? "max-md:h-dvh max-md:min-h-0 max-md:overflow-hidden" : ""}`}>
             <Sidebar />
-            <main id="main-content" className={`flex-1 pb-[calc(4.5rem+env(safe-area-inset-bottom))] ${isFullWidth ? "" : "pt-[calc(4rem+env(safe-area-inset-top,0px))] md:pt-0"} md:transition-[padding] md:duration-300 md:ease-in-out ${sidebarCollapsed ? "md:pl-[72px]" : "md:pl-[260px]"}`} tabIndex={-1}
+            <main id="main-content" className={`flex-1 orleia-bottom-pad ${isFullWidth ? "" : "pt-[calc(4rem+env(safe-area-inset-top,0px))] md:pt-0"} md:transition-[padding] md:duration-300 md:ease-in-out ${sidebarCollapsed ? "md:pl-[72px]" : "md:pl-[260px]"}`} tabIndex={-1}
               onTouchStart={handleTouchStart}
               onTouchEnd={handleTouchEnd}>
               {/* Keyed remount with enter-only fade. Deliberately NO

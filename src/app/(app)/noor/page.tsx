@@ -309,8 +309,20 @@ export default function AssistantPage() {
   // deck editor live inside Noor.
   const [subtab, setSubtab] = useState<"noor" | "pets" | "deck">("noor");
   useEffect(() => {
-    const tab = new URLSearchParams(window.location.search).get("tab");
+    const params = new URLSearchParams(window.location.search);
+    const tab = params.get("tab");
     if (tab === "pets" || tab === "deck") setSubtab(tab);
+    // "/noor?new=1" (from the mobile sheet's New chat row) forces a
+    // fresh thread; the event covers the already-mounted case, since a
+    // same-route query change does not re-run this effect.
+    if (params.get("new") === "1") {
+      startNewChat();
+      router.replace("/noor", { scroll: false });
+    }
+    const onNewChat = () => startNewChat();
+    window.addEventListener("orleia:new-chat", onNewChat);
+    return () => window.removeEventListener("orleia:new-chat", onNewChat);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [messages, setMessages] = useState<AIMessage[]>([]);
@@ -2346,8 +2358,8 @@ try {
   // Pets subtab — its own bounded surface inside the same fullscreen shell.
   if (subtab === "pets") {
     return (
-      <div className="fixed inset-0 z-0 flex flex-col overflow-hidden pb-[calc(4.25rem+env(safe-area-inset-bottom))] md:relative md:inset-auto md:h-dvh md:pb-[4.5rem]">
-        <div className="flex shrink-0 items-center px-3 pt-[calc(4.5rem+env(safe-area-inset-top,0px))] pb-2 md:px-6 md:pt-6">
+      <div className="orleia-bottom-pad-sm fixed inset-0 z-0 flex flex-col overflow-hidden md:relative md:inset-auto md:h-dvh">
+        <div className="flex shrink-0 items-center px-3 pt-[calc(5.5rem+env(safe-area-inset-top,0px))] pb-2 md:px-6 md:pt-12">
           <NoorPetsTab value={subtab} onChange={setSubtab} />
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto">
@@ -2360,8 +2372,8 @@ try {
   // Deck subtab — the full deck library/editor inside the same shell.
   if (subtab === "deck") {
     return (
-      <div className="fixed inset-0 z-0 flex flex-col overflow-hidden pb-[calc(4.25rem+env(safe-area-inset-bottom))] md:relative md:inset-auto md:h-dvh md:pb-[4.5rem]">
-        <div className="flex shrink-0 items-center px-3 pt-[calc(4.5rem+env(safe-area-inset-top,0px))] pb-2 md:px-6 md:pt-6">
+      <div className="orleia-bottom-pad-sm fixed inset-0 z-0 flex flex-col overflow-hidden md:relative md:inset-auto md:h-dvh">
+        <div className="flex shrink-0 items-center px-3 pt-[calc(5.5rem+env(safe-area-inset-top,0px))] pb-2 md:px-6 md:pt-12">
           <NoorPetsTab value={subtab} onChange={setSubtab} />
         </div>
         <div className="min-h-0 flex-1 overflow-hidden">
@@ -2372,14 +2384,14 @@ try {
   }
 
   return (
-    <div ref={rootRef} className="fixed inset-0 z-0 flex gap-6 overflow-hidden pb-[calc(4.25rem+env(safe-area-inset-bottom))] md:relative md:inset-auto md:z-auto md:h-dvh md:pb-[4.5rem]">
+    <div ref={rootRef} className="orleia-bottom-pad-sm fixed inset-0 z-0 flex gap-6 overflow-hidden md:relative md:inset-auto md:z-auto md:h-dvh">
       {/* Main chat */}
       <div className="relative flex-1 flex flex-col min-w-0 min-h-0">
         {/* Header */}
         {/* Header — mobile clears the floating glass buttons (top-3 + 40px tall,
             same 64px clearance the shell gives other pages); compact again at
             md where the buttons unmount. */}
-        <div className={cn("shrink-0 flex items-center justify-between gap-2 border-border/60 px-3 pt-[calc(4.5rem+env(safe-area-inset-top,0px))] pb-2.5 md:px-6 md:pt-[calc(1.75rem+env(safe-area-inset-top))] md:pb-3",
+        <div className={cn("shrink-0 flex items-center justify-between gap-2 border-border/60 px-3 pt-[calc(5.5rem+env(safe-area-inset-top,0px))] pb-2.5 md:px-6 md:pt-[calc(3rem+env(safe-area-inset-top))] md:pb-3",
           "border-b-0", "md:border-b")}>
           <div className="flex items-center min-w-0 gap-2">
             {!isMobile && (

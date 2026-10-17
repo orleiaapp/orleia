@@ -507,7 +507,7 @@ export function CalendarSurface({ embedded }: { embedded?: boolean }) {
   const dayTasks = selectedDay ? tasksOnDay(selectedDay) : [];
 
   return (
-    <div className={embedded ? "flex h-full flex-col" : "flex h-dvh flex-col pb-[calc(4.25rem+env(safe-area-inset-bottom))]"}>
+    <div className={embedded ? "flex h-full flex-col" : "flex h-dvh flex-col orleia-bottom-pad-sm"}>
       {/* Header */}
       <div className={cn("flex flex-wrap items-center gap-2 border-b border-border px-3 pb-2 sm:px-4 sm:py-2.5", embedded ? "pt-2.5" : "pt-[calc(4rem+env(safe-area-inset-top,0px))]")}>
         <CalendarDays className="hidden h-5 w-5 text-muted-foreground sm:block" />

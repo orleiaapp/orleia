@@ -2,11 +2,12 @@
 
 // ============================================================
 // BottomNav — the primary navigation row, pinned to the bottom of
-// the app card on every breakpoint: Dashboard, Habits,
-// Mindfulness, Tasks, Noor. These five moved OUT of the sidebar
-// (which now keeps only secondary surfaces: recent chats, Deck,
-// reminders, settings). Sits inside .orleia-card, so it travels
-// with the card when the mobile nav sheet slides it sideways.
+// the app card in MOBILE PORTRAIT ONLY: Dashboard, Habits,
+// Mindfulness, Tasks, Noor. Desktop, tablets and landscape phones
+// keep their own chrome (the restored sidebar rail), so the row —
+// and the bottom padding that clears it — disappears there.
+// Sits inside .orleia-card, so it travels with the card when the
+// mobile nav sheet slides it sideways.
 // ============================================================
 
 import Link from "next/link";
@@ -31,7 +32,7 @@ export function BottomNav() {
   return (
     <nav
       aria-label="Primary"
-      className="fixed inset-x-0 bottom-0 z-[60] border-t border-border bg-background/90 pb-[env(safe-area-inset-bottom)] backdrop-blur-md md:left-[var(--orleia-sidebar-w)]"
+      className="fixed bottom-0 inset-x-0 z-[60] border-t border-border bg-background/90 pb-[env(safe-area-inset-bottom)] backdrop-blur-md landscape:hidden md:hidden"
     >
       <ul className="mx-auto flex max-w-md items-stretch justify-between px-2" role="list">
         {ITEMS.map((item) => {

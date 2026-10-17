@@ -1756,3 +1756,23 @@ html.ios-touch .orleia-app-shell :is(button, nav, [role="button"]) {
   0%, 100% { opacity: 0.3; }
   50% { opacity: 1; }
 }
+
+/* ============================================================
+   Bottom-row clearance. The primary nav row (BottomNav) only
+   exists in MOBILE PORTRAIT — it is hidden at md+ (desktop and
+   tablets) and in landscape at any width, and the space that used
+   to clear it collapses with it. Two sizes match the call sites:
+   main content cleared 4.5rem, the full-width shells 4.25rem.
+   ============================================================ */
+.orleia-bottom-pad {
+  padding-bottom: calc(4.5rem + env(safe-area-inset-bottom, 0px));
+}
+.orleia-bottom-pad-sm {
+  padding-bottom: calc(4.25rem + env(safe-area-inset-bottom, 0px));
+}
+@media (min-width: 768px), (orientation: landscape) {
+  .orleia-bottom-pad,
+  .orleia-bottom-pad-sm {
+    padding-bottom: 0;
+  }
+}
