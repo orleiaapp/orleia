@@ -445,10 +445,13 @@ export default function HabitsPage() {
       )}
 
       {/* ===== Stats tab ===== */}
-      {/* Notes live inside Habits now — the full editor, bounded to the tab. */}
+      {/* Notes live inside Habits now — but the editor surface is a
+          FULL-SCREEN takeover (same as /notes): the Habits header and
+          the Habits | Stats | Notes pills disappear while it is open.
+          The back arrows inside it return here. */}
       {tab === "notes" && (
         <div className="h-[calc(100dvh-15rem)] min-h-[440px]">
-          <NotesSurface embedded />
+          <NotesSurface embedded onExit={() => setTab("habits")} />
         </div>
       )}
 

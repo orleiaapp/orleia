@@ -35,7 +35,6 @@ import {
   Sparkles,
   X as XIcon,
   Trash2,
-  PanelRight,
   Info,
   Copy,
   Share2,
@@ -2039,9 +2038,6 @@ try {
     if (mobileMenuJustOpened.current) { mobileMenuJustOpened.current = false; return; }
     loadConversation(id);
   };
-  const mobileChatsSorted = [...conversations].sort(
-    (a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0) || new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
-  );
   const greeting = (() => {
     const h = new Date().getHours();
     const base =
@@ -2359,7 +2355,7 @@ try {
   if (subtab === "pets") {
     return (
       <div className="orleia-bottom-pad-sm fixed inset-0 z-0 flex flex-col overflow-hidden md:relative md:inset-auto md:h-dvh">
-        <div className="flex shrink-0 items-center px-3 pt-[calc(5.5rem+env(safe-area-inset-top,0px))] pb-2 md:px-6 md:pt-12">
+        <div className="flex shrink-0 items-center px-3 pt-[calc(7rem+env(safe-area-inset-top,0px))] pb-2 md:px-6 md:pt-20">
           <NoorPetsTab value={subtab} onChange={setSubtab} />
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto">
@@ -2373,7 +2369,7 @@ try {
   if (subtab === "deck") {
     return (
       <div className="orleia-bottom-pad-sm fixed inset-0 z-0 flex flex-col overflow-hidden md:relative md:inset-auto md:h-dvh">
-        <div className="flex shrink-0 items-center px-3 pt-[calc(5.5rem+env(safe-area-inset-top,0px))] pb-2 md:px-6 md:pt-12">
+        <div className="flex shrink-0 items-center px-3 pt-[calc(7rem+env(safe-area-inset-top,0px))] pb-2 md:px-6 md:pt-20">
           <NoorPetsTab value={subtab} onChange={setSubtab} />
         </div>
         <div className="min-h-0 flex-1 overflow-hidden">
@@ -2391,7 +2387,7 @@ try {
         {/* Header — mobile clears the floating glass buttons (top-3 + 40px tall,
             same 64px clearance the shell gives other pages); compact again at
             md where the buttons unmount. */}
-        <div className={cn("shrink-0 flex items-center justify-between gap-2 border-border/60 px-3 pt-[calc(5.5rem+env(safe-area-inset-top,0px))] pb-2.5 md:px-6 md:pt-[calc(3rem+env(safe-area-inset-top))] md:pb-3",
+        <div className={cn("shrink-0 flex items-center justify-between gap-2 border-border/60 px-3 pt-[calc(7rem+env(safe-area-inset-top,0px))] pb-2.5 md:px-6 md:pt-[calc(5rem+env(safe-area-inset-top))] md:pb-3",
           "border-b-0", "md:border-b")}>
           <div className="flex items-center min-w-0 gap-2">
             {!isMobile && (
@@ -2630,25 +2626,9 @@ try {
                 )}
               </AnimatePresence>
             </div>
-            {/* Chats toggle — desktop only (both modes: Noor and Coder share
-                the same recent-chats panel). On mobile the "Chats" button above
-                the pill replaces it in the empty state. */}
-            {!isMobile && (
-              <button
-                onClick={() => setShowChats(!showChats)}
-                className={cn(
-                  "flex h-9 w-9 items-center justify-center rounded-xl border transition-all duration-200 sm:h-10 sm:w-10",
-                  showChats
-                    ? "bg-primary-500/10 border-primary-500/30 text-primary-500"
-                    : "border-transparent hover:bg-secondary text-muted-foreground"
-                )}
-                title={showChats ? t("assistant.hideChats") : t("assistant.showChats")}
-                aria-label={showChats ? t("assistant.hideChats") : t("assistant.showChats")}
-                aria-expanded={showChats}
-              >
-                <PanelRight className="h-5 w-5" />
-              </button>
-            )}
+            {/* Recent-chats panel toggle removed — the header stays
+                clean; the panel still opens from the rename flow and
+                the mobile sheet carries the chat list. */}
           </div>
         </div>
 
@@ -3677,29 +3657,8 @@ try {
         </div>
       )}
 
-      {/* Mobile: chats access — a floating Liquid Glass circle in a second
-          row under the hamburger (matches MobileTopBar's other buttons;
-          opens the mobile chats drawer). Rendered at page root so no
-          transformed ancestor can trap its fixed positioning. */}
-      {isMobile && mobileChatsSorted.length > 0 && (
-        <div
-          className="orleia-hit-50 left-4 md:hidden"
-          style={{ top: "calc(5rem + env(safe-area-inset-top, 0px))" }}
-        >
-          <button
-            onClick={() => { haptic.tick(); setShowChats(true); }}
-            className="orleia-glass-btn"
-            aria-label={t("assistant.chats")}
-          >
-            <MessageSquare className="h-5 w-5" />
-            {mobileChatsSorted.length > 0 && (
-              <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary-500 px-1 text-[9px] font-bold text-white">
-                {mobileChatsSorted.length > 9 ? "9+" : mobileChatsSorted.length}
-              </span>
-            )}
-          </button>
-        </div>
-      )}
+      {/* Mobile floating recent-chats circle (second row under the
+          hamburger) removed — the recent chats live in the nav sheet. */}
 
       {/* Desktop chats panel (right side) - CSS transition so it glides on
           every device (framer-motion is globally disabled on touch UIs to

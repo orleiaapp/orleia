@@ -82,7 +82,7 @@ function extractPreview(content: string, maxLen = 80): string {
 // Main Component
 // ============================================================
 
-export function NotesSurface({ embedded }: { embedded?: boolean }) {
+export function NotesSurface({ embedded, onExit }: { embedded?: boolean; onExit?: () => void }) {
   const { t } = useI18n();
   const [notes, setNotes] = useState<Note[]>([]);
   const [folders, setFolders] = useState<NoteFolder[]>([]);
@@ -103,7 +103,7 @@ export function NotesSurface({ embedded }: { embedded?: boolean }) {
   const [showNewTag, setShowNewTag] = useState(false);
   // Apple-Notes-style editor chrome: formatting row is hidden until the
   // Aa button is tapped; secondary actions live in the (…) menu.
-  const [showFmtRow, setShowFmtRow] = useState(false);
+  const [showFmtRow, setShowFmtRow] = useState(true);
   const [moreOpen, setMoreOpen] = useState(false);
   // Touch device detection (for the keyboard-following bottom toolbar)
   const [isTouch, setIsTouch] = useState(false);
@@ -408,12 +408,14 @@ export function NotesSurface({ embedded }: { embedded?: boolean }) {
          is the only exit on desktop — there is no floating top bar there,
          so covering it softlocked users inside notes. On mobile the card's
          z-50 already caps this below the floating top bar, so inset-0
-         stays full-bleed. */
-      className={
-        embedded
-          ? "flex h-full min-h-0 flex-col bg-background"
-          : "orleia-notes-root fixed inset-0 z-[90] flex flex-col bg-background"
-      }
+         stays full-bleed.
+         EMBEDDED (the Habits → Notes tab) gets the SAME takeover — there
+         is deliberately NO in-flow variant anymore: opened from
+         anywhere, the notes list and editor always take the whole
+         screen, so the Habits header and pills never show behind them.
+         `embedded && onExit` gates the back arrows that return to the
+         Habits tabs. */
+      className="orleia-notes-root fixed inset-0 z-[90] flex flex-col bg-background"
     >
       {/* No page-level chrome: the top bar row belongs to the app
           (hamburger / search / settings / bell), compose is the glass
@@ -437,6 +439,16 @@ export function NotesSurface({ embedded }: { embedded?: boolean }) {
             >
               {/* Search — always visible at the top of the list, like Apple Notes */}
               <div className="flex items-center gap-2 border-b border-border px-3 py-2">
+                {embedded && onExit && (
+                  <button
+                    onClick={onExit}
+                    className="rounded-lg p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                    aria-label={t("common.back")}
+                    title={t("common.back")}
+                  >
+                    <ArrowLeft className="h-4 w-4" />
+                  </button>
+                )}
                 <Search className="h-3.5 w-3.5 text-muted-foreground" />
                 <input
                   value={searchQuery}
@@ -685,9 +697,9 @@ export function NotesSurface({ embedded }: { embedded?: boolean }) {
 
               {/* Apple-style bottom toolbar: scroll content underneath it
                   (sits on a safe-area-aware gradient, no hard border). */}
-              {/* pb-3 lifts the whole tool stack a bit above the screen
-                  edge (safe-area padding is handled per row below). */}
-              <div className="pointer-events-none absolute inset-x-0 bottom-0 z-30 pb-3">
+              {/* pb-6 lifts the tool stack higher off the bottom edge
+                  (safe-area padding is handled per row below). */}
+              <div className="pointer-events-none absolute inset-x-0 bottom-0 z-30 pb-6">
                 <div className="h-6 bg-gradient-to-t from-background via-background/80 to-transparent" />
 
                 {/* Format tools — BOTTOM of the editor, right above the
@@ -1013,7 +1025,17 @@ export function NotesSurface({ embedded }: { embedded?: boolean }) {
             >
               <Plus className="h-5 w-5" />
             </button>
-            <div className="px-5 pb-1 pt-[calc(env(safe-area-inset-top,0px)+5.5rem)]">
+            <div className="flex items-center gap-1 px-5 pb-1 pt-[calc(env(safe-area-inset-top,0px)+5.5rem)]">
+              {embedded && onExit && (
+                <button
+                  onClick={onExit}
+                  className="-ml-2 rounded-full p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                  aria-label={t("common.back")}
+                  title={t("common.back")}
+                >
+                  <ArrowLeft className="h-5 w-5" />
+                </button>
+              )}
               <h2 className="text-2xl font-bold tracking-tight text-foreground">
                 {t("notes.allNotes")}
               </h2>

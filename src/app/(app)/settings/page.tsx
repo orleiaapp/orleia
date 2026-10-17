@@ -275,11 +275,12 @@ export default function SettingsPage() {
       getAutoStart().then(setAutoStartState);
     }
     // Deep-link: /settings?cat=skills opens the Skills section directly
-    // (linked from Noor's model picker "Manage skills").
+    // (linked from Noor's model picker) and /settings?cat=billing opens
+    // Billing (linked from the mobile sheet's "Get premium" pill).
     if (typeof window !== "undefined") {
       const cat = new URLSearchParams(window.location.search).get("cat");
-      if (cat === "skills") {
-        setActiveCategory("skills");
+      if (cat === "skills" || cat === "billing") {
+        setActiveCategory(cat);
         window.history.replaceState({}, "", window.location.pathname);
       }
     }
