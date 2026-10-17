@@ -187,7 +187,9 @@ export default function HabitsPage() {
         </button>
       </motion.div>
 
-      {/* Tab pill - Habits / Stats / Notes */}
+      {/* Tab pill - Habits / Stats (desktop/tablet), + Notes (mobile:
+          the notes editor is a mobile-only subtab here; desktop keeps
+          Notes in the sidebar's Office group at /notes). */}
       <div className="inline-flex items-center rounded-full border border-border bg-muted/40 p-1" role="tablist">
         {[
           { key: "habits" as const, label: t("habits.title") },
@@ -203,7 +205,8 @@ export default function HabitsPage() {
               "rounded-full px-4 py-1.5 text-sm font-medium transition-all active:scale-95",
               tab === key
                 ? "bg-background text-foreground shadow-sm border border-border"
-                : "text-muted-foreground hover:text-foreground border border-transparent"
+                : "text-muted-foreground hover:text-foreground border border-transparent",
+              key === "notes" && "md:hidden"
             )}
           >
             {label}

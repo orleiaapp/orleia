@@ -57,6 +57,7 @@ import {
   Paperclip,
   Laptop,
   Lock,
+  PanelRight,
 } from "lucide-react";
 import { LOCAL_MODELS, probeOllama, isModelInstalled, ollamaSetupHint, type OllamaStatus, type LocalModelDef } from "@/lib/local-ai";
 import { EFFORT_LEVELS, effortModelId, DEFAULT_MODEL, MODEL_PROFILES, type EffortLevel } from "@/lib/ai-models";
@@ -310,7 +311,10 @@ export default function AssistantPage() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const tab = params.get("tab");
-    if (tab === "pets" || tab === "deck") setSubtab(tab);
+    // The Pets/Deck subtabs are a MOBILE-only affordance — on desktop
+    // and tablets Noor is the original chat surface (pets: /pets,
+    // deck: /deck via the sidebar's Office group).
+    if ((tab === "pets" || tab === "deck") && window.innerWidth < 768) setSubtab(tab);
     // "/noor?new=1" (from the mobile sheet's New chat row) forces a
     // fresh thread; the event covers the already-mounted case, since a
     // same-route query change does not re-run this effect.
@@ -2351,11 +2355,12 @@ try {
     );
   };
 
-  // Pets subtab — its own bounded surface inside the same fullscreen shell.
+  // Pets subtab — MOBILE only (the pills never render at md+, and the
+  // deep-link guard above keeps desktop on the chat).
   if (subtab === "pets") {
     return (
       <div className="orleia-bottom-pad-sm fixed inset-0 z-0 flex flex-col overflow-hidden md:relative md:inset-auto md:h-dvh">
-        <div className="flex shrink-0 items-center px-3 pt-[calc(7rem+env(safe-area-inset-top,0px))] pb-2 md:px-6 md:pt-20">
+        <div className="flex shrink-0 items-center px-3 pt-[calc(6.5rem+env(safe-area-inset-top,0px))] pb-2 md:px-6 md:pt-3">
           <NoorPetsTab value={subtab} onChange={setSubtab} />
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto">
@@ -2365,11 +2370,11 @@ try {
     );
   }
 
-  // Deck subtab — the full deck library/editor inside the same shell.
+  // Deck subtab — MOBILE only, same shell as Pets.
   if (subtab === "deck") {
     return (
       <div className="orleia-bottom-pad-sm fixed inset-0 z-0 flex flex-col overflow-hidden md:relative md:inset-auto md:h-dvh">
-        <div className="flex shrink-0 items-center px-3 pt-[calc(7rem+env(safe-area-inset-top,0px))] pb-2 md:px-6 md:pt-20">
+        <div className="flex shrink-0 items-center px-3 pt-[calc(6.5rem+env(safe-area-inset-top,0px))] pb-2 md:px-6 md:pt-3">
           <NoorPetsTab value={subtab} onChange={setSubtab} />
         </div>
         <div className="min-h-0 flex-1 overflow-hidden">
@@ -2385,9 +2390,10 @@ try {
       <div className="relative flex-1 flex flex-col min-w-0 min-h-0">
         {/* Header */}
         {/* Header — mobile clears the floating glass buttons (top-3 + 40px tall,
-            same 64px clearance the shell gives other pages); compact again at
-            md where the buttons unmount. */}
-        <div className={cn("shrink-0 flex items-center justify-between gap-2 border-border/60 px-3 pt-[calc(7rem+env(safe-area-inset-top,0px))] pb-2.5 md:px-6 md:pt-[calc(5rem+env(safe-area-inset-top))] md:pb-3",
+            same 64px clearance the shell gives other pages); at md+ the
+            ORIGINAL Noor header: the mark, no subtab pills (those are
+            mobile-only — desktop pets/deck live at /pets and /deck). */}
+        <div className={cn("shrink-0 flex items-center justify-between gap-2 border-border/60 px-3 pt-[calc(7.5rem+env(safe-area-inset-top,0px))] pb-2.5 md:px-6 md:pt-[calc(0.75rem+env(safe-area-inset-top))] md:pb-3",
           "border-b-0", "md:border-b")}>
           <div className="flex items-center min-w-0 gap-2">
             {!isMobile && (
@@ -2397,7 +2403,9 @@ try {
                 className="h-8 w-8 object-contain invert dark:invert-0 sm:h-9 sm:w-9"
               />
             )}
-            <NoorPetsTab value={subtab} onChange={setSubtab} />
+            <div className="md:hidden">
+              <NoorPetsTab value={subtab} onChange={setSubtab} />
+            </div>
           </div>
           {/* Coder mode switch — desktop only (lg+). Free sees it locked
               behind an upgrade; paid tiers see the beta-access card. */}
@@ -2626,9 +2634,25 @@ try {
                 )}
               </AnimatePresence>
             </div>
-            {/* Recent-chats panel toggle removed — the header stays
-                clean; the panel still opens from the rename flow and
-                the mobile sheet carries the chat list. */}
+            {/* Chats toggle — DESKTOP/TABLET only (Noor and Coder share the
+                same recent-chats panel). Mobile has no floating circle:
+                the nav sheet's recent chats replace it. */}
+            {!isMobile && (
+              <button
+                onClick={() => setShowChats(!showChats)}
+                className={cn(
+                  "flex h-9 w-9 items-center justify-center rounded-xl border transition-all duration-200 sm:h-10 sm:w-10",
+                  showChats
+                    ? "bg-primary-500/10 border-primary-500/30 text-primary-500"
+                    : "border-transparent hover:bg-secondary text-muted-foreground"
+                )}
+                title={showChats ? t("assistant.hideChats") : t("assistant.showChats")}
+                aria-label={showChats ? t("assistant.hideChats") : t("assistant.showChats")}
+                aria-expanded={showChats}
+              >
+                <PanelRight className="h-5 w-5" />
+              </button>
+            )}
           </div>
         </div>
 

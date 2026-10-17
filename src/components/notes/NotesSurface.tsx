@@ -697,9 +697,9 @@ export function NotesSurface({ embedded, onExit }: { embedded?: boolean; onExit?
 
               {/* Apple-style bottom toolbar: scroll content underneath it
                   (sits on a safe-area-aware gradient, no hard border). */}
-              {/* pb-6 lifts the tool stack higher off the bottom edge
-                  (safe-area padding is handled per row below). */}
-              <div className="pointer-events-none absolute inset-x-0 bottom-0 z-30 pb-6">
+              {/* pb-10 raises BOTH tool rows (formats + actions) further
+                  off the bottom edge (safe-area padding per row below). */}
+              <div className="pointer-events-none absolute inset-x-0 bottom-0 z-30 pb-10">
                 <div className="h-6 bg-gradient-to-t from-background via-background/80 to-transparent" />
 
                 {/* Format tools — BOTTOM of the editor, right above the
@@ -713,7 +713,10 @@ export function NotesSurface({ embedded, onExit }: { embedded?: boolean; onExit?
                       exit={{ height: 0, opacity: 0 }}
                       className="pointer-events-auto overflow-hidden bg-background/90 backdrop-blur-xl"
                     >
-                      <div className="flex flex-wrap items-center gap-0.5 border-t border-border/40 px-2 pb-1 pt-2" role="toolbar" aria-label="Formatting">
+                      {/* ONE scrollable line on mobile (it used to wrap
+                          into a second row that got clipped) — both tool
+                          rows, formats and actions, stay fully visible. */}
+                      <div className="flex flex-nowrap items-center gap-0.5 overflow-x-auto border-t border-border/40 px-2 pb-1 pt-2" role="toolbar" aria-label="Formatting">
                 {[
                   { icon: Bold, label: "Bold", run: () => applyMd("**", "bold") },
                   { icon: Italic, label: "Italic", run: () => applyMd("*", "italic") },
@@ -728,17 +731,16 @@ export function NotesSurface({ embedded, onExit }: { embedded?: boolean; onExit?
                   <button
                     key={b.label}
                     onClick={b.run}
-                    className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                    className="shrink-0 rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                     title={b.label}
                     aria-label={b.label}
                   >
                     <b.icon className="h-4 w-4" />
                   </button>
                 ))}
-                <div className="flex-1" />
                 <button
                   onClick={() => setShowNotePreview((v) => !v)}
-                  className={cn("rounded-lg p-1.5 transition-colors", showNotePreview ? "bg-primary-500/10 text-primary-500" : "text-muted-foreground hover:bg-muted hover:text-foreground")}
+                  className={cn("shrink-0 rounded-lg p-1.5 transition-colors", showNotePreview ? "bg-primary-500/10 text-primary-500" : "text-muted-foreground hover:bg-muted hover:text-foreground")}
                   title="Preview"
                   aria-pressed={showNotePreview}
                 >
@@ -746,7 +748,7 @@ export function NotesSurface({ embedded, onExit }: { embedded?: boolean; onExit?
                 </button>
                 <button
                   onClick={exportNoteMd}
-                  className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                  className="shrink-0 rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                   title="Export as Markdown"
                 >
                   <Download className="h-4 w-4" />
