@@ -33,8 +33,9 @@ WhatsApp*
 public/downloads
 desktop-artifacts/
 
-# workflows (token scope limitation)
-.github/workflows/
+# CI/CD workflows ARE tracked (.github/workflows) — pushes to master
+# typecheck, test, build and deploy via the Verify/deploy pipeline.
+# (They used to be ignored for a token-scope limitation; that is fixed.)
 
 # local scratch & secrets (NEVER commit)
 /_tmp/

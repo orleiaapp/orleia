@@ -2,6 +2,57 @@
 
 All notable changes to Orleia are documented here.
 
+## Unreleased — October 14–17, 2026 (on master, ships with the next release)
+
+### Navigation rework
+- **Bottom primary nav on mobile** — dashboard, habits, journal, tasks and Noor live in a bottom bar; tabs merged, sidebar slimmed. The desktop sidebar was restored to its original form, so the redesign is scoped to mobile/portrait only.
+- **Richer mobile sheet** — tools row sits higher, the Noor typing pill lower, pills spaced wider apart.
+
+### i18n
+- **10 complete languages, 9 broken ones removed** — every language now carries the full 1,338-key set (English, Spanish, French, German, Portuguese, Italian, Polish, Japanese, Chinese, Russian). Key parity is now enforced by `npm test` in CI, so a missing translation can never silently fall back to English again.
+
+### Security & accounts
+- Hardened **SSRF-safe fetching**, constant-time secret comparisons, and the push-notification endpoints.
+- **One-time redeem codes** — mint endpoint, admin generator, and redemption flow for gifting Plus/Pro/Ultra.
+
+### Fixes & polish
+- Fixed **image generation and vision analysis** (both were returning failures).
+- Fixed billing deep-links, the literal `\n` junk in Supabase billing env values, and Notes links pointing at `/documents`.
+- **Pets rendered with volumetric shading** instead of flat fills; the plans takeover now plays right after the pet confetti (3 slides, before the pet pick).
+- Onboarding: simplified goals step ("Something else" is a reveal link), feature swirl removed.
+- The standing **ship loop** (typecheck → build → commit → push → deploy → verify) is now recorded in `AGENTS.md`.
+
+## v2.7.0 — October 10, 2026
+
+- **Constellation theme** with a visual picker (plus the onboarding welcome redesigned as a live starfield — wobble, twinkle, meteors).
+- **Proof-of-privacy onboarding** — a live outbound-bytes counter that shows the claim, plus goals and acquisition-source steps and a rebuilt slide-by-slide tour.
+- **Confetti send-off** when you adopt your pet.
+- **Noor chat quality overhaul** — replies continue instead of cutting off, truncated actions are rescued and really run, local search stays local, and leaked model reasoning never reaches your thread.
+- **Full-screen message editing** on mobile; Mindfulness controls moved to the bottom on mobile so nothing overlaps.
+- **Noor Coder built out, then hidden** — whole-project scaffolds, background runs, Plan/Build modes, token billing and real PC writes shipped to beta, then the switch was hidden everywhere pending a redesign that fits the Orleia vibe (Vercel's 300s function limit was killing scaffolds mid-generation).
+- **Skills** instructions grew 16×; the language switch (explicit English pick) is fixed.
+- Projects retired product-wide (schema kept so it can return).
+- Fixes: ignored reduced-motion, settings card blink, late starfield paint, desktop notes softlock, mobile top-bar/reminders overlap.
+
+## v2.6.0 — October 4, 2026
+
+- **Novella 5.0 — one model, six effort levels** (Hyperfast, Low, Medium, High, Max, Ultra) replace the Ethos/Logos/Verse tiers. Each level is a real preset: model, temperature, token budget, history depth and thinking mode, exposed through a new **effort slider**.
+- **Pets on duty 24/7** — hire pets as always-on agents (paid slots, confirm-first proposals), Scout runs web research jobs, the Planner holds huddles, and **Pets Chat** gives every hired pet its own WhatsApp-style thread with @mention routing into Noor.
+- **Research replies with cited sources** — compact clickable source links in Markdown surfaces.
+- **Grid retires for now** (spreadsheet removed product-wide; landing links and policy pages refreshed).
+- Under the hood: **model fallbacks hardened** (the cycle reaches all three NIM models, so no single dead endpoint can take down AI), a **daily AI health probe** cron, Noor chat rows no longer nest buttons, and the mobile top-bar stays pinned when the nav sheet opens.
+- Dashboard greets you casually by name; onboarding reordered to welcome-first with a value-first paywall and Noor confirm chips.
+
+## v2.5.0 — September 17, 2026
+
+- **Orleia Plus, Pro and Ultra launch** — optional subscriptions raise the daily Noor AI message limit (Free 30 / Plus 300 / Pro 1,000 / Ultra unlimited), managed in Settings → Billing, yearly saves 20%. Every local tool stays free forever.
+- **Orleia Spark** enters the repo — the "private browser with a brain": default-browser registration, launch-URL handling, a full settings surface and a working light theme + accent.
+- **Pets across the web app** — pet surfaces on Habits, Dashboard and Noor; the pet widget is default for new users.
+- **Translation fill** across the whole language set with a dedicated English-echo elimination pass, plus a language picker in Settings and hardened i18n tooling.
+- **Mobile/iOS polish** — iOS under-sheet nav with a true under-reveal, frosted nav blur, pill tabs, Apple-style Notes rework, full-screen camera, no-bubble Noor replies and a reworked image preview.
+- Landing: trust bar, why-us and pricing sections; "Most popular" unified through `plans.ts`.
+- Git hooks now auto-install on `npm install`; the secret scanner's matching bug was fixed.
+
 ## v2.2.0 — Orleia Office — September 9, 2026
 
 ### New: Orleia Office suite

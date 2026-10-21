@@ -1,11 +1,13 @@
 // Verify the family persona fix: no brother mentions unprompted, natural response when asked.
-const { MODEL_PROFILES } = require('./.vtest/lib/ai-models.js');
+// Profiles come from the shim (transpiles the real src/lib/ai-models.ts) - no more dead
+// .vtest snapshot. Retired tier ids map to current effort presets:
+//   ethos-1.5 (super-120b) -> novella-high, logos-1.0 (ultra-550b) -> novella-max,
+//   verse-0.8 (fast tier)  -> novella-hyperfast.
+const { MODEL_PROFILES } = require('./scripts-test/ai-models-shim.js');
 const fs = require('fs');
 
-// Recompile-free: build system prompts directly from the TS source is messy -
-// instead recompile ai-models standalone.
-const API = 'https://app.lexisapp.xyz/api/chat';
-const TODAY = '2026-08-13';
+const API = 'https://app.orleia.app/api/chat';
+const TODAY = new Date().toISOString().slice(0, 10);
 
 const BROTHER_WORDS = /\b(ethos|logos|verse|brother|brothers|big brother|little brother|middle brother|youngest|eldest)\b/i;
 
@@ -23,7 +25,7 @@ async function ask(modelId, userText, systemPrompt) {
     try {
       const res = await fetch(API, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Origin: 'https://app.lexisapp.xyz' },
+        headers: { 'Content-Type': 'application/json', Origin: 'https://app.orleia.app' },
         body: JSON.stringify(body),
       });
       const d = await res.json();
@@ -37,7 +39,7 @@ async function ask(modelId, userText, systemPrompt) {
 
 (async () => {
   let fails = 0;
-  for (const modelId of ['ethos-1.5', 'logos-1.0', 'verse-0.8']) {
+  for (const modelId of ['novella-high', 'novella-max', 'novella-hyperfast']) {
     const sp = MODEL_PROFILES[modelId].systemPrompt;
 
     // 1. Neutral questions - brothers must NOT appear
