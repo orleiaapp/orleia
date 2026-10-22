@@ -46,15 +46,31 @@ const KINDS = new Set([
   "other",
 ]);
 
+/**
+ * Fallback classification when the model ignores the TYPE: line (it often
+ * does on an obvious problem). Cheap keyword inference — no extra call.
+ */
+function inferKind(description: string): string {
+  const t = description.toLowerCase();
+  if (/\b(solve|equation|calculate|answer|homework|worksheet|exercise|formula)\b/.test(t)) {
+    return "math";
+  }
+  if (/\b(diagram|flowchart|circuit|graph|labelled|labeled)\b/.test(t)) return "diagram";
+  if (/\b(screenshot|toolbar|menu|settings page|button)\b/.test(t)) return "screenshot";
+  if (/\b(notes?|summary|summarise|summarize|transcript)\b/.test(t)) return "notes";
+  return "other";
+}
+
 /** Pull the TYPE: line off the model's reply. */
 function splitType(raw: string): { description: string; kind: string } {
   const text = raw.trim();
   const m = text.match(/^TYPE:\s*([a-z]+)\b[^\n]*\n?/i);
-  if (!m) return { description: text, kind: "other" };
+  if (!m) return { description: text, kind: inferKind(text) };
   const kind = m[1].toLowerCase();
+  const description = text.slice(m[0].length).trim();
   return {
-    description: text.slice(m[0].length).trim(),
-    kind: KINDS.has(kind) ? kind : "other",
+    description,
+    kind: KINDS.has(kind) && kind !== "other" ? kind : inferKind(description),
   };
 }
 
