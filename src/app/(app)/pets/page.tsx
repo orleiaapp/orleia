@@ -11,11 +11,16 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { PawPrint, Plus, Check, X, Clock, ShieldCheck, Lock, ChevronRight, MessageSquare, Send, Play } from "lucide-react";
+import { PawPrint, Plus, Check, X, Clock, ShieldCheck, Lock, ChevronRight, MessageSquare, Send, Play, FolderOpen } from "lucide-react";
 import { storage } from "@/lib/storage";
 import { useHydrated } from "@/lib/use-hydrated";
 import { useI18n } from "@/lib/i18n";
 import { formatRelative, cn } from "@/lib/utils";
+import {
+  getGrantedDirName,
+  isDeviceAccessSupported,
+  pickWorkspaceFolder,
+} from "@/lib/agent-device";
 import { PetChat } from "@/components/pets/pet-chat";
 import { PETS, petById, petSvg } from "@/lib/pets";
 import { PET_JOBS, type JobDef } from "@/lib/pet-jobs";
@@ -43,6 +48,12 @@ export default function PetsPage() {
   const { t } = useI18n();
   const router = useRouter();
   const hydrated = useHydrated();
+  const [folder, setFolder] = useState<string | null>(null);
+  const [folderSupported, setFolderSupported] = useState(true);
+  useEffect(() => {
+    setFolderSupported(isDeviceAccessSupported());
+    setFolder(getGrantedDirName());
+  }, []);
   const [agents, setAgents] = useState<PetAgent[]>([]);
   const [logs, setLogs] = useState<PetReceipt[]>([]);
   const [slots, setSlots] = useState<SlotStatus | null>(null);
@@ -413,9 +424,36 @@ export default function PetsPage() {
             <p className="mt-0.5 text-xs text-muted-foreground">
               {t(
                 "pets.assignSubtitle",
-                "{pet} will search the web and deliver a findings note — no Noor messages spent."
+                "{pet} writes a plan first, you approve it, then it runs — research, real files, or workspace items."
               ).replace("{pet}", assignFor.name)}
             </p>
+            {/* Files missions need a real folder to write into. This is the
+                only picker outside the (hidden) Coder surface, so it lives
+                right where missions are assigned. */}
+            <div className="mt-3 flex items-center gap-3 rounded-xl border border-border px-3 py-2.5">
+              <FolderOpen className="h-4 w-4 shrink-0 text-muted-foreground" />
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-xs font-medium text-foreground">
+                  {folder || "No folder connected"}
+                </p>
+                <p className="text-[11px] text-muted-foreground">
+                  {folderSupported
+                    ? "File missions write real files here."
+                    : "Folder access isn't supported in this browser — file missions deliver a note instead."}
+                </p>
+              </div>
+              {folderSupported && (
+                <button
+                  onClick={async () => {
+                    const name = await pickWorkspaceFolder();
+                    if (name) setFolder(name);
+                  }}
+                  className="shrink-0 rounded-lg border border-border px-2.5 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-sidebar-hover hover:text-foreground"
+                >
+                  {folder ? "Change" : "Connect"}
+                </button>
+              )}
+            </div>
             <textarea
               value={jobTopic}
               onChange={(e) => setJobTopic(e.target.value)}
