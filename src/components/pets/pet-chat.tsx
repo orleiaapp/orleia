@@ -24,7 +24,14 @@ import {
   ensurePetConversation,
   petSystemPrompt,
 } from "@/lib/pet-agent";
-import { assignScoutJob, kickScoutRunner } from "@/lib/scout-jobs";
+import {
+  assignScoutJob,
+  postMissionPlan,
+  approveScoutJob,
+  cancelScoutJob,
+  kickScoutRunner,
+} from "@/lib/scout-jobs";
+import { MissionCard } from "@/components/pets/MissionCard";
 import { stripPetFlavor } from "@/lib/action-clean";
 import { skillForCommand, getSkills, type NoorSkill } from "@/lib/noor-skills";
 import { runResearchPipeline, wantsResearch } from "@/lib/research-run";
@@ -296,10 +303,12 @@ export function PetChat({ agents, onChanged }: { agents: PetAgent[]; onChanged?:
       // web job (agent loop) instead of a chat reply - delivery lands here.
       if (agent.role === "scout" && clean.toLowerCase().startsWith("assign:")) {
         const topic = clean.slice(7).trim();
-        const res = topic ? assignScoutJob(agent.id, topic, convId) : { ok: false };
-        if (res.ok) {
-          kickScoutRunner();
-          appendNote(`\ud83d\udd0d ${agent.name} is on the job — findings will land in this thread.`);
+        const res = topic ? assignScoutJob(agent.id, topic, convId) : null;
+        if (res && res.ok) {
+          // Nothing runs yet: the plan card below is the approval gate.
+          postMissionPlan(res.job);
+          reload();
+          appendNote(`\ud83d\udd0d ${agent.name} wrote a plan — approve it and the work starts.`);
           continue;
         }
       }
@@ -428,6 +437,51 @@ export function PetChat({ agents, onChanged }: { agents: PetAgent[]; onChanged?:
 
   const dismissProposal = (msg: AIMessage) =>
     resolveProposal(msg, "dismissed", "No problem \u2014 I left everything as it was.");
+
+  // ---- mission approval (same confirm-first contract as Noor's thread) ----
+  const resolveMission = (
+    msg: AIMessage,
+    resolved: "approved" | "cancelled",
+    note: string
+  ) => {
+    if (!openId || !msg.mission || msg.missionResolved) return;
+    const conv = storage.getData().aiConversations.find((c) => c.id === openId);
+    if (!conv) return;
+    const next = conv.messages.map((m) =>
+      m.id === msg.id ? { ...m, missionResolved: resolved } : m
+    );
+    const idx = next.findIndex((m) => m.id === msg.id);
+    next.splice(idx + 1, 0, {
+      id: generateId(),
+      role: "assistant",
+      content: note,
+      timestamp: new Date().toISOString(),
+      model: msg.model,
+      agentId: msg.agentId,
+    });
+    storage.replaceConversationMessages(openId, next);
+    reload();
+    onChanged?.();
+  };
+
+  const approveMission = (msg: AIMessage) => {
+    if (!msg.mission) return;
+    const ok = approveScoutJob(msg.mission.jobId);
+    resolveMission(
+      msg,
+      ok ? "approved" : "cancelled",
+      ok
+        ? `Approved \u2014 ${msg.mission.agentName} is on it. I'll post the result here.`
+        : "That mission is no longer waiting for approval."
+    );
+    if (ok) kickScoutRunner();
+  };
+
+  const cancelMission = (msg: AIMessage) => {
+    if (!msg.mission) return;
+    cancelScoutJob(msg.mission.jobId);
+    resolveMission(msg, "cancelled", "Cancelled \u2014 nothing ran.");
+  };
 
   // ---- @mention autocomplete (group composer only) ----
   const mentionMatches: MentionOpt[] =
@@ -694,7 +748,7 @@ export function PetChat({ agents, onChanged }: { agents: PetAgent[]; onChanged?:
         {msgs.map((m, i) => {
           const prev = msgs[i - 1];
           // A reply that was pure flavor text strips to nothing - no ghost bubble.
-          if (!m.content && !m.proposal) return null;
+          if (!m.content && !m.proposal && !m.mission) return null;
           const mine = m.role === "user";
           const sender = mine ? undefined : senderOf(m);
           const showName = !mine && isGroup && m.agentId !== prev?.agentId;
@@ -751,6 +805,14 @@ export function PetChat({ agents, onChanged }: { agents: PetAgent[]; onChanged?:
                       </div>
                     )}
                   </div>
+                )}
+                {m.mission && (
+                  <MissionCard
+                    msg={m}
+                    compact
+                    onApprove={() => approveMission(m)}
+                    onCancel={() => cancelMission(m)}
+                  />
                 )}
                 <p className={cn("mt-0.5 px-1 text-[10px] text-muted-foreground/70", mine && "text-right")}>
                   {time}

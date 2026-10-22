@@ -5,49 +5,121 @@ import { guardApi, bodyTooLarge } from "@/lib/apiGuard";
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
-// NVIDIA NIM vision: describes an attached image so Noor can "see" it.
+// NVIDIA NIM vision: reads an attached image so Noor can "see" it.
+//
+// Two modes:
+//   study    - homework / worksheets / diagrams. Classifies the image,
+//              transcribes it verbatim, then actually works the problem.
+//   describe - screen awareness and general "what is this" reading.
+//
+// Both run on the small 11B vision model (fast), with the 90B sibling as
+// the provider-level fallback when the small one errors or is cold.
+
+const VISION_MODEL = "meta/llama-3.2-11b-vision-instruct";
+
+const STUDY_PROMPT = `You are Orleia's study reader. The user photographed a page, a worksheet or a screen to get help with it.
+
+Reply in exactly this shape:
+TYPE: <homework|math|diagram|notes|screenshot|document|photo|other>
+TEXT: <transcribe every legible word, number and symbol, keeping the structure - equations, tables, numbered questions, multiple-choice options. If there is no readable text, write "(no legible text)".>
+HELP: <then help with the actual content:
+- homework / math / a question: solve it step by step. Show the reasoning and every calculation, then finish with "Answer: <final answer>".
+- notes / screenshot with facts: summarise what it is and the key points.
+- diagram: explain what it shows, labelled part by labelled part.
+- photo: describe it precisely and concretely.>
+
+Rules:
+- Never invent letters, digits, symbols or details you cannot clearly see. Mark anything unreadable as [illegible].
+- If the photographed question is cut off or ambiguous, say exactly what is missing instead of guessing.
+- Keep it tight and useful: no preamble, no "certainly", no restating these instructions.`;
+
+const DESCRIBE_PROMPT = `Describe this image precisely - shapes, colours, and any text exactly as it appears. Then, if it contains readable text, a diagram, a table, or a question, go beyond literal description: transcribe legible text, and if it is a question or assignment, work through it and give the answer. Never invent letters, symbols, or details you cannot clearly see - if something is illegible, say so plainly.`;
+
+const KINDS = new Set([
+  "homework",
+  "math",
+  "diagram",
+  "notes",
+  "screenshot",
+  "document",
+  "photo",
+  "other",
+]);
+
+/** Pull the TYPE: line off the model's reply. */
+function splitType(raw: string): { description: string; kind: string } {
+  const text = raw.trim();
+  const m = text.match(/^TYPE:\s*([a-z]+)\b[^\n]*\n?/i);
+  if (!m) return { description: text, kind: "other" };
+  const kind = m[1].toLowerCase();
+  return {
+    description: text.slice(m[0].length).trim(),
+    kind: KINDS.has(kind) ? kind : "other",
+  };
+}
+
 export async function POST(req: Request) {
   const denied = guardApi(req, { perMinute: 120, perDay: 5000 });
   if (denied) return denied;
 
   try {
     if (bodyTooLarge(req, 8 * 1024 * 1024)) {
-      return NextResponse.json({ error: "image too large (max 6MB)" }, { status: 413 });
+      return NextResponse.json({ error: "image too large" }, { status: 413 });
     }
-    const { imageDataUrl, hint } = await req.json();
-    if (imageDataUrl.length > 10 * 1024 * 1024) {
-      return NextResponse.json({ error: "image too large (max 6MB)" }, { status: 413 });
+    const body = (await req.json()) as {
+      imageDataUrl?: unknown;
+      hint?: unknown;
+      mode?: unknown;
+    };
+    const imageDataUrl = typeof body.imageDataUrl === "string" ? body.imageDataUrl : "";
+    if (!imageDataUrl || imageDataUrl.length > 10 * 1024 * 1024) {
+      return NextResponse.json({ error: "image too large" }, { status: 413 });
     }
-    if (!imageDataUrl || typeof imageDataUrl !== "string" || !imageDataUrl.startsWith("data:image/")) {
+    if (!imageDataUrl.startsWith("data:image/")) {
       return NextResponse.json({ error: "image required" }, { status: 400 });
     }
-    const key = process.env.NVIDIA_API_KEY;
-    if (!key) return NextResponse.json({ error: "no key" }, { status: 500 });
+    if (!process.env.NVIDIA_API_KEY) {
+      return NextResponse.json({ error: "no key" }, { status: 500 });
+    }
+
+    const mode = body.mode === "study" ? "study" : "describe";
+    const hint = typeof body.hint === "string" ? body.hint.trim().slice(0, 200) : "";
+
+    const prompt =
+      mode === "study"
+        ? STUDY_PROMPT + (hint ? `\n\nContext from the app: ${hint}` : "")
+        : DESCRIBE_PROMPT + (hint ? ` Focus on: ${hint}` : "");
 
     const call = await callChat({
-      model: "meta/llama-3.2-11b-vision-instruct",
+      model: VISION_MODEL,
       messages: [
         {
           role: "user",
           content: [
-            {
-              type: "text",
-              text: hint
-                ? `Describe this image precisely - shapes, colors, and any text exactly as they appear. Then, if it contains readable text, a diagram, a table, or a problem/question, go beyond literal description and actually address it: transcribe legible text, and if it is a question, math problem, or assignment, work through it and give the answer. Never invent letters, symbols, or details you cannot clearly see - if something is illegible, say so plainly. Focus on: ${hint}`
-                : `Describe this image precisely - shapes, colors, and any text exactly as they appear. Then, if it contains readable text, a diagram, a table, or a problem/question, go beyond literal description and actually address it: transcribe legible text, and if it is a question, math problem, or assignment, work through it and give the answer. Never invent letters, symbols, or details you cannot clearly see - if something is illegible, say what you see plainly.`,
-            },
+            { type: "text", text: prompt },
             { type: "image_url", image_url: { url: imageDataUrl } },
           ],
         },
       ],
-      max_tokens: 800,
-      timeoutMs: 50_000,
+      // Study answers include transcription + worked steps; describing
+      // needs far less. Over-allocating here is pure latency.
+      max_tokens: mode === "study" ? 1500 : 700,
+      temperature: mode === "study" ? 0.2 : 0.3,
+      timeoutMs: 30_000,
     });
-    if (!call.ok || !call.response) return NextResponse.json({ error: "vision failed" }, { status: 502 });
+    if (!call.ok || !call.response) {
+      return NextResponse.json({ error: "vision failed" }, { status: 502 });
+    }
 
     const data = await call.response.json();
-    const description = data?.choices?.[0]?.message?.content?.trim() || "";
-    return NextResponse.json({ description });
+    const raw = data?.choices?.[0]?.message?.content?.trim() || "";
+    if (!raw) return NextResponse.json({ error: "vision failed" }, { status: 502 });
+
+    const { description, kind } = splitType(raw);
+    return NextResponse.json(
+      { description, kind, mode },
+      { headers: { "Cache-Control": "no-store" } }
+    );
   } catch {
     return NextResponse.json({ error: "vision failed" }, { status: 500 });
   }

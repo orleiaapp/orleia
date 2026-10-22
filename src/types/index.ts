@@ -382,6 +382,19 @@ export interface AIMessage {
   role: "user" | "assistant";
   /** Confirm chip: a proposed action awaiting the user's one-tap decision. */
   proposal?: { action: string; params: Record<string, unknown> };
+  /**
+   * Mission card: a pet's plan that does nothing until the user approves
+   * it. Rendered by MissionCard in the pet thread.
+   */
+  mission?: {
+    jobId: string;
+    agentName: string;
+    title: string;
+    steps: string[];
+    kind: PetMissionKind;
+  };
+  /** Set once the user approved/cancelled a mission (card renders inert). */
+  missionResolved?: "approved" | "cancelled";
   /** Hired agent that wrote this reply (agent group chats show the sender). */
   agentId?: string;
   /** Set once the user confirmed/dismissed this proposal (chip renders inert). */
@@ -609,18 +622,31 @@ export interface PetReceipt {
   createdAt: string;
 }
 
-/** A background web job assigned to a Scout agent (scout-jobs.ts). */
+/** What a pet mission is allowed to touch (pet-missions). */
+export type PetMissionKind = "research" | "files" | "organize";
+
+/** A background mission assigned to a Scout agent (scout-jobs.ts). */
 export interface ScoutJob {
   id: string;
   agentId: string;
   topic: string;
-  status: "pending" | "running" | "done" | "failed";
+  /**
+   * awaiting_approval: the plan is posted and nothing has run yet.
+   * pending/running: the user approved it. Only approved missions execute.
+   */
+  status: "awaiting_approval" | "pending" | "running" | "done" | "failed" | "cancelled";
   /** Thread that receives the delivery (kept in sync with petAgentId). */
   convId: string;
   createdAt: string;
   finishedAt?: string;
   /** Short result headline for receipts/notes. */
   resultTitle?: string;
+  /** Tool surface: read-only research, real files, or workspace items. */
+  kind?: PetMissionKind;
+  /** The plan the user is asked to approve (one line per step). */
+  plan?: string[];
+  /** Set once the user approved or cancelled the plan. */
+  decidedAt?: string;
   error?: string;
 }
 

@@ -34,7 +34,7 @@ import {
 import {
   assignScoutJob,
   scoutJobs,
-  kickScoutRunner,
+  postMissionPlan,
   ensureScoutRunner,
 } from "@/lib/scout-jobs";
 import type { PetAgent, PetReceipt } from "@/types";
@@ -143,13 +143,15 @@ export default function PetsPage() {
       );
       return;
     }
+    // Confirm-first: post the plan; the runner only sees it after approval.
+    postMissionPlan(res.job);
     setAssignFor(null);
     setJobTopic("");
     refresh();
     setNotice(
-      t("pets.jobAssigned", "Job assigned — findings will land in {pet}'s thread and your notes.").replace("{pet}", assignFor.name)
+      t("pets.jobAssigned", "Job assigned — findings will land in {pet}'s thread and your notes.").replace("{pet}", assignFor.name) +
+        " Approve the plan in the thread to start."
     );
-    kickScoutRunner();
   };
 
   if (!hydrated) return <div className="min-h-screen" />;
@@ -242,7 +244,12 @@ export default function PetsPage() {
               const pet = petById(agent.petId);
               const activeJob =
                 agent.role === "scout"
-                  ? scoutJobs(agent.id).find((j) => j.status === "pending" || j.status === "running")
+                  ? scoutJobs(agent.id).find(
+                      (j) =>
+                        j.status === "awaiting_approval" ||
+                        j.status === "pending" ||
+                        j.status === "running"
+                    )
                   : undefined;
               return (
                 <div key={agent.id} className="card p-4">
@@ -288,11 +295,19 @@ export default function PetsPage() {
                   </div>
                   {activeJob && (
                     <div className="mt-2 flex items-center gap-2 text-[11px] text-muted-foreground">
-                      <span>{activeJob.status === "running" ? "🔭" : "⏳"}</span>
+                      <span>
+                        {activeJob.status === "running"
+                          ? "🔭"
+                          : activeJob.status === "awaiting_approval"
+                            ? "📝"
+                            : "⏳"}
+                      </span>
                       <span className="min-w-0 flex-1 truncate">
                         {activeJob.status === "running"
                           ? t("pets.jobWorking", "Working on:")
-                          : t("pets.jobQueued", "Queued:")}{" "}
+                          : activeJob.status === "awaiting_approval"
+                            ? "Plan awaiting approval:"
+                            : t("pets.jobQueued", "Queued:")}{" "}
                         <span className="font-medium text-foreground">{activeJob.topic}</span>
                       </span>
                     </div>

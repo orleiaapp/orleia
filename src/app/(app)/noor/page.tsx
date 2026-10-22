@@ -76,6 +76,8 @@ import { isLiveQuery } from "@/lib/web-search";
 import { cn, generateId } from "@/lib/utils";
 import { useMobile } from "@/hooks/useMobile";
 import { getDeviceId } from "@/lib/device-id";
+import { prepareImageForVision } from "@/lib/image-prep";
+import { MissionCard } from "@/components/pets/MissionCard";
 import { AIMessage, AIModel, AI_MODELS, MODEL_ALIASES, BriefAction, AISource, PetAgent } from "@/types";
 import { Markdown } from "@/components/chat/Markdown";
 import { useI18n } from "@/lib/i18n";
@@ -99,6 +101,9 @@ import {
   activeScoutJobs,
   kickScoutRunner,
   ensureScoutRunner,
+  postMissionPlan,
+  approveScoutJob,
+  cancelScoutJob,
 } from "@/lib/scout-jobs";
 
 // Novella 5.0: one model, six effort presets. Labels map effort ids
@@ -202,6 +207,8 @@ interface Attachment {
   dataUrl: string;
   text?: string;
   description?: string;
+  /** Vision classifier output for images (homework/math/diagram/...). */
+  visionKind?: string;
 }
 
 // "make an image of X" / "image: X" -> image generation
@@ -549,18 +556,36 @@ export default function AssistantPage() {
   };
 
   // Describe an attached image via the vision model so Noor can "see" it.
-  const describeImage = async (dataUrl: string): Promise<string> => {
+  // Cached per (mode, image) for the session: re-sending the same photo or
+  // re-opening a thread must never pay for a second vision call.
+  const visionCacheRef = useRef(new Map<string, { description: string; kind: string }>());
+  const describeImage = async (
+    dataUrl: string,
+    mode: "study" | "describe" = "study"
+  ): Promise<{ description: string; kind: string }> => {
+    // Cheap full-content hash: JPEG tails are often identical, so a
+    // length + suffix key would occasionally collide and serve one photo's
+    // description for another.
+    let hash = 5381;
+    for (let i = 0; i < dataUrl.length; i += 7) {
+      hash = ((hash << 5) + hash + dataUrl.charCodeAt(i)) | 0;
+    }
+    const key = mode + ":" + dataUrl.length + ":" + (hash >>> 0).toString(36);
+    const hit = visionCacheRef.current.get(key);
+    if (hit) return hit;
     try {
       const res = await fetch("/api/vision", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ imageDataUrl: dataUrl }),
+        body: JSON.stringify({ imageDataUrl: dataUrl, mode }),
       });
-      if (!res.ok) return "";
-      const data = (await res.json()) as { description?: string };
-      return (data.description || "").trim();
+      if (!res.ok) return { description: "", kind: "other" };
+      const data = (await res.json()) as { description?: string; kind?: string };
+      const out = { description: (data.description || "").trim(), kind: data.kind || "other" };
+      if (out.description) visionCacheRef.current.set(key, out);
+      return out;
     } catch {
-      return "";
+      return { description: "", kind: "other" };
     }
   };
 
@@ -586,13 +611,19 @@ export default function AssistantPage() {
     e.target.value = "";
     const next: Attachment[] = [];
     for (const f of files.slice(0, 4)) {
-      if (f.size > 5 * 1024 * 1024) continue;
-      const dataUrl = await new Promise<string>((resolve) => {
-        const r = new FileReader();
-        r.onload = () => resolve(String(r.result || ""));
-        r.readAsDataURL(f);
+      if (f.size > 12 * 1024 * 1024) continue;
+      // Downscale + compress BEFORE the image is stored or uploaded: a 4 MB
+      // phone photo reaches the vision model as ~250 KB, which is the
+      // biggest single latency win in the photo-to-answer path.
+      const prepared = await prepareImageForVision(f);
+      if (!prepared) continue;
+      next.push({
+        id: generateId(),
+        kind: "image",
+        name: f.name,
+        size: prepared.bytes,
+        dataUrl: prepared.dataUrl,
       });
-      next.push({ id: generateId(), kind: "image", name: f.name, size: f.size, dataUrl });
     }
     if (next.length) setAttachments((prev) => [...prev, ...next]);
   };
@@ -872,9 +903,9 @@ export default function AssistantPage() {
     if (topic && agent.role === "scout") {
       const res = assignScoutJob(agent.id, topic, ensurePetConversation(agent));
       if (res.ok) {
+        postMissionPlan(res.job);
         setPendingScoutTopic("");
         setActiveScout(true);
-        kickScoutRunner();
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -901,6 +932,7 @@ export default function AssistantPage() {
     const convId = ensurePetConversation(agent);
     const res = assignScoutJob(agent.id, topic, convId);
     if (!res.ok) return;
+    postMissionPlan(res.job);
     setConversationId(convId);
     const conv = storage.getData().aiConversations.find((c) => c.id === convId);
     setMessages(
@@ -1188,6 +1220,52 @@ export default function AssistantPage() {
   const dismissProposal = (msg: AIMessage) => {
     if (!msg.proposal || msg.proposalResolved) return;
     resolveProposalInThread(msg, "No problem — I left everything as it was.", "dismissed");
+  };
+
+  // ---- Mission approval (pets) ----
+  // Approving is what queues real work: files, workspace items, research.
+  const approveMission = (msg: AIMessage) => {
+    if (!msg.mission || msg.missionResolved) return;
+    const name = msg.mission.agentName;
+    const ok = approveScoutJob(msg.mission.jobId);
+    resolveMissionInThread(
+      msg,
+      ok
+        ? `Approved — ${name} is on it. I'll post the result here when it lands.`
+        : "That mission is no longer waiting for approval — it may already have run or been cancelled.",
+      ok ? "approved" : "cancelled"
+    );
+    if (ok) {
+      setActiveScout(true);
+      kickScoutRunner();
+    }
+  };
+
+  const cancelMission = (msg: AIMessage) => {
+    if (!msg.mission || msg.missionResolved) return;
+    cancelScoutJob(msg.mission.jobId);
+    resolveMissionInThread(msg, "Cancelled — nothing ran.", "cancelled");
+  };
+
+  const resolveMissionInThread = (
+    msg: AIMessage,
+    note: string,
+    resolved: "approved" | "cancelled"
+  ) => {
+    const noteMsg: AIMessage = {
+      id: generateId(),
+      role: "assistant",
+      content: note,
+      timestamp: new Date().toISOString(),
+      model: msg.model,
+    };
+    setMessages((prev) => {
+      const next = prev.map((m) => (m.id === msg.id ? { ...m, missionResolved: resolved } : m));
+      next.splice(next.findIndex((m) => m.id === msg.id) + 1, 0, noteMsg);
+      if (conversationId) storage.replaceConversationMessages(conversationId, next);
+      return next;
+    });
+    refresh();
   };
 
   const resolveProposalInThread = (msg: AIMessage, note: string, resolved: "confirmed" | "dismissed") => {
@@ -1575,8 +1653,14 @@ export default function AssistantPage() {
       const enriched: Attachment[] = await Promise.all(
         attachments.map(async (att) => {
           if (att.kind === "image") {
-            const desc = await describeImage(att.dataUrl);
-            return { ...att, description: desc || undefined };
+            // Study mode: classify the picture, transcribe it verbatim and
+            // actually work the problem when there is one.
+            const vision = await describeImage(att.dataUrl, "study");
+            return {
+              ...att,
+              description: vision.description || undefined,
+              visionKind: vision.kind,
+            };
           }
           if (att.kind === "file" && att.text && att.text.length > FILE_INLINE_CHARS) {
             const digest = await buildFileOverview(att.name, att.text);
@@ -1598,9 +1682,14 @@ export default function AssistantPage() {
         description,
       }));
       const parts: string[] = [];
+      const hasStudyImage = enriched.some((a) => a.kind === "image");
       for (const att of enriched) {
         if (att.kind === "image") {
-          parts.push(`[Attached image "${att.name}"${att.description ? `] ${att.description}` : " - could not be described"}`);
+          const label =
+            att.visionKind && att.visionKind !== "other" ? ` (${att.visionKind})` : "";
+          parts.push(
+            `[Attached image "${att.name}"${label}]${att.description ? ` ${att.description}` : " - could not be described"}`
+          );
         } else if (att.text) {
           // Long files arrive here as an overview digest instead of raw text.
           const body = att.description || att.text;
@@ -1609,7 +1698,18 @@ export default function AssistantPage() {
           parts.push(`[Attached file "${att.name}" - binary file, contents unavailable]`);
         }
       }
-      llmQuery = `${queryText}\n\n---\nUser attached:\n${parts.join("\n\n")}`;
+      // A photo on its own is still a question ("what is this?"). Without
+      // this the model gets an empty turn and answers nothing useful.
+      const ask =
+        queryText.trim() ||
+        (hasStudyImage
+          ? "What's in this image? If it's homework or a question, work through it step by step and give the answer."
+          : "");
+      llmQuery = `${ask}\n\n---\nUser attached:\n${parts.join("\n\n")}`;
+      if (hasStudyImage) {
+        llmQuery +=
+          "\n\n[The user can see this image; you cannot. Work from the transcription and analysis above. If it is homework, a problem or an exercise: check the working, correct any mistakes, present the steps clearly, then state the final answer. Never invent text that is marked [illegible]. If the page is cut off, say what is missing.]";
+      }
       setAttachments([]);
     }
 
@@ -1635,9 +1735,10 @@ export default function AssistantPage() {
         if (res.ok) {
           storage.addMessage(currentConvId, userMsg);
           setMessages((prev) => [...prev, userMsg]);
+          // The plan card always follows the request that produced it.
+          postMissionPlan(res.job);
           refresh();
           setActiveScout(true);
-          kickScoutRunner();
           setLoading(false);
           return;
         }
@@ -2753,6 +2854,7 @@ try {
                     <div className="text-[15px] leading-relaxed text-foreground/90">
                       <Markdown content={msg.content} />
                       {msg.proposal && <ProposalChip msg={msg} onConfirm={() => confirmProposal(msg)} onDismiss={() => dismissProposal(msg)} />}
+                      {msg.mission && <MissionCard msg={msg} onApprove={() => approveMission(msg)} onCancel={() => cancelMission(msg)} />}
                       {msg.image && (
                         <div className="mt-2">
                           <div className="max-w-[min(100%,340px)] overflow-hidden rounded-2xl border border-border">

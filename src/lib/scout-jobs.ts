@@ -1,40 +1,42 @@
 "use client";
 
 // ============================================================
-// Scout jobs — the second thing pets do that Noor doesn't.
+// Pet missions — what pets do that Noor doesn't.
 //
-// Noor answers when asked. Scout is HANDED a job and works it
-// autonomously on the Noor agent loop (plan → web_search →
-// read_url → deliver), multi-turn — without burning Noor chat
-// messages (the loop's internal turns bypass the daily message
-// cap; one job = one spend, not five).
+// Noor answers when asked. A hired pet is HANDED a mission and works it
+// autonomously on the agent loop (plan → web_search → read_url →
+// workspace_* → deliver), multi-turn, without burning a chat message per
+// internal step.
 //
-// Dispatch model (client-first, local-first):
-//   1. assignScoutJob()     — enqueue a pending job (cheap, instant)
-//   2. runPendingScoutJob() — runs the OLDEST pending job on
-//      runAgentLoop, streaming into the pet's thread
-//   3. delivery             — an in-character summary in the thread +
-//      a "Scout Findings" note + a WORKING receipt ("Delivered the
-//      research note '<title>'") — trust +1.
+// Confirm-first, by design (owner instruction 2026-10):
+//   assign → the pet posts a PLAN in its thread and waits
+//   approve → the mission becomes runnable
+//   run → the agent loop executes it for real
+//   deliver → in-character summary + a note + a WORKING receipt
+// Nothing with a side effect (a written file, a new task, a calendar
+// event) happens before the user taps Approve.
 //
-// Cap-safety: runAgentLoop can throw NoorCapError. We never leave
-// the job stuck: on cap/error the job goes back to pending, the
-// thread gets an honest message, and retry is user-initiated
-// (Run now) — no silent free-looping, no wasted credits.
+// Three mission kinds, chosen from the wording of the request:
+//   research  read-only: web + pages → cited note (the original Scout job)
+//   files     writes a real deliverable into the granted device folder
+//   organize  creates real workspace items: tasks, events, a note
 //
-// Active-jobs limit: 1 concurrent + up to 3 queued. Keeps spend
-// sane and makes "Scout is working" legible.
+// Cap-safety: runAgentLoop can throw NoorCapError. We never leave a
+// mission stuck: on cap/error it goes back to pending, the thread gets an
+// honest message, and retry is user-initiated (Run now) — no silent
+// free-looping, no wasted credits.
 // ============================================================
 
-import type { AIModel, AISource, PetReceipt, ScoutJob } from "@/types";
+import type { AIMessage, AIModel, AISource, PetMissionKind, PetReceipt, ScoutJob } from "@/types";
 import { storage } from "./storage";
 import { generateId } from "./utils";
 import { NoorCapError } from "./noor-cap";
 import { runAgentLoop } from "./agent-loop";
 import { MODEL_PROFILES, DEFAULT_MODEL } from "./ai-models";
 import { roster, workingReceipt, recordWork } from "./pet-agent";
+import { describeWorkspace, getGrantedDirName, isWorkspaceActive } from "./agent-device";
 
-const MAX_PENDING = 3;
+const MAX_ACTIVE = 4;
 
 // ---------------- Store helpers ----------------
 
@@ -62,7 +64,66 @@ export function pendingScoutJob(agentId?: string): ScoutJob | undefined {
 }
 
 export function activeScoutJobs(): ScoutJob[] {
-  return scoutJobs().filter((j) => j.status === "pending" || j.status === "running");
+  return scoutJobs().filter(
+    (j) => j.status === "awaiting_approval" || j.status === "pending" || j.status === "running"
+  );
+}
+
+// ---------------- Mission planning ----------------
+
+/**
+ * Decide what kind of mission this is from the goal's wording. This is
+ * deliberately deterministic: the approval card must appear instantly and
+ * cost nothing, and the plan must never be a model hallucination the user
+ * is asked to rubber-stamp.
+ */
+const FILES_RE =
+  /\b(write|save|export|create|make|draft|generate|download)\b[\s\S]{0,60}\b(file|folder|pdf|docx|csv|txt|markdown|spreadsheet|deck)\b|\b(my (?:computer|device|laptop|desktop|folder|files)|on (?:my )?(?:disk|hard drive)|to my folder|in my folder)\b/i;
+const ORGANIZE_RE =
+  /\b(schedule|calendar|remind(?:er)?|book (?:a|an|the)|meeting|appointment|time-?block|to-?do|task list|plan my (?:day|week|month)|organi[sz]e my)\b/i;
+
+export interface MissionPlan {
+  kind: PetMissionKind;
+  steps: string[];
+}
+
+function shortTopic(topic: string, max = 70): string {
+  const t = topic.replace(/\s+/g, " ").trim();
+  return t.length > max ? t.slice(0, max - 1) + "…" : t;
+}
+
+export function planMission(topic: string): MissionPlan {
+  if (FILES_RE.test(topic)) {
+    const folder = getGrantedDirName();
+    return {
+      kind: "files",
+      steps: [
+        "Research and draft the deliverable in full",
+        folder
+          ? `Write it as a real file inside “${folder}”`
+          : "Write it as a real file in your granted folder (you'll pick one)",
+        "Leave a note here pointing at the file",
+      ],
+    };
+  }
+  if (ORGANIZE_RE.test(topic)) {
+    return {
+      kind: "organize",
+      steps: [
+        "Work out the exact items — titles, dates and times — from your request",
+        "Create them in your workspace: tasks, calendar events or a note",
+        "Report back with exactly what was created",
+      ],
+    };
+  }
+  return {
+    kind: "research",
+    steps: [
+      `Search the web for current, credible sources on “${shortTopic(topic, 50)}”`,
+      "Read the most relevant pages in full",
+      "Write a cited brief and deliver it as a note in this thread",
+    ],
+  };
 }
 
 // ---------------- Receipts ----------------
@@ -86,29 +147,95 @@ function pushJobReceipt(agentId: string, kind: PetReceipt["kind"], summary: stri
 
 // ---------------- Assign ----------------
 
-export type AssignResult = { ok: true; job: ScoutJob } | { ok: false; reason: "empty" | "limit" };
+export type AssignResult =
+  | { ok: true; job: ScoutJob }
+  | { ok: false; reason: "empty" | "limit" };
 
-/** Assign a job: enqueue immediately; the runner picks it up. */
+/** Assign a mission: it is staged for approval; nothing runs yet. */
 export function assignScoutJob(agentId: string, topic: string, convId: string): AssignResult {
   const t = topic.trim();
   if (!t) return { ok: false, reason: "empty" };
-  if (activeScoutJobs().length >= MAX_PENDING) return { ok: false, reason: "limit" };
+  if (activeScoutJobs().length >= MAX_ACTIVE) return { ok: false, reason: "limit" };
+  const plan = planMission(t);
   const job: ScoutJob = {
     id: generateId(),
     agentId,
     topic: t.slice(0, 500),
-    status: "pending",
+    status: "awaiting_approval",
+    kind: plan.kind,
+    plan: plan.steps,
     convId,
     createdAt: new Date().toISOString(),
   };
   const jobs = jobsFromState();
   jobs.push(job);
-  // Keep the ledger bounded: done/failed history is trimmed to the last 10.
-  const done = jobs.filter((j) => j.status === "done" || j.status === "failed");
+  // Keep the ledger bounded: finished history is trimmed to the last 10.
+  const done = jobs.filter(
+    (j) => j.status === "done" || j.status === "failed" || j.status === "cancelled"
+  );
   const keep = new Set(done.slice(-10).map((j) => j.id));
   saveJobs([...jobs.filter((j) => !done.includes(j) || keep.has(j.id))]);
-  pushJobReceipt(agentId, "proposed", `New job assigned: “${t.slice(0, 60)}”`);
+  pushJobReceipt(agentId, "proposed", `Planned a mission: “${shortTopic(t, 60)}”`);
   return { ok: true, job };
+}
+
+/**
+ * Post the approval card into the mission's thread. Callers invoke this
+ * AFTER the user's own message is stored, so the plan always follows the
+ * request instead of jumping above it.
+ */
+export function postMissionPlan(job: ScoutJob): void {
+  const agent = roster().find((a) => a.id === job.agentId);
+  const conv = storage.getData().aiConversations.find((c) => c.id === job.convId);
+  if (!conv) return;
+  const msg: AIMessage = {
+    id: generateId(),
+    role: "assistant",
+    content: "I've got a plan for this. Nothing runs until you approve it.",
+    timestamp: new Date().toISOString(),
+    model: safeModel(storage.getData().selectedModel),
+    agentId: job.agentId,
+    mission: {
+      jobId: job.id,
+      agentName: agent?.name || "Scout",
+      title: job.topic,
+      steps: job.plan || planMission(job.topic).steps,
+      kind: job.kind || "research",
+    },
+  };
+  storage.addMessage(job.convId, msg);
+  // Live sync: an open thread picks the card up without a reload.
+  try {
+    window.dispatchEvent(
+      new CustomEvent("orleia:noor-bg", {
+        detail: { type: "done", convId: job.convId, preview: "plan ready" },
+      })
+    );
+  } catch {
+    /* non-browser */
+  }
+}
+
+// ---------------- Approve / cancel ----------------
+
+export function approveScoutJob(id: string): boolean {
+  const job = jobsFromState().find((j) => j.id === id);
+  if (!job || job.status !== "awaiting_approval") return false;
+  updateScoutJob(id, { status: "pending", decidedAt: new Date().toISOString() });
+  pushJobReceipt(job.agentId, "accepted", `Approved the mission “${shortTopic(job.topic, 60)}”`);
+  return true;
+}
+
+export function cancelScoutJob(id: string): boolean {
+  const job = jobsFromState().find((j) => j.id === id);
+  if (!job || job.status !== "awaiting_approval") return false;
+  updateScoutJob(id, {
+    status: "cancelled",
+    decidedAt: new Date().toISOString(),
+    finishedAt: new Date().toISOString(),
+  });
+  pushJobReceipt(job.agentId, "dismissed", `Cancelled the mission “${shortTopic(job.topic, 60)}”`);
+  return true;
 }
 
 export function updateScoutJob(id: string, patch: Partial<ScoutJob>): ScoutJob | undefined {
@@ -130,23 +257,71 @@ function safeModel(stored?: string): AIModel {
   return stored && stored in MODEL_PROFILES ? (stored as AIModel) : DEFAULT_MODEL;
 }
 
-function scoutContext(): string {
+function missionContext(job: ScoutJob, agentName: string, folderName: string | null): string {
+  const kind = job.kind || "research";
+  const plan = (job.plan || [])
+    .map((s, i) => `${i + 1}. ${s}`)
+    .join("\n");
+  const header =
+    `You are ${agentName}, a hired agent inside Orleia (a local-first productivity app). ` +
+    `This is a background mission the user assigned and then APPROVED.\n\nAPPROVED PLAN:\n${plan}\n\n` +
+    `Execute the plan. Keep the final summary tight and skimmable. `;
+
+  if (kind === "files") {
+    return (
+      header +
+      `You are allowed to write REAL files on the user's device. Use ` +
+      `ORLEIA_TOOL {"action":"workspace_list"} first to see the granted folder, then ` +
+      `ORLEIA_TOOL {"action":"workspace_write","params":{"path":"<name>.md","content":"..."}} ` +
+      `to create the finished deliverable. Plain-text formats only (md, txt, csv, json, html). ` +
+      (folderName
+        ? `The folder is “${folderName}”. `
+        : `No folder is connected right now — say so plainly and deliver the full text as a note instead. `) +
+      `Write the COMPLETE deliverable, not an outline. Never touch files unrelated to this mission and never delete anything.`
+    );
+  }
+  if (kind === "organize") {
+    return (
+      header +
+      `You are allowed to create REAL workspace items. Emit ORLEIA_ACTION lines — ` +
+      `{"action":"create_task","params":{...}}, {"action":"create_event","params":{...}} or ` +
+      `{"action":"create_note","params":{...}} — for exactly the items the user asked for, with real dates and times. ` +
+      `Never delete or rewrite anything that already exists, never create duplicates (check the workspace stats in your context first), ` +
+      `and finish by listing what you created.`
+    );
+  }
   return (
-    "You are running a SCOUT JOB for Orleia (a local-first productivity app). " +
-    "This is a background research task the user assigned ahead of time. " +
-    "Prefer web_search + read_url for facts; keep the final summary tight and skimmable. " +
-    "Do NOT use ORLEIA_ACTION to change the user's tasks, notes, habits or calendar — " +
-    "your entire deliverable is the text summary you finish with."
+    header +
+    `Prefer web_search + read_url for facts. Your deliverable is the text summary you finish with; ` +
+    `do NOT change the user's tasks, notes, habits or calendar on a research mission.`
   );
 }
 
 /** First line of a delivery doubles as the note title. */
 function deliveryTitle(text: string): string {
   const first = text.split("\n").find((l) => l.trim()) || "";
-  return first.replace(/^[#*\-\s]+/, "").replace(/\*\*/g, "").slice(0, 80) || "Scout findings";
+  return (
+    first
+      .replace(/^[#*\-\s]+/, "")
+      .replace(/\*\*/g, "")
+      .slice(0, 80) || "Mission findings"
+  );
 }
 
-async function deliver(job: ScoutJob, text: string, sources: AISource[]): Promise<void> {
+const DELIVERY_LEAD: Record<PetMissionKind, string> = {
+  research: "🔔 Job's done — here's what I dug up on",
+  files: "📁 Mission complete — the deliverable is in your folder. Here's the summary of",
+  organize: "✅ Done — the items are in your workspace. Here's what I set up from",
+};
+
+async function deliver(
+  job: ScoutJob,
+  text: string,
+  sources: AISource[],
+  /** files kind only: did the folder actually change during the run? */
+  fileState: "written" | "missing" | null = null
+): Promise<void> {
+  const kind = job.kind || "research";
   // The user's own words are the best headline — plan lines from the
   // agent loop make lousy note titles.
   const title = job.topic.replace(/\s+/g, " ").slice(0, 80) || deliveryTitle(text);
@@ -154,9 +329,13 @@ async function deliver(job: ScoutJob, text: string, sources: AISource[]): Promis
   const conv = storage.getData().aiConversations.find((c) => c.id === job.convId);
   const model = safeModel(storage.getData().selectedModel);
   if (conv) {
+    const lead =
+      kind === "files" && fileState === "missing"
+        ? "📝 I couldn't confirm a file landed in your folder — the full deliverable is saved as a note. Here's the summary of"
+        : DELIVERY_LEAD[kind];
     storage.addMessage(job.convId, {
       role: "assistant",
-      content: `🔔 Job's done — here's what I dug up on “${job.topic}”:\n\n${text}`,
+      content: `${lead} “${title}”:\n\n${text}`,
       model,
       sources: sources.length ? sources : undefined,
     });
@@ -164,12 +343,13 @@ async function deliver(job: ScoutJob, text: string, sources: AISource[]): Promis
   // 2. A real note, so the work outlives the chat thread.
   try {
     storage.createNote({
-      title: `Scout Findings — ${title}`,
-      content: `Research job: ${job.topic}\nDelivered: ${new Date().toLocaleString()}\n\n${text}`,
+      title: `Mission Findings — ${title}`,
+      content:
+        `Mission: ${job.topic}\nKind: ${kind}\nDelivered: ${new Date().toLocaleString()}\n\n${text}`,
       contentHtml: "",
       folderId: null,
       projectId: null,
-      tags: ["scout"],
+      tags: ["pets", "mission"],
       pinned: false,
       archived: false,
       favorite: false,
@@ -177,15 +357,23 @@ async function deliver(job: ScoutJob, text: string, sources: AISource[]): Promis
   } catch {
     /* notes are best-effort */
   }
-  // 3. Receipt + trust (a finished job is a working pet).
+  // 3. Receipt + trust (a finished mission is a working pet).
   updateScoutJob(job.id, {
     status: "done",
     finishedAt: new Date().toISOString(),
     resultTitle: title,
   });
-  pushJobReceipt(job.agentId, "accepted", `Delivered the research note “${title}”`);
-  // 4. If the pet's thread is open on the Noor page, sync it live so the
-  //    delivery appears without a reload (same channel askNoorAnywhere uses).
+  const summary =
+    kind === "files"
+      ? fileState === "written"
+        ? `Delivered “${title}” as a file in the workspace folder`
+        : `Delivered “${title}” as a note (no file landed)`
+      : kind === "organize"
+        ? `Set up “${title}” in the workspace`
+        : `Delivered the research note “${title}”`;
+  pushJobReceipt(job.agentId, "accepted", summary);
+  // 4. If the pet's thread is open, sync it live so the delivery appears
+  //    without a reload (same channel askNoorAnywhere uses).
   try {
     window.dispatchEvent(
       new CustomEvent("orleia:noor-bg", { detail: { type: "done", convId: job.convId, preview: title } })
@@ -195,7 +383,7 @@ async function deliver(job: ScoutJob, text: string, sources: AISource[]): Promis
   }
 }
 
-/** Run the OLDEST pending scout job (any agent). Returns the job, or null if none. */
+/** Run the OLDEST approved mission (any agent). Returns the job, or null if none. */
 export async function runPendingScoutJob(opts: ScoutRunOpts = {}): Promise<ScoutJob | null> {
   if (scoutJobs().some((j) => j.status === "running")) return null; // one at a time
   const job = jobsFromState()
@@ -205,33 +393,53 @@ export async function runPendingScoutJob(opts: ScoutRunOpts = {}): Promise<Scout
 
   const agent = roster().find((a) => a.id === job.agentId);
   if (!agent) {
-    updateScoutJob(job.id, { status: "failed", error: "Agent released", finishedAt: new Date().toISOString() });
+    updateScoutJob(job.id, {
+      status: "failed",
+      error: "Agent released",
+      finishedAt: new Date().toISOString(),
+    });
     return job;
   }
 
   updateScoutJob(job.id, { status: "running" });
   opts.onStatus?.(`🔭 ${agent.name} is on the job…`);
-  // 24/7 log: the agent's last-active stamp moves the moment it picks
-  // up an assigned job (night work counts as work, employees don't sleep).
-  // Silent: the delivery itself fires the user-facing receipt later.
-  recordWork(agent.id, `Picked up job: ${job.topic.slice(0, 60)}`, 0, { silent: true });
+  // 24/7 log: the agent's last-active stamp moves the moment it picks up an
+  // approved mission (night work counts as work, employees don't sleep).
+  recordWork(agent.id, `Picked up mission: ${job.topic.slice(0, 60)}`, 0, { silent: true });
 
   const model = safeModel(storage.getData().selectedModel);
-  const history = (storage.getData().aiConversations.find((c) => c.id === job.convId)?.messages ?? []) as never[];
+  const history = (
+    storage.getData().aiConversations.find((c) => c.id === job.convId)?.messages ?? []
+  ) as never[];
   const sources: AISource[] = [];
+  const folderName = (await isWorkspaceActive().catch(() => false)) ? getGrantedDirName() : null;
+  // Snapshot the folder so a "files" mission can report the truth instead of
+  // trusting the model's claim that it wrote something.
+  const folderBefore =
+    job.kind === "files" && folderName ? await describeWorkspace().catch(() => null) : null;
 
   try {
     const out = await runAgentLoop(
-      `SCOUT JOB: ${job.topic}`,
+      `MISSION: ${job.topic}`,
       history as never,
       model,
       { onToken: () => {}, sources },
-      scoutContext()
+      missionContext(job, agent.name, folderName)
     );
     const text = (out || "").trim();
     if (!text) throw new Error("empty result");
-    await deliver(job, text, sources);
-    opts.onStatus?.(`✅ ${agent.name} delivered the findings.`);
+    const folderAfter =
+      job.kind === "files" && folderName ? await describeWorkspace().catch(() => null) : null;
+    // No folder connected still reports "missing": the delivery must never
+    // claim a file exists when nothing was written.
+    const fileState: "written" | "missing" | null =
+      job.kind !== "files"
+        ? null
+        : folderName && folderAfter && folderBefore && folderAfter !== folderBefore
+          ? "written"
+          : "missing";
+    await deliver(job, text, sources, fileState);
+    opts.onStatus?.(`✅ ${agent.name} delivered the mission.`);
   } catch (e) {
     const cap = e instanceof NoorCapError;
     // Cap/error: back to pending, honest message, user retries via Run now.
@@ -241,19 +449,21 @@ export async function runPendingScoutJob(opts: ScoutRunOpts = {}): Promise<Scout
       storage.addMessage(job.convId, {
         role: "assistant",
         content: cap
-          ? `😵 Hit the daily message cap mid-job on “${job.topic}”. The job is safe and queued — tap Run now (or come back tomorrow) and I'll pick it up.`
-          : `😈 I stumbled mid-job on “${job.topic}” (model hiccup). The job is re-queued — try Run now in a moment.`,
+          ? `😵 Hit the daily message cap mid-mission on “${job.topic}”. The mission is safe and queued — tap Run now (or come back tomorrow) and I'll pick it up.`
+          : `😈 I stumbled mid-mission on “${job.topic}” (model hiccup). It's re-queued — try Run now in a moment.`,
         model: safeModel(storage.getData().selectedModel),
       });
       try {
         window.dispatchEvent(
-          new CustomEvent("orleia:noor-bg", { detail: { type: "done", convId: job.convId, preview: "job re-queued" } })
+          new CustomEvent("orleia:noor-bg", {
+            detail: { type: "done", convId: job.convId, preview: "mission re-queued" },
+          })
         );
       } catch {
         /* non-browser */
       }
     }
-    opts.onStatus?.(cap ? "Job re-queued — daily cap reached." : "Job re-queued — model hiccup.");
+    opts.onStatus?.(cap ? "Mission re-queued — daily cap reached." : "Mission re-queued — model hiccup.");
   }
   return job;
 }
@@ -262,7 +472,7 @@ export async function runPendingScoutJob(opts: ScoutRunOpts = {}): Promise<Scout
 
 const RUNNER = "orleia:scout-runner";
 
-/** Fire the runner; it no-ops if nothing is pending or a job is running. */
+/** Fire the runner; it no-ops if nothing is approved or one is running. */
 export function kickScoutRunner(): void {
   try {
     window.dispatchEvent(new CustomEvent(RUNNER));
