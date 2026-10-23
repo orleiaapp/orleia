@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { LegalPage } from "@/components/legal-page";
 
 import type { Metadata } from "next";
@@ -171,6 +172,21 @@ export default function TermsPage() {
         <p>
           These terms shall be governed by applicable local laws. Given that Orleia is a non-profit tool with no
           commercial activity, disputes are expected to be minimal.
+        </p>
+      </section>
+
+      <section>
+        <h2 className="text-lg font-bold tracking-tight text-foreground mb-3">15. ximagine - Public Beta</h2>
+        <p>
+          Orleia also offers ximagine, an experimental public beta that turns a plain-language description into a
+          small personal app that runs on your own computer. ximagine is provided &quot;as is&quot;, may change or
+          be withdrawn at any time, and is governed by the{" "}
+          <Link href="/ximagine-beta" className="underline underline-offset-2 hover:text-foreground transition-colors">
+            ximagine Beta Terms &amp; Policies
+          </Link>
+          , which you accept when you download or use it. Everything ximagine builds runs on your device; you are
+          responsible for reviewing anything before you run it, and the limitation of liability in section 12
+          applies to ximagine and to the apps it generates.
         </p>
       </section>
     </LegalPage>

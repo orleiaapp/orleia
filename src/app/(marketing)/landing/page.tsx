@@ -38,6 +38,7 @@ const RIBBON = [
   "Deck presentations",
   "Noor AI — Novella 5.0",
   "AI pets & agents",
+  "ximagine — one sentence, one app",
   "Deep research",
   "Free to start",
 ];
@@ -256,6 +257,47 @@ function NoorSpotlight() {
   );
 }
 
+/* ximagine beta — builds are published on the GitHub releases page. Swap this
+   for the direct .exe asset URL once the first beta build is uploaded. */
+const XIMAGINE_DOWNLOAD_URL = "https://github.com/orleiaapp/orleia/releases";
+
+/* ximagine — one sentence in, one personal app out (pure DOM) */
+function XimagineMock() {
+  return (
+    <div className="mx-auto grid max-w-4xl items-center gap-4 md:grid-cols-[1fr_auto_1fr]">
+      <div className="rounded-2xl border border-border/50 bg-card/40 p-5 text-left">
+        <p className="text-[10px] font-mono tracking-[0.25em] text-muted-foreground/40 uppercase">You imagine</p>
+        <p className="mt-3 text-sm leading-relaxed text-foreground/90">
+          <span className="text-muted-foreground/50">imagine </span>an app that tracks how many films I watch this year
+          <span aria-hidden className="ml-0.5 inline-block h-4 w-[2px] translate-y-0.5 bg-foreground/70 animate-[blink_1.1s_steps(1)_infinite] motion-reduce:animate-none" />
+        </p>
+      </div>
+      <ArrowRight className="hidden h-4 w-4 shrink-0 justify-self-center text-muted-foreground/30 md:block" aria-hidden />
+      <div className="rounded-2xl border border-border/50 bg-card/40 p-5 text-left">
+        <div className="flex items-center justify-between">
+          <p className="text-[10px] font-mono tracking-[0.25em] text-muted-foreground/40 uppercase">ximagine builds</p>
+          <span className="text-[10px] font-mono text-emerald-500/70">RUNS LOCALLY</span>
+        </div>
+        <div className="mt-3 rounded-xl border border-border/50 bg-background/60 p-4">
+          <div className="flex items-baseline justify-between">
+            <p className="text-sm font-semibold">Films, 2026</p>
+            <p className="font-mono text-2xl font-bold tracking-tight">23</p>
+          </div>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <span className="rounded-lg bg-foreground px-3 py-1.5 text-[11px] font-medium text-background">+1 watched</span>
+            <span className="rounded-lg border border-border/60 px-3 py-1.5 text-[11px] text-muted-foreground">Random pick</span>
+          </div>
+          <div className="mt-3.5 flex items-center gap-1" aria-hidden>
+            {Array.from({ length: 12 }, (_, i) => (
+              <span key={i} className={"h-1 rounded-full " + (i < 9 ? "w-3.5 bg-foreground/30" : "w-1.5 bg-foreground/10")} />
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function LandingPage() {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [reducedMotion, setReducedMotion] = useState<boolean>(() => a11yPref("reduced-motion"));
@@ -348,6 +390,7 @@ export default function LandingPage() {
           <div className="hidden md:flex items-center gap-7">
             <button onClick={() => scrollTo("product")} className="text-xs text-muted-foreground/60 hover:text-foreground transition-colors">Product</button>
             <button onClick={() => scrollTo("noor")} className="text-xs text-muted-foreground/60 hover:text-foreground transition-colors">Noor</button>
+            <button onClick={() => scrollTo("ximagine")} className="text-xs text-muted-foreground/60 hover:text-foreground transition-colors">ximagine</button>
             <button onClick={() => scrollTo("accessibility")} className="text-xs text-muted-foreground/60 hover:text-foreground transition-colors">Accessibility</button>
             <button onClick={() => scrollTo("download")} className="text-xs text-muted-foreground/60 hover:text-foreground transition-colors">Download</button>
             <button onClick={() => setHighContrast(!highContrast)} aria-pressed={highContrast} aria-label="Toggle high contrast" className="text-xs text-muted-foreground/60 hover:text-foreground transition-colors">Contrast</button>
@@ -368,6 +411,7 @@ export default function LandingPage() {
             {[
               { label: "Product", id: "product" },
               { label: "Noor", id: "noor" },
+              { label: "ximagine", id: "ximagine" },
               { label: "Accessibility", id: "accessibility" },
               { label: "Download", id: "download" },
             ].map((item) => (
@@ -505,6 +549,59 @@ export default function LandingPage() {
                     {f}
                   </span>
                 ))}
+              </div>
+            </Reveal>
+          </div>
+        </section>
+
+        {/* ===== XIMAGINE (new · public beta) ===== */}
+        <section id="ximagine" aria-labelledby="ximagine-heading" className="relative py-24 md:py-32 px-6 border-t border-white/10 overflow-hidden">
+          <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-[420px] bg-[radial-gradient(55%_100%_at_50%_0%,rgba(255,255,255,0.07),transparent_75%)]" />
+          <div className="relative mx-auto max-w-6xl">
+            <Reveal>
+              <p className="text-center text-[10px] font-mono tracking-[0.3em] text-muted-foreground/40 uppercase">New · Public beta</p>
+              <h2 id="ximagine-heading" className="mt-4 text-center leading-none tracking-[-0.05em]">
+                <span className="text-5xl md:text-7xl font-bold lowercase">ximagine</span>
+                <span className="ml-3 align-top text-[10px] font-mono tracking-[0.3em] text-muted-foreground/40 uppercase">by Orleia</span>
+              </h2>
+              <p className="mx-auto mt-6 max-w-xl text-center text-muted-foreground leading-relaxed">
+                Imagine one small app - a tool that does exactly your job, for you alone - and it gets built.
+                Not a store, not a platform. A program on your machine, made from a sentence.
+              </p>
+            </Reveal>
+            <Reveal delay={0.12} className="mt-12">
+              <XimagineMock />
+            </Reveal>
+            <Reveal delay={0.18}>
+              <div className="mt-10 flex flex-wrap items-center justify-center gap-x-8 gap-y-3">
+                {[
+                  "Trained with anti-slop skills, so it won't look like every other AI app",
+                  "Windows 10/11, Electron build",
+                  "Yours alone - no account, no audience",
+                ].map((f) => (
+                  <span key={f} className="inline-flex items-center gap-2 text-xs text-muted-foreground/60">
+                    <span className="h-1 w-1 rounded-full bg-foreground/40" aria-hidden />
+                    {f}
+                  </span>
+                ))}
+              </div>
+            </Reveal>
+            <Reveal delay={0.24}>
+              <div className="mt-10 flex flex-col items-center gap-3">
+                <a
+                  href={XIMAGINE_DOWNLOAD_URL}
+                  className="inline-flex items-center gap-2 bg-white text-black px-7 py-3 text-sm font-medium rounded-full transition-all hover:opacity-90 active:scale-[0.97]"
+                >
+                  <WinIcon /> Download for Windows
+                  <span className="rounded-full bg-black/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide">Beta</span>
+                </a>
+                <p className="max-w-md text-center text-xs text-muted-foreground/40">
+                  Public beta 0.1, Windows 10/11 (x64). Experimental software, provided as is - the{" "}
+                  <Link href="/ximagine-beta" className="underline underline-offset-2 hover:text-foreground transition-colors">
+                    Beta Terms &amp; Policies
+                  </Link>{" "}
+                  apply, and everything ximagine builds runs on your computer, so review before you run.
+                </p>
               </div>
             </Reveal>
           </div>
@@ -748,6 +845,7 @@ export default function LandingPage() {
             {["privacy", "terms", "cookies", "refund", "gdpr", "ccpa", "eula", "disclaimer", "accessibility"].map((p) => (
               <Link key={p} href={`/${p}`} className="text-[11px] text-muted-foreground/40 hover:text-muted-foreground transition-colors capitalize">{p}</Link>
             ))}
+            <Link href="/ximagine-beta" className="text-[11px] text-muted-foreground/40 hover:text-muted-foreground transition-colors">ximagine beta</Link>
             <button
               onClick={() => window.dispatchEvent(new CustomEvent("orleia:open-cookie-settings"))}
               className="text-[11px] text-muted-foreground/40 hover:text-muted-foreground transition-colors"
