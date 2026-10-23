@@ -150,7 +150,7 @@ export default function PrivacyPage() {
           <li><strong>Push reminder store (Vercel Blob)</strong> - If you enable reminders while the app is closed, Orleia stores the minimal data needed to deliver them: a push subscription endpoint, your device identifier, and the upcoming reminder times with their titles. This store contains no workspace content, is overwritten on every schedule sync, and expires after delivery. Deleting the app data or disabling notifications removes it.</li>
           <li><strong>Web push services</strong> - Delivering a push notification involves your browser vendor's push service (e.g. Mozillaautopush for Firefox, Apple's APNs for Safari, Google's FCM for Chrome). Only the encrypted notification payload and your subscription endpoint pass through them; they cannot read your data.</li>
           <li><strong>Supabase</strong> - Used only for optional sign-in (Google, Apple, GitHub, Microsoft) and only to identify your session. Your workspace data is not stored in Supabase and sync between devices happens peer-to-peer directly between your devices.</li>
-          <li><strong>Google Fonts</strong> - Loaded from the Google Fonts CDN for typography.</li>
+          <li><strong>Self-hosted fonts</strong> - Typography is bundled with the app itself (Fontsource); no font request ever reaches a third party.</li>
           <li><strong>Google STUN</strong> - When you use device-to-device sync, public Google STUN servers help your devices find each other; only connection metadata passes through, never your data.</li>
         </ul>
         <p className="mt-4">

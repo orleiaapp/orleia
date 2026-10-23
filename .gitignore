@@ -3,6 +3,7 @@
 /.pnp
 .pnp.js
 desktop/node_modules
+ximagine/node_modules
 
 # next.js
 /.next/
@@ -11,6 +12,7 @@ desktop/node_modules
 # production
 /build
 desktop/dist
+ximagine/dist
 
 # env files (NEVER commit secrets)
 .env

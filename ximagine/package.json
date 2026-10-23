@@ -1,0 +1,44 @@
+{
+  "name": "ximagine-desktop",
+  "productName": "Ximagine",
+  "version": "0.1.0",
+  "description": "Ximagine - an experimental app-builder beta by the Orleia project. Describe a small app in plain language; it gets built and runs on your device.",
+  "main": "main.js",
+  "author": "Orleia",
+  "homepage": "https://www.orleia.app",
+  "license": "MIT",
+  "scripts": {
+    "start": "electron .",
+    "pack": "electron-builder --dir",
+    "dist:win": "electron-builder --win"
+  },
+  "devDependencies": {
+    "electron": "^43.4.0",
+    "electron-builder": "^26.15.3"
+  },
+  "build": {
+    "appId": "xyz.orleiaapp.ximagine",
+    "productName": "Ximagine",
+    "artifactName": "Ximagine-Setup-${version}.exe",
+    "files": ["main.js", "package.json"],
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        }
+      ],
+      "icon": "build/icon.png"
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "allowElevation": true,
+      "deleteAppDataOnUninstall": false
+    }
+  }
+}

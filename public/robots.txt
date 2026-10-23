@@ -9,5 +9,6 @@ Disallow: /tasks/
 Disallow: /journal/
 Disallow: /documents/
 Disallow: /migrate/
+Disallow: /ximagine/
 
 Sitemap: https://www.orleia.app/sitemap.xml

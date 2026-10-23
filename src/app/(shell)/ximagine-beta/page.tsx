@@ -38,6 +38,7 @@ export default function XimagineBetaPage() {
           <li>We may limit, pause, or withdraw the beta for everyone, at any time, without notice</li>
           <li>Beta builds are provided as they are; there is no obligation to release updates or to keep older versions compatible</li>
           <li>Beta builds may not be code-signed yet, so Windows SmartScreen may warn you when installing; choosing to install anyway is your decision and your risk</li>
+          <li>During the free beta, every device gets a daily allowance of AI turns (currently 50 per day, resetting at 00:00 UTC). The allowance is free, has no cash value, is personal to your device, and may change or end at any time</li>
         </ul>
       </section>
 
@@ -101,6 +102,7 @@ export default function XimagineBetaPage() {
         <ul className="list-disc pl-6 space-y-1.5">
           <li>Your description of the app you want is sent to our AI provider (NVIDIA, via its NIM API) for processing, under the same terms as Noor chats - see the Privacy Policy</li>
           <li>Generated apps run locally on your computer; Ximagine follows the same local-first rules as the rest of Orleia</li>
+          <li>Ximagine has no publishing or hosting feature of any kind: apps exist only on the device that built them, and there is no store, sharing link, or public gallery</li>
           <li>What a generated app does with your data is up to that app and to you - review it before you trust it with anything</li>
           <li>Orleia never receives the data your generated apps handle</li>
         </ul>

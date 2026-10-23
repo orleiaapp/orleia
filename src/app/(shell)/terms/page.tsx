@@ -117,7 +117,7 @@ export default function TermsPage() {
         <ul className="list-disc pl-6 space-y-1.5">
           <li><strong>NVIDIA NIM API</strong> - Provides Noor's AI model access. Subject to NVIDIA's own terms.</li>
           <li><strong>Web search</strong> - When you ask Noor to search the web, your query is sent to a third-party search provider (Bing) to fetch results. No workspace data is included.</li>
-          <li><strong>Google Fonts</strong> - Provides typography. Subject to Google's privacy policy.</li>
+          <li><strong>Self-hosted fonts (Fontsource)</strong> - Typography ships inside the app itself; no font request reaches a third party.</li>
         </ul>
       </section>
 

@@ -259,7 +259,10 @@ function NoorSpotlight() {
 
 /* Ximagine beta — builds are published on the GitHub releases page. Swap this
    for the direct .exe asset URL once the first beta build is uploaded. */
-const XIMAGINE_DOWNLOAD_URL = "https://github.com/orleiaapp/orleia/releases";
+// Served by /downloads/ximagine — a 307 to the installer on Vercel Blob with
+// a forced attachment disposition. Same-domain on purpose: storage can move
+// without touching this page.
+const XIMAGINE_DOWNLOAD_URL = "/downloads/ximagine";
 
 /* Ximagine — one console: what you imagine, what it builds (pure DOM) */
 function XimagineConsole() {
