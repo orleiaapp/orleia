@@ -6,7 +6,7 @@ build
 *.tsbuildinfo
 next-env.d.ts
 desktop
-ximagine
+/ximagine
 desktop-artifacts
 scripts-test
 bench
