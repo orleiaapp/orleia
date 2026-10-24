@@ -282,6 +282,26 @@ function safePath(p: string): string | null {
   return cleaned;
 }
 
+/**
+ * Map a fence info string to one of the app's files, or null to ignore it.
+ * The spec form is `file: <path>`, but the model drifts toward plain
+ * language tags (three backticks then html) or a bare filename, so accept
+ * those too rather than discarding an otherwise complete build.
+ */
+function pathFromInfo(info: string): string | null {
+  const raw = (info || "").trim();
+  if (!raw) return null;
+  const fileForm = raw.match(/^file:\s*(.+)$/i);
+  if (fileForm) return safePath(fileForm[1]);
+  const lang = raw.toLowerCase();
+  if (lang === "html" || lang === "htm") return safePath("index.html");
+  if (lang === "css") return safePath("styles.css");
+  if (lang === "js" || lang === "javascript" || lang === "mjs") return safePath("app.js");
+  if (/^[a-z0-9 ._()-]+\.(html?|css|js|mjs)$/i.test(raw)) return safePath(raw);
+  return null;
+}
+
+
 export interface ParsedBuild {
   files: XFile[];
   prose: string;
@@ -295,12 +315,12 @@ export function parseBuild(raw: string): ParsedBuild {
 
   let i = 0;
   while (i < lines.length) {
-    const opener = lines[i].match(/^\s*```+\s*file:\s*(.+?)\s*$/i);
+    const opener = lines[i].match(/^\s*```+\s*(\S.*?)\s*$/);
     if (!opener) {
       i++;
       continue;
     }
-    const path = safePath(opener[1]);
+    const path = pathFromInfo(opener[1]);
     const body: string[] = [];
     i++;
     while (i < lines.length && !/^\s*```+\s*$/.test(lines[i])) {
@@ -313,9 +333,10 @@ export function parseBuild(raw: string): ParsedBuild {
     files.push({ path, content: body.join("\n").replace(/\s+$/, "") });
   }
 
-  // Prose = everything before the first file fence.
+  // Prose = everything before the first file fence, in whatever accepted
+  // form it was written, so code never leaks into the chat message.
   let prose = text;
-  const firstFence = text.search(/^\s*```+\s*file:/im);
+  const firstFence = text.search(/^\s*```+\s*\S/im);
   if (firstFence >= 0) prose = text.slice(0, firstFence);
   prose = prose.trim();
 

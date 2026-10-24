@@ -16,7 +16,11 @@ import { themeById, utcDay, XIMAGINE_DAILY_CREDITS, X_THEMES, type XFile, type X
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-export const maxDuration = 60;
+// lightning-30b sustains ~59 tok/s (measured live: 3517 content deltas /
+// 11632 chars in ~60s, no reasoning deltas). A complete three-file build
+// needs ~140s; the old 60s cap cut streams mid-file with
+// FUNCTION_INVOCATION_TIMEOUT, so keep this above one whole build.
+export const maxDuration = 180;
 
 // Speed-first pick (user request: "a lot faster"). lightning-30b has no
 // forced reasoning phase and generates at a much higher token rate than
