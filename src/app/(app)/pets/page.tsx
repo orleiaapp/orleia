@@ -489,7 +489,7 @@ export default function PetsPage() {
       {/* Hire dialog: pick which pet wears the badge */}
       {hiring && (
         <div
-          className="fixed inset-0 z-[80] top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-black/40 min-h-screen p-4"
+          className="fixed inset-0 z-[80] bottom-0 left-0 right-0 bg-black/40 min-h-screen p-4 items-end justify-center"
           onClick={() => !busy && setHiring(null)}
         >
           <div className="card w-full max-w-md p-5" onClick={(e) => e.stopPropagation()}>
