@@ -196,7 +196,7 @@ export function XimagineWorkbench({
               />
             </div>
             <div className="flex items-center justify-between border-t border-white/10 px-4 py-2">
-              <p className="text-[10px] font-mono uppercase tracking-[0.2em] text-muted-foreground/35">
+              <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground/35">
                 Sandboxed · no network · runs on this device
               </p>
               <button
@@ -214,7 +214,7 @@ export function XimagineWorkbench({
                 <button
                   key={f.path}
                   onClick={() => setSelectedPath(f.path)}
-                  className={`block w-full truncate rounded-lg px-2.5 py-1.5 text-left font-mono text-[12px] transition-colors ${
+                  className={`block w-full truncate rounded-lg px-2.5 py-1.5 text-left text-[12px] transition-colors ${
                     selected?.path === f.path ? "bg-white/[0.09] text-foreground" : "text-muted-foreground/60 hover:bg-white/[0.04]"
                   }`}
                 >
@@ -241,10 +241,10 @@ export function XimagineWorkbench({
                       }
                     }}
                     spellCheck={false}
-                    className="h-full w-full resize-none bg-transparent p-4 font-mono text-[12.5px] leading-[1.6] text-foreground/90 outline-none"
+                    className="h-full w-full resize-none bg-transparent p-4 text-[12.5px] leading-[1.6] text-foreground/90 outline-none"
                     aria-label={`Edit ${selected.path}`}
                   />
-                  <p className="border-t border-white/10 px-4 py-1.5 text-[10px] font-mono uppercase tracking-[0.2em] text-muted-foreground/35">
+                  <p className="border-t border-white/10 px-4 py-1.5 text-[10px] uppercase tracking-[0.2em] text-muted-foreground/35">
                     {selected.path} · {selected.content.split("\n").length} lines · saved locally
                   </p>
                 </>

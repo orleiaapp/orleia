@@ -21,7 +21,7 @@ function ThinkingBlock({ text, active }: { text: string; active: boolean }) {
     <div className="mb-2">
       <button
         onClick={() => setOpen((o) => !o)}
-        className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.03] px-2.5 py-1 text-[10px] font-mono uppercase tracking-[0.2em] text-muted-foreground/50 transition-colors hover:bg-white/[0.06]"
+        className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.03] px-2.5 py-1 text-[10px] uppercase tracking-[0.2em] text-muted-foreground/50 transition-colors hover:bg-white/[0.06]"
       >
         {active ? (
           <>
@@ -187,7 +187,7 @@ export function XimagineChat({
           )}
           <div className="min-w-0">
             <p className="truncate text-sm font-medium">{chat?.title || "New app"}</p>
-            <p className="text-[10px] font-mono uppercase tracking-[0.25em] text-muted-foreground/35">
+            <p className="text-[10px] uppercase tracking-[0.25em] text-muted-foreground/35">
               {mode === "plan" ? "Plan mode" : "Build mode"} · local only
             </p>
           </div>
@@ -257,7 +257,7 @@ export function XimagineChat({
                 <div className="mb-1.5 flex items-center gap-2">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src="/noor-mark-white.png" alt="" className="h-4 w-4 opacity-80" />
-                  <span className="text-[10px] font-mono uppercase tracking-[0.25em] text-muted-foreground/40">Noor</span>
+                  <span className="text-[10px] uppercase tracking-[0.25em] text-muted-foreground/40">Noor</span>
                 </div>
                 <ThinkingBlock text={m.thinking || ""} active={busy && isLastAssistant(m.id) && !m.content} />
                 {m.content && (

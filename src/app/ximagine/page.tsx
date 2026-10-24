@@ -51,7 +51,7 @@ export default function XimaginePage() {
   // Debounced persistence — tokens stream in hot; never stringify per keystroke.
   useEffect(() => {
     if (!data) return;
-    const t = setTimeout(() => saveXData(data), 400);
+    const t = setTimeout(() => saveXData(data), 150);
     return () => clearTimeout(t);
   }, [data]);
 
@@ -256,7 +256,7 @@ export default function XimaginePage() {
   if (!data) {
     return (
       <div className="flex h-[100dvh] items-center justify-center bg-[#050508]">
-        <p className="text-[11px] font-mono uppercase tracking-[0.4em] text-muted-foreground/40">Ximagine</p>
+        <p className="text-[11px] uppercase tracking-[0.4em] text-muted-foreground/40">Ximagine</p>
       </div>
     );
   }

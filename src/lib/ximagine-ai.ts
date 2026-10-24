@@ -347,7 +347,7 @@ const STORAGE_PRELUDE = (data: Record<string, unknown>) => `<script>(function(){
 var mem = __XM_DATA__;
 var t = null;
 function persist(){ try { parent.postMessage({ __xm: 1, app: __XM_APP__, data: mem }, "*"); } catch (e) {} }
-function sched(){ if (t) clearTimeout(t); t = setTimeout(persist, 350); }
+function sched(){ if (t) clearTimeout(t); t = setTimeout(persist, 150); }
 var shim = {
   getItem: function(k){ k = String(k); return Object.prototype.hasOwnProperty.call(mem, k) ? String(mem[k]) : null; },
   setItem: function(k, v){ try { mem[String(k)] = String(v); sched(); } catch (e) {} },

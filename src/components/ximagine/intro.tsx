@@ -47,7 +47,7 @@ export function XimagineIntro({ onDone }: { onDone: () => void }) {
         >
           {step === 0 && (
             <>
-              <p className="text-[10px] font-mono uppercase tracking-[0.35em] text-muted-foreground/40">
+              <p className="text-[10px] uppercase tracking-[0.35em] text-muted-foreground/40">
                 Ximagine · Beta 0.1
               </p>
               <h1 className="mt-5 text-5xl font-bold leading-[1.05] tracking-[-0.04em]">
@@ -76,14 +76,14 @@ export function XimagineIntro({ onDone }: { onDone: () => void }) {
 
           {step === 1 && (
             <>
-              <p className="text-[10px] font-mono uppercase tracking-[0.35em] text-muted-foreground/40">How it works</p>
+              <p className="text-[10px] uppercase tracking-[0.35em] text-muted-foreground/40">How it works</p>
               <div className="mt-7 space-y-3 text-left">
                 {STEPS.map((s) => (
                   <div
                     key={s.n}
                     className="flex gap-4 rounded-2xl border border-white/10 bg-white/[0.02] px-5 py-4"
                   >
-                    <span className="mt-0.5 font-mono text-[11px] tracking-widest text-muted-foreground/40">{s.n}</span>
+                    <span className="mt-0.5 text-[11px] tracking-widest text-muted-foreground/40">{s.n}</span>
                     <div>
                       <p className="text-sm font-semibold">{s.title}</p>
                       <p className="mt-1 text-[13px] leading-relaxed text-muted-foreground/70">{s.body}</p>

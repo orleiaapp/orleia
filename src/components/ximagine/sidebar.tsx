@@ -39,10 +39,9 @@ export function XimagineSidebar({
     <aside className="flex h-full w-60 shrink-0 flex-col border-r border-white/10 bg-[#07070a]">
       <div className="px-4 pt-5 pb-4">
         <div className="flex items-center gap-2">
-          <span className="text-[11px] font-mono font-semibold uppercase tracking-[0.3em]">Ximagine</span>
-          <span className="h-1.5 w-1.5 rounded-full bg-emerald-400/80" aria-hidden />
+          <span className="text-[11px] font-semibold uppercase tracking-[0.3em]">Ximagine</span>
         </div>
-        <p className="mt-1 text-[10px] font-mono uppercase tracking-[0.25em] text-muted-foreground/35">by Orleia</p>
+        <p className="mt-1 text-[10px] uppercase tracking-[0.25em] text-muted-foreground/35">by Orleia</p>
         <button
           onClick={onNewChat}
           className="mt-4 flex w-full items-center justify-center gap-1.5 rounded-full border border-white/15 bg-white/[0.03] py-2 text-[13px] font-medium transition-colors hover:bg-white/[0.07] active:scale-[0.98]"
@@ -52,7 +51,7 @@ export function XimagineSidebar({
       </div>
 
       <div className="flex-1 overflow-y-auto px-2 pb-2">
-        <p className="flex items-center gap-1.5 px-2 pb-1.5 pt-2 text-[10px] font-mono uppercase tracking-[0.25em] text-muted-foreground/35">
+        <p className="flex items-center gap-1.5 px-2 pb-1.5 pt-2 uppercase tracking-[0.25em] text-muted-foreground/35">
           <MessageSquare className="h-3 w-3" /> Chats
         </p>
         <div className="space-y-0.5">
@@ -88,7 +87,7 @@ export function XimagineSidebar({
           ))}
         </div>
 
-        <p className="flex items-center gap-1.5 px-2 pb-1.5 pt-5 text-[10px] font-mono uppercase tracking-[0.25em] text-muted-foreground/35">
+        <p className="flex items-center gap-1.5 px-2 pb-1.5 pt-5 uppercase tracking-[0.25em] text-muted-foreground/35">
           <Boxes className="h-3 w-3" /> Your apps
         </p>
         <div className="space-y-0.5">
@@ -115,7 +114,7 @@ export function XimagineSidebar({
 
       <div className="border-t border-white/10 px-4 py-4">
         <div className="flex items-baseline justify-between">
-          <p className="text-[10px] font-mono uppercase tracking-[0.25em] text-muted-foreground/35">Credits</p>
+          <p className="text-[10px] uppercase tracking-[0.25em] text-muted-foreground/35">Credits</p>
           <p className="text-[12px] tabular-nums text-muted-foreground/70">
             {Math.max(0, creditsLimit - creditsUsed)} left
           </p>

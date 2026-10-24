@@ -18,11 +18,15 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
-// The live Novella sibling with thinking on by default (callChat's
-// thinkingFor() leaves ultra-550b at its natural state — forced-off
-// stalls it). Fallback chain (lightning-30b, super-120b) is walked
-// automatically inside callChat.
-const XIMAGINE_MODEL = "nvidia/nemotron-3-ultra-550b-a55b";
+// Speed-first pick (user request: "a lot faster"). lightning-30b has no
+// forced reasoning phase and generates at a much higher token rate than
+// the ultra-550b + thinking combo this shipped with, so both time-to-first
+// token and full 6000-token builds drop sharply. enable_thinking:false is
+// passed explicitly; thinkingFor() in callChat still re-forces it ON when
+// a fallback hop lands on ultra-550b (forced-off stalls that endpoint) and
+// keeps it OFF for super-120b. The FALLBACKS cycle (super -> ultra) is
+// walked automatically if lightning is unhealthy.
+const XIMAGINE_MODEL = "nvidia/nemotron-3.5-lightning-30b-a3b";
 const BUILD_MAX_TOKENS = 6000;
 const PLAN_MAX_TOKENS = 1500;
 
@@ -201,6 +205,7 @@ export async function POST(req: Request) {
     ],
     temperature: mode === "build" ? 0.35 : 0.7,
     max_tokens: mode === "build" ? BUILD_MAX_TOKENS : PLAN_MAX_TOKENS,
+    chat_template_kwargs: { enable_thinking: false },
     stream,
     timeoutMs: 45_000,
   });
