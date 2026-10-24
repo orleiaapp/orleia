@@ -13,11 +13,15 @@ const SUGGESTIONS = [
   "A unit converter that remembers history",
 ];
 
-/** Build replies carry fenced file blocks — never show them in chat.
- *  The product is an app builder, not a code viewer: users see prose + preview. */
+/** Never show the coding process in chat: cut everything from the first
+ *  fenced block (file or plain) and unwrap inline `code` spans. The product
+ *  is an app builder — users see prose, then the preview. */
 function visibleText(content: string): string {
-  const i = content.search(/^\s*```+\s*file:/m);
-  return i >= 0 ? content.slice(0, i) : content;
+  let out = content;
+  const i = out.search(/^\s*```/m);
+  if (i >= 0) out = out.slice(0, i);
+  out = out.replace(/`([^`\n]+)`/g, "$1");
+  return out;
 }
 
 function ThinkingBlock({ text, active }: { text: string; active: boolean }) {
@@ -36,11 +40,11 @@ function ThinkingBlock({ text, active }: { text: string; active: boolean }) {
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400/70" />
               <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-400" />
             </span>
-            Thinking
+            Thinking…
           </>
         ) : (
           <>
-            Thought process
+            Thinking…
             <ChevronDown className={`h-3 w-3 transition-transform ${isOpen ? "rotate-180" : ""}`} />
           </>
         )}
@@ -55,7 +59,7 @@ function ThinkingBlock({ text, active }: { text: string; active: boolean }) {
             className="overflow-hidden"
           >
             <p className="mt-2 max-h-44 overflow-y-auto whitespace-pre-wrap rounded-xl border border-white/[0.06] bg-white/[0.02] px-3 py-2 text-[12px] leading-relaxed text-muted-foreground/60">
-              {text}
+              {visibleText(text)}
             </p>
           </motion.div>
         )}
@@ -191,7 +195,7 @@ export function XimagineChat({
           <div className="min-w-0">
             <p className="truncate text-sm font-medium">{chat?.title || "New app"}</p>
             <p className="text-[10px] uppercase tracking-[0.25em] text-muted-foreground/35">
-              {mode === "plan" ? "Plan mode" : "Build mode"} · local only
+              {mode === "plan" ? "Plan mode" : "Build mode"}
             </p>
           </div>
         </div>
@@ -325,6 +329,15 @@ export function XimagineChat({
                 </button>
               ))}
             </div>
+          )}
+          {!creditCap && busy && (
+            <p className="mb-2 flex items-center gap-2 text-[12px] text-muted-foreground/60" role="status">
+              <span className="relative flex h-2 w-2 shrink-0">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400/70" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
+              </span>
+              {mode === "build" ? "Noor is building your app…" : "Noor is working…"}
+            </p>
           )}
           {creditCap ? (
             <div className="rounded-2xl border border-amber-400/25 bg-amber-400/[0.06] px-4 py-3 text-[13px] text-amber-200/90">
