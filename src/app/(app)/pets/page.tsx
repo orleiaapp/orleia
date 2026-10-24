@@ -61,6 +61,8 @@ export default function PetsPage() {
   const [pickPet, setPickPet] = useState<string>("");
   const [notice, setNotice] = useState<string>("");
   const [busy, setBusy] = useState(false);
+  // Double-tap tracking for pet selection
+  const [lastPetTap, setLastPetTap] = useState<number | null>(null);
   // Tabs: team roster vs WhatsApp-style agent chat.
   const [tab, setTab] = useState<"team" | "chat">("team");
   // Assign-a-job (Scout): dialog state + a tick to refresh live job chips.
@@ -499,7 +501,15 @@ export default function PetsPage() {
               {PETS.map((p) => (
                 <button
                   key={p.id}
-                  onClick={() => setPickPet(p.id)}
+                  onClick={(e) => {
+                    if (lastPetTap && Date.now() - lastPetTap < 300) {
+                      // Double-tap detected - confirm pet pick
+                      setPickPet(p.id);
+                      setHiring(null);
+                    } else {
+                      setLastPetTap(Date.now());
+                    }
+                  }}
                   aria-pressed={pickPet === p.id}
                   className={`flex flex-col items-center gap-1.5 rounded-xl border p-3 transition-colors ${
                     pickPet === p.id ? "border-primary-500 bg-primary-500/10" : "border-border hover:bg-sidebar-hover"
