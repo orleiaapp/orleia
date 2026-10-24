@@ -354,6 +354,15 @@ export function parseBuild(raw: string): ParsedBuild {
   const firstFence = cuts.length ? Math.min(...cuts) : -1;
   if (firstFence >= 0) prose = text.slice(0, firstFence);
   prose = prose.trim();
+  // A lone list marker on the first line is an artifact of numbered
+  // instructions, not a real list. Drop it so the chat reads as a sentence.
+  {
+    const ls = prose.split("\n");
+    const marked = ls.map((l) => /^\s*(?:\d+\.|[-*])\s+\S/.test(l));
+    const total = marked.filter(Boolean).length;
+    if (total === 1 && marked[0]) ls[0] = ls[0].replace(/^\s*(?:\d+\.|[-*])\s+/, "");
+    prose = ls.join("\n");
+  }
 
   // Fallback: a raw single-file answer (model ignored the fence format).
   if (!files.length) {
