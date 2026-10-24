@@ -124,7 +124,7 @@ export function XimagineWorkbench({
   // tab never reloads a running preview mid-thought.
   useEffect(() => {
     if (tab !== "preview") return;
-    setSrcDoc(assemblePreview(app.files, app.id, loadAppData(app.id)));
+    setSrcDoc(assemblePreview(app.files, app.id, loadAppData(app.id), { theme: app.theme }));
   }, [tab, app.files, app.id, app.updatedAt, reloadKey]);
 
   // Persistence bridge from the sandboxed frame. Only accepts messages
@@ -177,7 +177,7 @@ export function XimagineWorkbench({
   const exportApp = () => {
     // Standalone single file: the bridge shim is omitted, so a downloaded
     // app uses the browser's real localStorage when opened directly.
-    const html = assemblePreview(app.files, app.id, {}, { bridge: false });
+    const html = assemblePreview(app.files, app.id, {}, { bridge: false, theme: app.theme });
     const blob = new Blob([html], { type: "text/html;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");

@@ -4,6 +4,7 @@
 // ============================================================
 
 import type { XFile, XMode, XThemeId } from "@/lib/ximagine";
+import { kitHead } from "@/lib/ximagine-kit";
 
 export interface XWireMessage {
   role: "user" | "assistant" | "system";
@@ -402,7 +403,7 @@ export function assemblePreview(
   files: XFile[],
   appId: string,
   data: Record<string, unknown>,
-  opts?: { bridge?: boolean }
+  opts?: { bridge?: boolean; theme?: XThemeId }
 ): string {
   let html = files.find((f) => /^index\.html?$/i.test(f.path))?.content || "";
   if (!html) {
@@ -433,12 +434,18 @@ export function assemblePreview(
     }
   }
 
-  if (opts?.bridge === false) return html; // standalone export: real localStorage
+  // The invisible skill layer goes into EVERY document - preview and export
+  // alike - always first in <head>, so a generated styles.css can override it.
+  let prelude = kitHead(opts?.theme ?? "paper");
 
-  const prelude = (STORAGE_PRELUDE(data) + INSPECT_PRELUDE)
-    .replace("__XM_DATA__", JSON.stringify(data).replace(/<\//g, "<\\/"))
-    .replaceAll("__XM_APP__", JSON.stringify(appId));
-
+  // Standalone export drops the postMessage bridge (it uses the browser's
+  // real localStorage) and the long-press inspector.
+  if (opts?.bridge !== false) {
+    prelude +=
+      (STORAGE_PRELUDE(data) + INSPECT_PRELUDE)
+        .replace("__XM_DATA__", JSON.stringify(data).replace(/<\//g, "<\\/"))
+        .replaceAll("__XM_APP__", JSON.stringify(appId));
+  }
   if (/<head[^>]*>/i.test(html)) html = html.replace(/<head[^>]*>/i, (m) => `${m}${prelude}`);
   else html = prelude + html;
   return html;

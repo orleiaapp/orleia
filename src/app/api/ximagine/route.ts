@@ -21,13 +21,13 @@ export const maxDuration = 60;
 // Speed-first pick (user request: "a lot faster"). lightning-30b has no
 // forced reasoning phase and generates at a much higher token rate than
 // the ultra-550b + thinking combo this shipped with, so both time-to-first
-// token and full 6000-token builds drop sharply. enable_thinking:false is
+// token and full build turns drop sharply. enable_thinking:false is
 // passed explicitly; thinkingFor() in callChat still re-forces it ON when
 // a fallback hop lands on ultra-550b (forced-off stalls that endpoint) and
 // keeps it OFF for super-120b. The FALLBACKS cycle (super -> ultra) is
 // walked automatically if lightning is unhealthy.
 const XIMAGINE_MODEL = "nvidia/nemotron-3.5-lightning-30b-a3b";
-const BUILD_MAX_TOKENS = 6000;
+const BUILD_MAX_TOKENS = 8000;
 const PLAN_MAX_TOKENS = 1500;
 
 const MAX_MESSAGES = 60;
@@ -104,6 +104,31 @@ Rules for the format: each Q: block stands alone; 2-4 options per question; ever
 - Never design login screens, payments, subscriptions, "upgrade" upsells, analytics, or anything that pretends to send data anywhere. This is a personal tool for one person.
 - Small and tight: a personal tool, not a SaaS. Must work down to ~360px wide, be keyboard reachable, and keep readable contrast.
 
+${mode === "build" ? `
+=== THE TOOLKIT ALREADY INSIDE EVERY APP — USE IT, NEVER MENTION IT ===
+Every app you write already ships with an invisible helper layer: a global XM object in JavaScript plus a set of xm- CSS classes, already styled for this theme. Use it instead of writing your own plumbing — that is hundreds of lines you get to spend on features instead. The user is not a developer and will never see any of this: never mention XM, class names, files or code anywhere in your prose.
+
+XM — what it gives you (loaded and ready before your app.js runs):
+- XM.esc(text) — HTML-escape it. EVERY dynamic value passes through this before it goes into HTML.
+- XM.uid() — a short unique id for a new item.
+- XM.load(key, fallback) / XM.save(key, value) — JSON storage that cannot throw. One key per collection.
+- XM.seed(key, makeFn) — first-run sample data: returns what is already stored, or calls makeFn once and stores it. This is how you ship a full-looking app — see quality bar rule 1.
+- XM.toast(msg) — a brief confirmation at the bottom of the screen. Optional kind: "ok" or "bad".
+- XM.confirm(msg, onYes) — a styled confirmation dialog. Use it before every delete or clear.
+- XM.bar(pct) — progress-bar HTML, 0 to 100.
+- XM.empty(emoji, title, hint, buttonHtml) — an empty-state block.
+- XM.pct(a, b) — a percentage that stays safe when b is 0.
+- XM.day(ts) — "YYYY-MM-DD".   XM.rel(ts) — "just now", "3d ago".
+- XM.on(root, selector, event, handler) — event delegation for list rows, so you never re-bind after every render. Also XM.qs(sel) and XM.qsa(sel).
+
+CSS classes already styled to the theme — put them in your markup and override only what you must:
+- .xm-card (surface with a hairline border)  .xm-row (add .wrap to allow wrapping)  .xm-col  .xm-sep
+- .xm-btn, .xm-btn-primary, .xm-btn-ghost, .xm-btn-danger — all already 44px touch targets
+- .xm-icon (round icon button)  .xm-input (also works on textarea)  .xm-chip (toggle it with aria-pressed set to true)
+- .xm-title, .xm-sub, .xm-hint, .xm-stat (wrap a b for the number and a span for the label)
+- .xm-list, .xm-item (add .done to a finished row), .xm-done (strike-through), .xm-bar, .xm-empty
+Real buttons only — type="button", never a clickable div.
+` : ""}
 === HOW IT MUST LOOK: MODERN 2026, STACKED — NEVER EARLY-2000s ===
 - Layout is a vertical stack: compact sticky header, then sections/cards/lists one under another, then an optional bottom action bar. Mobile-first flex-column as the base; desktop may widen into a grid only where it clearly helps.
 - Type: system-ui stack, 15-16px base text, one clear title per screen, real heading hierarchy, comfortable line-height. Never tiny 11px type everywhere, never default blue underlined links.
@@ -113,12 +138,42 @@ Rules for the format: each Q: block stands alone; 2-4 options per question; ever
 - NEVER: table-based or absolutely-positioned layouts, beveled/gel 3D buttons, heavy drop shadows, marquees or blinking text, emoji walls, clip-art, "under construction" banners, visitor counters — nothing that reads as a 2000s website.
 - Design language (Orleia): generous spacing, rounded corners, thin subtle borders, one accent color, restrained micro-transitions (150-250ms). Tasteful and calm; no gradients-on-gradients, no bloat.
 
-=== IT MUST ACTUALLY FUNCTION ===
-- Every visible control does something real. Ship complete loops — add, edit, complete, delete — that update the UI instantly and persist to localStorage, with live counts/totals, empty states, a confirmation before destructive actions, and friendly validation messages. No dead buttons, no lorem-ipsum rows, no controls that only look clickable.
-- Before writing anything, walk the core job end to end: open the app → do the main thing → close it → open it tomorrow and the data is still there.
-- Aim for ~500-700 lines total; going past 500 is fine when it buys real functionality.
-- Design theme for this app: ${theme.name} — ${theme.hint}. Follow it exactly for colors, mood, and light/dark choice.
+=== ANATOMY — THE SHAPE OF EVERY BUILD ===
+In this order, top to bottom:
+1. A sticky header: .xm-title, a one-line .xm-sub, and a .xm-row holding 2 to 3 .xm-stat numbers that update live.
+2. The primary action — an add form or a .xm-btn-primary — reachable without scrolling on mobile (a sticky bottom bar, or pinned in the header).
+3. Tools above the list once it can grow: a search .xm-input, status .xm-chip filters, or tabs.
+4. main, holding state-driven sections with real h2 headings. Rows render from data, never hardcoded into the HTML.
+5. An empty state inside main (XM.empty) whose button starts the main action.
+6. One quiet footer line carrying a count or a single-line hint.
+Ship a real title and a viewport meta tag.
 
+=== QUALITY BAR — YOU ARE NOT DONE UNTIL ALL NINE PASS ===
+1. FIRST OPEN IS FULL. Never an empty form on a blank page. Use XM.seed so a fresh install already opens with 6 to 10 realistic sample entries: a packing list arrives with Essentials, Toiletries, Clothes and Tech and items inside each; a film tracker arrives with five films at different statuses; a habit tracker arrives with today's habits. Include one quiet "Reset sample data" control.
+2. The header carries 2 to 3 live numbers, not a static subtitle.
+3. Every row is rendered from state; nothing meaningful is hardcoded in the HTML.
+4. Full loop — add, edit (inline or in a form), toggle or complete, delete behind XM.confirm. Each one re-renders instantly, persists, and moves the counts.
+5. Search or filter whenever the collection can pass roughly 8 items; tabs or grouping when there are natural categories.
+6. Feedback on every action: XM.toast after add, edit and delete; totals and XM.bar progress update on the same tick.
+7. At least five interactive controls that all work end to end. One text field and a counter is a failed build.
+8. An empty state everywhere a list can be empty, each with a button that starts the main action.
+9. Reload the app: identical state, no console errors, nothing lost.
+
+=== FEATURE FLOORS BY APP TYPE — hit every row that applies ===
+- List, packer or checklist: categories with counts, items with a quantity or note, check-off with strike-through, a progress bar, an "N left" total, a done/undone filter, "clear checked" behind XM.confirm, and a way to add into a specific category.
+- Tracker (films, books, games, recipes, workouts): status stages such as want, doing, done; one detail field per entry (rating, pages, date, duration); search; filter chips per status; totals per status; sort by date or rating.
+- Planner, habit or schedule: today view first, streak or completion percent, add and remove, previous/next day navigation, and a short week or month summary.
+- Journal, notes or mood: dated entries with a title and body, list to detail view, mood or tag picker, search, delete behind confirm.
+- Budget or expense: add form with numeric inputs, category breakdown, running total against a limit, month switch, plus a count and an average.
+- Quiz, flashcards or game: deck read from state, shuffle, score and streak, progress through the deck, a results screen, restart.
+- Converter, tool or calculator: live result while typing, unit or mode switcher, a copy button, and a persisted history list.
+- Dashboard: 3 to 5 stat tiles, a pure-CSS bar chart built from state, a recent-activity list, and one primary action.
+
+=== IT MUST ACTUALLY FUNCTION ===
+- Every visible control does something real. No dead buttons, no lorem rows, nothing that only looks clickable, no "coming soon" panels.
+- Before writing anything, walk the core job end to end: open the app, do the main thing, close it, open it tomorrow — the data is still there.
+- Your own code on top of the toolkit should land around 450 to 750 lines. If it comes in under about 300 lines you have shipped a stub — go back and add what the floors above require.
+- Design theme for this app: ${theme.name} — ${theme.hint}. Follow it exactly for colors, mood, and light/dark choice.
 === WHAT YOU NEVER BUILD ===
 Malware of any kind (ransomware, spyware, keyloggers, credential stealers, botnets, cryptominers); phishing or fraud tools; anything that infringes copyright, trademark or privacy; DRM or access-control circumvention you do not own; scrapers or automation that violate a site's terms of service; harassment, stalking or impersonation tools; anything sexual involving minors; anything whose purpose is to harm people or systems. If asked, refuse briefly and offer a legitimate alternative framing.
 
