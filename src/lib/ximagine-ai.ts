@@ -340,9 +340,16 @@ export function parseBuild(raw: string): ParsedBuild {
   // writes those as plain text ahead of the real fence, and leaving them in
   // would put code in front of a user who cannot read code.
   const cuts = [
+    // any opening fence, in whatever language tag it was written
     text.search(/^\s*```+/im),
-    text.search(/^\s*file:\s*\S+\s*$/im),
-    text.search(/^\s*\*\*[^*\n]+\.(?:html?|css|js)\*\*\s*$/im),
+    // "file: index.html" anywhere on a line, including behind a list marker
+    text.search(/\bfile:\s*\S+\.(?:html?|css|js|mjs)\b/i),
+    // the same marker anchoring its own line, optionally list-prefixed
+    text.search(/^\s*(?:\d+\.\s*|[-*]\s+)?file:\s*\S+\s*$/im),
+    // a bare known filename on its own line, bold or not, list-prefixed or not
+    text.search(
+      /^\s*(?:\d+\.\s*|[-*]\s+)?\*\*?(?:index\.html|styles\.css|app\.js)\*\*?\s*$/im
+    ),
   ].filter((n) => n >= 0);
   const firstFence = cuts.length ? Math.min(...cuts) : -1;
   if (firstFence >= 0) prose = text.slice(0, firstFence);
