@@ -125,22 +125,41 @@ XM — what it gives you (loaded and ready before your app.js runs):
 - XM.day(ts) — "YYYY-MM-DD".   XM.rel(ts) — "just now", "3d ago".
 - XM.on(root, selector, event, handler) — event delegation for list rows, so you never re-bind after every render. Also XM.qs(sel) and XM.qsa(sel).
 
-CSS classes already styled to the theme — put them in your markup and override only what you must:
-- .xm-card (surface with a hairline border)  .xm-row (add .wrap to allow wrapping)  .xm-col  .xm-sep
+Page frame and layout, already styled to the theme — use these instead of writing your own:
+- .xm-header (sticky page header)   .xm-main (the centred stacking column)   .xm-footer (quiet bottom line)
+- .xm-card (surface, hairline border)   .xm-section   .xm-form (input and button in one row)   .xm-sep
+- .xm-row (add .wrap to allow wrapping)   .xm-col   .xm-grid (1 column, 2 at 760px, 3 at 1040px)
 - .xm-btn, .xm-btn-primary, .xm-btn-ghost, .xm-btn-danger — all already 44px touch targets
-- .xm-icon (round icon button)  .xm-input (also works on textarea)  .xm-chip (toggle it with aria-pressed set to true)
+- .xm-icon (round icon button)   .xm-input (also works on textarea)   .xm-chip (toggle with aria-pressed set to true)
 - .xm-title, .xm-sub, .xm-hint, .xm-stat (wrap a b for the number and a span for the label)
 - .xm-list, .xm-item (add .done to a finished row), .xm-done (strike-through), .xm-bar, .xm-empty
 Real buttons only — type="button", never a clickable div.
+
+COLOR RULE — the most important line in this document: never write a raw hex value, rgb() or a named color. Every color comes from a theme variable, so the app always matches the theme it was given:
+  var(--xm-bg) page   var(--xm-surface) card   var(--xm-text) primary text
+  var(--xm-muted) secondary text   var(--xm-border) hairlines
+  var(--xm-accent) THE one accent   var(--xm-on-accent) text on the accent
+  var(--xm-accent-soft) accent tint   var(--xm-danger) destructive   var(--xm-shadow) elevation
+A literal such as #3b82f6 throws the theme away and is the single biggest reason an app looks generic. For another step of the same color, mix it: color-mix(in srgb, var(--xm-accent) 40%, transparent).
+
+Do NOT re-declare kit classes. .xm-header, .xm-card, .xm-btn, .xm-title, .xm-list, .xm-chip and .xm-empty already have styles, and because your styles.css loads after them, redefining them discards the good version and usually lands on a worse one. Write only what the kit does not cover: your own section gaps, list-row internals, and one-off widgets. If you must override a kit rule, keep var(--xm-...) inside it so the theme survives.
 ` : ""}
 === HOW IT MUST LOOK: MODERN 2026, STACKED — NEVER EARLY-2000s ===
-- Layout is a vertical stack: compact sticky header, then sections/cards/lists one under another, then an optional bottom action bar. Mobile-first flex-column as the base; desktop may widen into a grid only where it clearly helps.
-- Type: system-ui stack, 15-16px base text, one clear title per screen, real heading hierarchy, comfortable line-height. Never tiny 11px type everywhere, never default blue underlined links.
-- Surfaces: flat cards with 12-16px radius, hairline borders or a very soft shadow for elevation, an 8px spacing rhythm with 16-20px card padding, generous whitespace.
-- Color: the theme's neutrals plus ONE accent, used only for primary actions, active states and progress. No rainbow gradients, no neon-on-black defaults, no six-color palettes.
-- Interaction: 120-200ms transitions, visible press/hover states, focus-visible outlines, minimum 44px touch targets.
-- NEVER: table-based or absolutely-positioned layouts, beveled/gel 3D buttons, heavy drop shadows, marquees or blinking text, emoji walls, clip-art, "under construction" banners, visitor counters — nothing that reads as a 2000s website.
-- Design language (Orleia): generous spacing, rounded corners, thin subtle borders, one accent color, restrained micro-transitions (150-250ms). Tasteful and calm; no gradients-on-gradients, no bloat.
+FRAME: <header class="xm-header"> (sticky, hairline bottom) then <main class="xm-main"> (one centred column, max-width 640px, stacking its children with a 16px gap) then <footer class="xm-footer">. At 760px and wider, main grows to 880px and sibling cards go in .xm-grid so it becomes two columns instead of a narrow strip on a laptop. Never ship a single narrow column on a wide screen.
+TYPE SCALE — hit these steps, do not invent others:
+  clamp(24px,5vw,30px) / 1.15 / 650   the one h1 in the header
+  19px / 1.3 / 650    h2 section headings
+  16px / 1.45 / 500   lead line or card title
+  15px / 1.6 / 400    body text and list rows
+  13px / 1.5 / 400    hints and footer, in var(--xm-muted)
+  11px uppercase, letter-spacing .07em, muted — stat labels ONLY, never body copy
+  Every number that changes (count, streak, total) gets font-variant-numeric:tabular-nums so digits do not jitter.
+SPACING — only these steps: 4, 8, 12, 16, 20, 24, 32, 40. Card padding 16-20px, gap between sections 16-20px, 12px between list rows, never closer than 8px between separate controls.
+SURFACES: a card is var(--xm-surface) on var(--xm-bg) with 1px solid var(--xm-border), radius 14px, and var(--xm-shadow). Depth comes from card-versus-page contrast, not from heavy shadows.
+COLOR: var(--xm-*) tokens only. The accent is for the primary button, the active chip or tab, and the progress fill — nothing else. No gradients, no second accent, no colored body text.
+MOTION: 120-200ms ease on background and transform; :active{transform:scale(.97)} on buttons; focus-visible keeps its accent outline. No bouncing, no parallax.
+DETAIL THAT SEPARATES DESIGNED FROM PLAIN — do at least four: a sticky header; a live stat row under the title; a real :active press state; a hover state on rows and buttons; tabular-nums on changing numbers; an empty state with an emoji and a call to action; a progress bar; hairline separators instead of boxing every single row; one h1 plus genuine h2s; enough bottom padding that the footer never covers content.
+- NEVER: table-based or absolutely-positioned layouts, beveled or gel 3D buttons, heavy drop shadows, marquees or blinking text, emoji walls, clip-art, "under construction" banners, visitor counters, default blue underlined links, 11px body text — nothing that reads as a 2000s website.
 
 === ANATOMY — THE SHAPE OF EVERY BUILD ===
 In this order, top to bottom:

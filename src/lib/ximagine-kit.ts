@@ -121,7 +121,7 @@ a{color:var(--xm-accent)}
 .xm-btn:hover{border-color:var(--xm-accent)}
 .xm-btn:active{transform:scale(0.97)}
 .xm-btn[disabled]{opacity:0.45;cursor:not-allowed;transform:none}
-.xm-btn-primary{background:var(--xm-accent);border-color:transparent;color:var(--xm-on-accent);font-weight:600}
+.xm-btn.xm-btn-primary{background:var(--xm-accent);border-color:transparent;color:var(--xm-on-accent);font-weight:600}
 .xm-btn-primary:hover{border-color:transparent;opacity:0.92}
 .xm-btn-ghost{background:transparent;border-color:transparent;color:var(--xm-muted)}
 .xm-btn-ghost:hover{background:var(--xm-accent-soft);color:var(--xm-text);border-color:transparent}
@@ -168,6 +168,28 @@ textarea.xm-input{padding:12px 14px;min-height:92px;line-height:1.5;resize:verti
 .xm-modal .box p{margin:0 0 16px;font-size:15px;line-height:1.45}
 .xm-modal .acts{display:flex;gap:8px;justify-content:flex-end}
 .xm-modal .acts .xm-btn{min-height:40px;padding:0 14px;font-size:14px}
+/* Page frame: sticky header -> centred stacking column -> quiet footer. */
+.xm-header{position:sticky;top:0;z-index:20;background:var(--xm-bg);
+  border-bottom:1px solid var(--xm-border);padding:16px 20px 14px}
+.xm-main{width:100%;max-width:640px;margin:0 auto;padding:20px 16px 48px;
+  display:flex;flex-direction:column;gap:16px}
+.xm-footer{width:100%;max-width:640px;margin:0 auto;padding:18px 16px 40px;
+  border-top:1px solid var(--xm-border);color:var(--xm-muted);font-size:13px;text-align:center}
+.xm-form{display:flex;gap:8px;align-items:center}
+.xm-form .xm-input{flex:1;min-width:0}
+.xm-section{display:flex;flex-direction:column;gap:10px}
+/* Responsive grid so a build widens on a laptop instead of staying a narrow strip. */
+.xm-grid{display:grid;gap:12px;grid-template-columns:1fr}
+/* Type scale, so headings and hierarchy exist even before styles.css runs. */
+h1,h2,h3{margin:0;line-height:1.2;letter-spacing:-0.01em;font-weight:650}
+h1{font-size:clamp(24px,5vw,30px)}
+h2{font-size:19px}
+h3{font-size:16px;font-weight:600}
+@media (min-width:760px){
+  .xm-main{max-width:880px;gap:20px}
+  .xm-grid{grid-template-columns:repeat(2,1fr)}
+}
+@media (min-width:1040px){.xm-grid{grid-template-columns:repeat(3,1fr)}}
 @media (max-width:420px){.xm-title{font-size:20px}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 `;
