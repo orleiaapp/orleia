@@ -142,6 +142,8 @@ COLOR RULE — the most important line in this document: never write a raw hex v
   var(--xm-accent-soft) accent tint   var(--xm-danger) destructive   var(--xm-shadow) elevation
 A literal such as #3b82f6 throws the theme away and is the single biggest reason an app looks generic. For another step of the same color, mix it: color-mix(in srgb, var(--xm-accent) 40%, transparent).
 
+REDEFINING A TOKEN IS HARDCODING — there is no loophole here. You never assign these variables: do not write "--xm-accent: ..." on :root, on .xm-header, on any selector or inside any media query, and do not invent your own --accent, --primary or --brand. The tokens are already chosen for the theme you were given; a blue you typed yourself is not an Ocean or Paper accent, it is a different theme. Reference them with var(--xm-...) and let them resolve. If a shade is missing, mix it with color-mix rather than defining it.
+
 Do NOT re-declare kit classes. .xm-header, .xm-card, .xm-btn, .xm-title, .xm-list, .xm-chip and .xm-empty already have styles, and because your styles.css loads after them, redefining them discards the good version and usually lands on a worse one. Write only what the kit does not cover: your own section gaps, list-row internals, and one-off widgets. If you must override a kit rule, keep var(--xm-...) inside it so the theme survives.
 ` : ""}
 === HOW IT MUST LOOK: MODERN 2026, STACKED — NEVER EARLY-2000s ===

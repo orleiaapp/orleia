@@ -330,7 +330,13 @@ export function parseBuild(raw: string): ParsedBuild {
     i++; // skip closer (or run off the end when the reply was cut)
     if (!path || seen.has(path)) continue;
     seen.add(path);
-    files.push({ path, content: body.join("\n").replace(/\s+$/, "") });
+    const content = body
+      .join("\n")
+      // The model sometimes repeats the path as the first line of its own
+      // block. Left in, it renders as literal text at the top of the app.
+      .replace(/^(?:[ \t]*(?:file:[ \t]*\S+|index\.html|styles\.css|app\.js)[ \t]*\n)+/i, "")
+      .replace(/\s+$/, "");
+    files.push({ path, content });
   }
 
   // Prose = everything before the first file fence, in whatever accepted
