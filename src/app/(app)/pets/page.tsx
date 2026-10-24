@@ -495,7 +495,7 @@ export default function PetsPage() {
             <p className="mt-0.5 text-xs text-muted-foreground">
               {t(`petjob.${hiring.role}.name`, hiring.name)} — {t(`petjob.${hiring.role}.tagline`, hiring.tagline)}
             </p>
-            <div className="mt-4 grid grid-cols-2 gap-2">
+            <div className="mt-4 grid grid-cols-3 gap-2">
               {PETS.map((p) => (
                 <button
                   key={p.id}
