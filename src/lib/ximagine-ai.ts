@@ -336,7 +336,15 @@ export function parseBuild(raw: string): ParsedBuild {
   // Prose = everything before the first file fence, in whatever accepted
   // form it was written, so code never leaks into the chat message.
   let prose = text;
-  const firstFence = text.search(/^\s*```+\s*\S/im);
+  // Also stop at a bare "file:" line or a bold filename heading: the model
+  // writes those as plain text ahead of the real fence, and leaving them in
+  // would put code in front of a user who cannot read code.
+  const cuts = [
+    text.search(/^\s*```+/im),
+    text.search(/^\s*file:\s*\S+\s*$/im),
+    text.search(/^\s*\*\*[^*\n]+\.(?:html?|css|js)\*\*\s*$/im),
+  ].filter((n) => n >= 0);
+  const firstFence = cuts.length ? Math.min(...cuts) : -1;
   if (firstFence >= 0) prose = text.slice(0, firstFence);
   prose = prose.trim();
 

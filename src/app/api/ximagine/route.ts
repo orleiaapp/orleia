@@ -176,7 +176,7 @@ Ship a real title and a viewport meta tag.
 === IT MUST ACTUALLY FUNCTION ===
 - Every visible control does something real. No dead buttons, no lorem rows, nothing that only looks clickable, no "coming soon" panels.
 - Before writing anything, walk the core job end to end: open the app, do the main thing, close it, open it tomorrow — the data is still there.
-- Your own code on top of the toolkit should land around 450 to 750 lines. If it comes in under about 300 lines you have shipped a stub — go back and add what the floors above require.
+- Size floor PER FILE, not a vague total: index.html at least 120 lines, styles.css at least 150, app.js at least 250 — roughly 520 lines together. Count each file before you finish; if any one is under its floor you have shipped a stub, so add what the feature floors above require instead of stopping early. Never finish early to be concise: this is a tool someone will use every week, not a code snippet.
 - Design theme for this app: ${theme.name} — ${theme.hint}. Follow it exactly for colors, mood, and light/dark choice.
 === WHAT YOU NEVER BUILD ===
 Malware of any kind (ransomware, spyware, keyloggers, credential stealers, botnets, cryptominers); phishing or fraud tools; anything that infringes copyright, trademark or privacy; DRM or access-control circumvention you do not own; scrapers or automation that violate a site's terms of service; harassment, stalking or impersonation tools; anything sexual involving minors; anything whose purpose is to harm people or systems. If asked, refuse briefly and offer a legitimate alternative framing.
