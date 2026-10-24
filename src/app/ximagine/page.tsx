@@ -18,7 +18,6 @@ import {
   type XFile,
   type XMessage,
   type XMode,
-  type XThemeId,
 } from "@/lib/ximagine";
 
 const CAP_MSG =
@@ -140,7 +139,12 @@ export default function XimaginePage() {
         // Build outputs are only trusted when the turn completed — a cut
         // stream would bake a half-written file into the app.
         let parsed: XFile[] = [];
-        if (!aborted && !res.error && mode === "build") parsed = parseBuild(res.text).files;
+        let prose = "";
+        if (!aborted && !res.error && mode === "build") {
+          const build = parseBuild(res.text);
+          parsed = build.files;
+          prose = build.prose;
+        }
 
         let openedAppId: string | undefined;
         const now = Date.now();
@@ -161,7 +165,11 @@ export default function XimaginePage() {
               ? CAP_MSG
               : res.error
                 ? ERR_MSG
-                : res.text || "_(no reply)_";
+                : prose
+                  ? prose
+                  : parsed.length
+                    ? "Your app is ready — open it."
+                    : res.text || "_(no reply)_";
 
           // Upsert the app (build mode, successful parse).
           let appId = chat.appId;
@@ -226,6 +234,7 @@ export default function XimaginePage() {
     setActiveChatId(null);
     setPendingMode("plan");
     setSidebarOpen(false);
+    setOpenAppId(null);
   };
 
   const deleteChat = (id: string) => {
@@ -280,6 +289,7 @@ export default function XimaginePage() {
           onSelectChat={(id) => {
             setActiveChatId(id);
             setSidebarOpen(false);
+            setOpenAppId(null);
           }}
           onDeleteChat={deleteChat}
           onOpenApp={openApp}
@@ -289,35 +299,35 @@ export default function XimaginePage() {
         <button
           aria-label="Close menu"
           onClick={() => setSidebarOpen(false)}
-          className="fixed inset-0 z-30 bg-black/60 lg:hidden"
+          className="fixed inset-0 z-[35] bg-black/60 lg:hidden"
         />
       )}
 
       <div className="flex min-w-0 flex-1">
-        <div className="flex min-w-0 flex-1 flex-col">
-          <XimagineChat
-            chat={chat}
-            busy={busy}
-            defaultTheme={data.defaultTheme}
-            creditCap={creditCap}
-            onSend={send}
-            onStop={stop}
-            onModeChange={setMode}
-            onThemeChange={(t: XThemeId) => update((d) => ({ ...d, defaultTheme: t }))}
-            onOpenApp={openApp}
-            onMenu={() => setSidebarOpen(true)}
-          />
-        </div>
+        {!openAppRecord && (
+          <div className="flex min-w-0 flex-1 flex-col">
+            <XimagineChat
+              chat={chat}
+              busy={busy}
+              creditCap={creditCap}
+              onSend={send}
+              onStop={stop}
+              onModeChange={setMode}
+              onOpenApp={openApp}
+              onMenu={() => setSidebarOpen(true)}
+            />
+          </div>
+        )}
 
         {openAppRecord && (
-          <div className="fixed inset-0 z-30 lg:static lg:z-auto lg:block">
+          <div className="fixed inset-0 z-30 flex min-w-0 flex-col lg:static lg:z-auto lg:flex-1">
             <XimagineWorkbench
               app={openAppRecord}
               onRename={(name) => patchApp(openAppRecord.id, (a) => ({ ...a, name }))}
-              onThemeChange={(t) => patchApp(openAppRecord.id, (a) => ({ ...a, theme: t }))}
               onFilesChange={(files) => patchApp(openAppRecord.id, (a) => ({ ...a, files }))}
               onDelete={() => deleteApp(openAppRecord.id)}
               onClose={() => setOpenAppId(null)}
+              onMenu={() => setSidebarOpen(true)}
             />
           </div>
         )}

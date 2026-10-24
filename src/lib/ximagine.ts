@@ -8,7 +8,7 @@
 // ============================================================
 
 export type XMode = "plan" | "build";
-export type XThemeId = "noir" | "paper" | "ocean" | "sunset" | "forest" | "mono";
+export type XThemeId = "paper" | "ocean" | "sunset" | "forest" | "mono";
 
 export interface XFile {
   path: string;
@@ -71,7 +71,6 @@ const MAX_FILE_CHARS = 150_000;
 export const MAX_TOTAL_FILE_CHARS = 400_000;
 
 export const X_THEMES: { id: XThemeId; name: string; swatch: string; hint: string }[] = [
-  { id: "noir", name: "Noir", swatch: "#18181b", hint: "near-black background (#0b0d10), zinc-gray text, white accents, thin subtle borders" },
   { id: "paper", name: "Paper", swatch: "#faf9f6", hint: "warm off-white background (#faf9f6), ink-black text, one restrained accent color" },
   { id: "ocean", name: "Ocean", swatch: "#0e7490", hint: "deep blue-slate background, cyan/teal accents, soft layered depth" },
   { id: "sunset", name: "Sunset", swatch: "#fb7185", hint: "warm cream background with coral and amber accents" },
@@ -101,7 +100,7 @@ export function emptyXData(): XData {
     v: 1,
     onboarded: false,
     credits: { day: utcDay(), used: 0 },
-    defaultTheme: "noir",
+    defaultTheme: "paper",
     chats: [],
     apps: [],
   };
@@ -134,7 +133,7 @@ export function loadXData(): XData {
       d.credits && typeof d.credits.day === "string" && typeof d.credits.used === "number"
         ? { day: d.credits.day, used: Math.max(0, Math.floor(d.credits.used)) }
         : data.credits;
-    data.defaultTheme = X_THEMES.some((t) => t.id === d.defaultTheme) ? d.defaultTheme : "noir";
+    data.defaultTheme = X_THEMES.some((t) => t.id === d.defaultTheme) ? d.defaultTheme : "paper";
     if (Array.isArray(d.chats))
       data.chats = d.chats.slice(0, MAX_CHATS).map((c) => ({
         id: typeof c?.id === "string" ? c.id : uid(),
@@ -159,7 +158,7 @@ export function loadXData(): XData {
         id: typeof a?.id === "string" ? a.id : uid(),
         chatId: typeof a?.chatId === "string" ? a.chatId : "",
         name: typeof a?.name === "string" ? a.name.slice(0, 80) : "Untitled app",
-        theme: X_THEMES.some((t) => t.id === a?.theme) ? (a.theme as XThemeId) : "noir",
+        theme: X_THEMES.some((t) => t.id === a?.theme) ? (a.theme as XThemeId) : "paper",
         files: clampFiles(Array.isArray(a?.files) ? a.files : []),
         createdAt: Number(a?.createdAt) || Date.now(),
         updatedAt: Number(a?.updatedAt) || Date.now(),

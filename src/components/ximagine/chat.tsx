@@ -13,6 +13,13 @@ const SUGGESTIONS = [
   "A unit converter that remembers history",
 ];
 
+/** Build replies carry fenced file blocks — never show them in chat.
+ *  The product is an app builder, not a code viewer: users see prose + preview. */
+function visibleText(content: string): string {
+  const i = content.search(/^\s*```+\s*file:/m);
+  return i >= 0 ? content.slice(0, i) : content;
+}
+
 function ThinkingBlock({ text, active }: { text: string; active: boolean }) {
   const [open, setOpen] = useState(false);
   const isOpen = open || active;
@@ -120,23 +127,19 @@ export function ThemePicker({ value, onChange }: { value: XThemeId; onChange: (t
 export function XimagineChat({
   chat,
   busy,
-  defaultTheme,
   creditCap,
   onSend,
   onStop,
   onModeChange,
-  onThemeChange,
   onOpenApp,
   onMenu,
 }: {
   chat: XChat | null;
   busy: boolean;
-  defaultTheme: XThemeId;
   creditCap: boolean;
   onSend: (text: string) => void;
   onStop: () => void;
   onModeChange: (m: XMode) => void;
-  onThemeChange: (t: XThemeId) => void;
   onOpenApp: (appId: string) => void;
   onMenu?: () => void;
 }) {
@@ -174,7 +177,7 @@ export function XimagineChat({
   return (
     <section className="flex h-full min-w-0 flex-1 flex-col bg-[#050508]">
       {/* header */}
-      <header className="flex items-center justify-between gap-3 border-b border-white/10 px-5 py-3">
+      <header className="flex items-center justify-between gap-3 px-5 py-3">
         <div className="flex min-w-0 items-center gap-3">
           {onMenu && (
             <button
@@ -193,7 +196,6 @@ export function XimagineChat({
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-2">
-          <ThemePicker value={defaultTheme} onChange={onThemeChange} />
           <div className="flex rounded-full border border-white/10 bg-white/[0.03] p-0.5" role="tablist" aria-label="Mode">
             {(
               [
@@ -228,20 +230,9 @@ export function XimagineChat({
               </div>
               <h2 className="mt-5 text-2xl font-bold tracking-tight">What should we build?</h2>
               <p className="mx-auto mt-2 max-w-sm text-sm leading-relaxed text-muted-foreground/60">
-                One small app that does exactly your job. Noor will ask a couple of questions,
-                then write it — and you get every line of the code.
+                One small app that does exactly your job. Noor asks a couple of questions,
+                then it's built and ready to use.
               </p>
-              <div className="mt-6 flex flex-wrap justify-center gap-2">
-                {SUGGESTIONS.map((s) => (
-                  <button
-                    key={s}
-                    onClick={() => !busy && !creditCap && onSend(s)}
-                    className="rounded-full border border-white/10 bg-white/[0.03] px-3.5 py-1.5 text-[12px] text-muted-foreground/70 transition-colors hover:bg-white/[0.07]"
-                  >
-                    {s}
-                  </button>
-                ))}
-              </div>
             </div>
           )}
 
@@ -262,7 +253,7 @@ export function XimagineChat({
                 <ThinkingBlock text={m.thinking || ""} active={busy && isLastAssistant(m.id) && !m.content} />
                 {m.content && (
                   <div className="text-[14px] text-foreground/90">
-                    <Markdown content={m.content} codeCopy />
+                    <Markdown content={visibleText(m.content)} />
                   </div>
                 )}
                 {busy && isLastAssistant(m.id) && m.content && (
@@ -274,7 +265,7 @@ export function XimagineChat({
                     className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-emerald-400/30 bg-emerald-400/10 px-3 py-1.5 text-[12px] text-emerald-200 transition-colors hover:bg-emerald-400/15"
                   >
                     <FolderOpen className="h-3.5 w-3.5" />
-                    {m.fileCount} {m.fileCount === 1 ? "file" : "files"} written — open the app
+                    Your app is ready — open it
                   </button>
                 ) : null}
                 {isLastAssistant(m.id) && mode === "plan" && questions.length === 0 && (
@@ -320,15 +311,28 @@ export function XimagineChat({
       </div>
 
       {/* composer */}
-      <div className="border-t border-white/10 px-4 py-4 md:px-8">
+      <div className="px-4 py-4 md:px-8">
         <div className="mx-auto max-w-2xl">
+          {!creditCap && messages.length === 0 && (
+            <div className="mb-3 flex flex-col gap-2">
+              {SUGGESTIONS.map((s) => (
+                <button
+                  key={s}
+                  onClick={() => !busy && onSend(s)}
+                  className="rounded-full border border-white/10 bg-white/[0.03] px-4 py-2 text-left text-[12px] text-muted-foreground/70 transition-colors hover:bg-white/[0.07]"
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
+          )}
           {creditCap ? (
             <div className="rounded-2xl border border-amber-400/25 bg-amber-400/[0.06] px-4 py-3 text-[13px] text-amber-200/90">
               Today&apos;s free credits are used up. They reset at 00:00 UTC — Ximagine is a free
               beta, and this keeps it that way for everyone.
             </div>
           ) : (
-            <div className="flex items-end gap-2 rounded-2xl border border-white/15 bg-white/[0.04] px-3 py-2.5 transition-colors focus-within:border-white/30">
+            <div className="flex items-end gap-2 rounded-full border border-white/15 bg-white/[0.04] px-4 py-2.5 transition-colors focus-within:border-white/30">
               <textarea
                 ref={taRef}
                 value={draft}
@@ -366,8 +370,8 @@ export function XimagineChat({
           )}
           <p className="mt-2 text-center text-[10px] text-muted-foreground/35">
             {mode === "plan"
-              ? "Plan mode: Noor asks questions, nothing is written yet · 1 credit per turn"
-              : "Build mode: Noor writes the app's files · 1 credit per turn"}
+              ? "Plan mode: Noor asks questions, nothing is built yet · 1 credit per turn"
+              : "Build mode: Noor builds your app · 1 credit per turn"}
           </p>
         </div>
       </div>

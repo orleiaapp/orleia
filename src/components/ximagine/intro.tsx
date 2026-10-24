@@ -18,12 +18,12 @@ const STEPS = [
   {
     n: "02",
     title: "Build",
-    body: "Watch the app appear in a live preview — HTML, CSS and JS, written line by line.",
+    body: "Watch it come together in a live preview — piece by piece, ready the moment it's done.",
   },
   {
     n: "03",
     title: "Edit",
-    body: "Every file is yours. Read it, change it, ask for a rebuild. It never leaves this device.",
+    body: "Hold-press anything to change it on the spot, or just ask Noor for a tweak. It never leaves this device.",
   },
 ];
 
@@ -57,7 +57,7 @@ export function XimagineIntro({ onDone }: { onDone: () => void }) {
               </h1>
               <p className="mx-auto mt-5 max-w-sm text-sm leading-relaxed text-muted-foreground/80">
                 Describe a small tool — for exactly your job, for you alone — and it gets built.
-                On your computer. The code is right there, and it&apos;s yours to change.
+                On your computer, in seconds — ready to use right away.
               </p>
               <button
                 onClick={() => setStep(1)}

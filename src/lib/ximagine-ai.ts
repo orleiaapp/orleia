@@ -361,6 +361,43 @@ catch (e) { try { window.localStorage = shim; } catch (e2) {} }
 window.XMStorage = shim;
 })();</script>`;
 
+// Long-press inspector (preview only — never included in exports): hold
+// ~450ms on any element to highlight it and tell the workbench's edit
+// window what it is. Same validated postMessage channel as app data.
+const INSPECT_PRELUDE = `<script>(function(){
+if (window.parent === window) return;
+var lp = null, sx = 0, sy = 0, fired = false, hi = null;
+function clearHi(){ if (hi) { try { hi.style.outline = hi.__xmPrev || ""; hi.style.outlineOffset = ""; } catch (e) {} hi = null; } }
+function fire(el){
+  fired = true; setTimeout(function(){ fired = false; }, 700);
+  clearHi();
+  try { el.__xmPrev = el.style.outline || ""; el.style.outline = "2px solid #34d399"; el.style.outlineOffset = "2px"; hi = el; } catch (e) {}
+  try {
+    parent.postMessage({ __xm: 2, app: __XM_APP__, tag: el.tagName.toLowerCase(),
+      id: String(el.id || ""), cls: (typeof el.className === "string" ? el.className : "").slice(0, 200),
+      html: (el.outerHTML || "").slice(0, 20000), text: (el.textContent || "").trim().slice(0, 4000) }, "*");
+  } catch (e) {}
+}
+function onDown(e){
+  if (e.touches && e.touches.length > 1) { clearTimeout(lp); return; }
+  var t = e.touches ? e.touches[0] : e;
+  sx = t.clientX; sy = t.clientY;
+  var el = e.target; if (!el || el.nodeType !== 1) return;
+  clearTimeout(lp);
+  lp = setTimeout(function(){ fire(el); }, 450);
+}
+function cancel(){ clearTimeout(lp); }
+function onMove(e){ var t = e.touches ? e.touches[0] : e; if (Math.abs(t.clientX - sx) > 10 || Math.abs(t.clientY - sy) > 10) cancel(); }
+document.addEventListener("touchstart", onDown, { passive: true });
+document.addEventListener("touchmove", onMove, { passive: true });
+document.addEventListener("touchend", cancel, true);
+document.addEventListener("mousedown", onDown);
+document.addEventListener("mousemove", onMove);
+document.addEventListener("mouseup", cancel);
+document.addEventListener("click", function(e){ if (fired) { e.preventDefault(); e.stopPropagation(); } }, true);
+window.addEventListener("message", function(e){ var d = e.data; if (d && d.__xmCmd === "clear") clearHi(); });
+})();</script>`;
+
 export function assemblePreview(
   files: XFile[],
   appId: string,
@@ -398,9 +435,9 @@ export function assemblePreview(
 
   if (opts?.bridge === false) return html; // standalone export: real localStorage
 
-  const prelude = STORAGE_PRELUDE(data)
+  const prelude = (STORAGE_PRELUDE(data) + INSPECT_PRELUDE)
     .replace("__XM_DATA__", JSON.stringify(data).replace(/<\//g, "<\\/"))
-    .replace("__XM_APP__", JSON.stringify(appId));
+    .replaceAll("__XM_APP__", JSON.stringify(appId));
 
   if (/<head[^>]*>/i.test(html)) html = html.replace(/<head[^>]*>/i, (m) => `${m}${prelude}`);
   else html = prelude + html;
