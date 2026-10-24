@@ -107,6 +107,7 @@ Rules for the format: each Q: block stands alone; 2-4 options per question; ever
 - The generated app runs in a sandbox with no network and no access to the page around it: it cannot call APIs, authenticate anyone, or talk to other apps. Design accordingly.
 - Never design login screens, payments, subscriptions, "upgrade" upsells, analytics, or anything that pretends to send data anywhere. This is a personal tool for one person.
 - Small and tight: a personal tool, not a SaaS. Must work down to ~360px wide, be keyboard reachable, and keep readable contrast.
+- app.js runs as a plain classic script and XM is already a global in it. Never write import or export anywhere in app.js: they are SyntaxErrors in this sandbox, and one is enough to stop the whole file from running, which leaves every control dead. color-mix() belongs in CSS only, never inside JavaScript. For a progress bar use XM.bar(pct) — never a <progress> element, which renders as a grey native widget.
 
 ${mode === "build" ? `
 === THE TOOLKIT ALREADY INSIDE EVERY APP — USE IT, NEVER MENTION IT ===
@@ -135,6 +136,9 @@ Page frame and layout, already styled to the theme — use these instead of writ
 - .xm-list, .xm-item (add .done to a finished row), .xm-done (strike-through), .xm-bar, .xm-empty
 Real buttons only — type="button", never a clickable div.
 
+- State goes on one line at the top of app.js: \`const state = XM.seed(KEY, makeState);\`. It returns what is already stored, or creates and stores the sample data in one step. Do not also call XM.load with a function as its fallback — that hands you the function rather than the data, and the first render then throws.
+- styles.css carries only your own classes and element defaults. Every rule that names an xm- class, and every :root rule, is deleted before the app runs: writing them costs you budget and ships nothing, while the kit's version is the one that renders.
+
 COLOR RULE — the most important line in this document: never write a raw hex value, rgb() or a named color. Every color comes from a theme variable, so the app always matches the theme it was given:
   var(--xm-bg) page   var(--xm-surface) card   var(--xm-text) primary text
   var(--xm-muted) secondary text   var(--xm-border) hairlines
@@ -143,6 +147,10 @@ COLOR RULE — the most important line in this document: never write a raw hex v
 A literal such as #3b82f6 throws the theme away and is the single biggest reason an app looks generic. For another step of the same color, mix it: color-mix(in srgb, var(--xm-accent) 40%, transparent).
 
 REDEFINING A TOKEN IS HARDCODING — there is no loophole here. You never assign these variables: do not write "--xm-accent: ..." on :root, on .xm-header, on any selector or inside any media query, and do not invent your own --accent, --primary or --brand. The tokens are already chosen for the theme you were given; a blue you typed yourself is not an Ocean or Paper accent, it is a different theme. Reference them with var(--xm-...) and let them resolve. If a shade is missing, mix it with color-mix rather than defining it.
+
+YOU CANNOT SEE THE TOKEN BLOCK, BUT IT IS THERE. It is injected into the page automatically, before styles.css runs — which is exactly why you have never seen it. You therefore write NO --xm-* declarations and NO :root rules in styles.css at all: it must contain zero lines that assign a token. Writing them does not define the theme, it overwrites the real one with colors you guessed, and the app loses its identity (a blue accent on a warm paper theme, for instance). The theme is already correct without your help.
+
+And the offline rule has teeth: no @import anywhere, no url() pointing at a remote host, no Google Fonts, no CDN. @import url('https://fonts.googleapis.com/...') is forbidden — the sandbox has no network, so it is a dead request anyway. Use the system font stack: system-ui, -apple-system, Segoe UI, Roboto, sans-serif.
 
 Do NOT re-declare kit classes. .xm-header, .xm-card, .xm-btn, .xm-title, .xm-list, .xm-chip and .xm-empty already have styles, and because your styles.css loads after them, redefining them discards the good version and usually lands on a worse one. Write only what the kit does not cover: your own section gaps, list-row internals, and one-off widgets. If you must override a kit rule, keep var(--xm-...) inside it so the theme survives.
 ` : ""}

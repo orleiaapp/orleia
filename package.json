@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "test": "node --test scripts-test/i18n-parity.test.mjs",
+    "test": "node --test scripts-test/i18n-parity.test.mjs scripts-test/ximagine-build.test.mjs",
     "prepare": "git config core.hooksPath scripts/hooks || true"
   },
   "dependencies": {

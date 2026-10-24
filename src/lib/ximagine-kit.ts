@@ -108,9 +108,13 @@ a{color:var(--xm-accent)}
 .xm-col{display:flex;flex-direction:column;gap:8px}
 .xm-sep{height:1px;background:var(--xm-border);border:0;margin:12px 0}
 .xm-title{font-size:22px;font-weight:650;letter-spacing:-0.01em;margin:0;line-height:1.25}
+.xm-header .xm-title{font-size:clamp(24px,5vw,30px);line-height:1.15}
+.xm-main .xm-title{font-size:19px;line-height:1.3}
 .xm-sub{margin:3px 0 0;font-size:14px;color:var(--xm-muted)}
 .xm-hint{font-size:13px;color:var(--xm-muted)}
-.xm-stat{display:flex;flex-direction:column;gap:2px;min-width:0}
+.xm-stat{display:flex;flex-direction:column;gap:2px;min-width:0;
+  font-size:15px;font-weight:650;color:var(--xm-text);
+  font-variant-numeric:tabular-nums;line-height:1.2}
 .xm-stat b{font-size:20px;font-weight:650;font-variant-numeric:tabular-nums;line-height:1.2}
 .xm-stat span{font-size:11px;text-transform:uppercase;letter-spacing:0.07em;color:var(--xm-muted)}
 .xm-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;
@@ -138,7 +142,7 @@ textarea.xm-input{padding:12px 14px;min-height:92px;line-height:1.5;resize:verti
   border-radius:999px;border:1px solid var(--xm-border);background:var(--xm-surface);
   color:var(--xm-muted);font-size:13px;cursor:pointer;transition:background 0.15s ease}
 .xm-chip:hover{color:var(--xm-text)}
-.xm-chip[aria-pressed="true"],.xm-chip.on{background:var(--xm-accent-soft);
+.xm-chip[aria-pressed="true"],.xm-chip.on,.xm-chip.active{background:var(--xm-accent-soft);
   border-color:var(--xm-accent);color:var(--xm-text)}
 .xm-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
 .xm-item{display:flex;align-items:center;gap:12px;padding:12px 14px;background:var(--xm-surface);
@@ -147,6 +151,10 @@ textarea.xm-input{padding:12px 14px;min-height:92px;line-height:1.5;resize:verti
 .xm-done{text-decoration:line-through;color:var(--xm-muted)}
 .xm-bar{height:8px;border-radius:999px;background:var(--xm-accent-soft);overflow:hidden}
 .xm-bar>span{display:block;height:100%;border-radius:999px;background:var(--xm-accent);transition:width 0.3s ease}
+progress.xm-bar{appearance:none;-webkit-appearance:none;width:100%;margin:0;border:0}
+progress.xm-bar::-webkit-progress-bar{background:var(--xm-accent-soft);border-radius:999px}
+progress.xm-bar::-webkit-progress-value{background:var(--xm-accent);border-radius:999px}
+progress.xm-bar::-moz-progress-bar{background:var(--xm-accent);border-radius:999px}
 .xm-empty{text-align:center;padding:34px 20px;color:var(--xm-muted)}
 .xm-empty .e{display:block;font-size:34px;margin-bottom:10px;line-height:1}
 .xm-empty strong{display:block;color:var(--xm-text);font-size:15px;font-weight:600}
@@ -207,7 +215,9 @@ var XM = {
   qs: function(s, r){ return (r || document).querySelector(s); },
   qsa: function(s, r){ return Array.prototype.slice.call((r || document).querySelectorAll(s)); },
   load: function(key, fb){ try { var raw = localStorage.getItem(key);
-      if (raw == null) return fb; var v = JSON.parse(raw); return v == null ? fb : v;
+      if (raw == null) return typeof fb === "function" ? fb() : fb;
+      var v = JSON.parse(raw);
+      return v == null ? (typeof fb === "function" ? fb() : fb) : v;
     } catch(e){ return fb; } },
   save: function(key, val){ try { var s = JSON.stringify(val);
       if (typeof s === "string") localStorage.setItem(key, s); } catch(e){} },

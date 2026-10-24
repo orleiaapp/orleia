@@ -288,6 +288,99 @@ function safePath(p: string): string | null {
  * language tags (three backticks then html) or a bare filename, so accept
  * those too rather than discarding an otherwise complete build.
  */
+/**
+ * Generated CSS can quietly break two guarantees the prompt alone could not
+ * hold: the model redeclares the --xm-* tokens (it has never seen the block
+ * the kit injects, so it assumes it must define them) which swaps in its own
+ * accent and destroys the theme, and it reaches for a remote @import, which
+ * violates the offline contract. Both are removed here, after parsing.
+ */
+function sanitizeCss(css: string): string {
+  let out = css
+    // Offline: no remote stylesheets.
+    // A font URL carries its own ";" (wght@400;500), so match through the
+    // whole statement rather than stopping at the first semicolon.
+    .replace(/@import\s+(?:url\([^)]*\)|['"][^'"]*['"])[^;{}\n]*;/gi, "")
+    .replace(/^\s*@import\b[^\n]*/gm, "")
+    // The kit already defines every token for the chosen theme.
+    .replace(/--xm-[a-z-]+\s*:\s*[^;}]+;?/gi, "")
+    // Remote images/fonts: neutralise rather than leave a dead request.
+    .replace(/url\(\s*['"]?https?:\/\/[^)]*\)/gi, "none");
+  return filterRules(out, shouldDropRule);
+}
+/**
+ * The model never sees the kit stylesheet, so it re-declares the xm-* classes
+ * with guesses of its own — and because styles.css is inlined after the kit,
+ * its guesses win and the designed layer is replaced by a weaker one. :root is
+ * where it re-defines tokens the theme already chose. Drop both: the kit is the
+ * source of truth for anything it owns.
+ */
+function shouldDropRule(selector: string): boolean {
+  return /(^|[\s,>+~(])\.xm-[a-z]/i.test(selector) || /(^|,)\s*:root\b/i.test(selector);
+}
+
+/**
+ * Remove whole rules whose selector is dropped, recursing through
+ * @media/@supports/@layer so a rule nested in a query is removed too.
+ * Only whole blocks go; unrelated declarations are untouched.
+ */
+function filterRules(css: string, drop: (sel: string) => boolean): string {
+  let out = "";
+  let i = 0;
+  const n = css.length;
+  while (i < n) {
+    const open = css.indexOf("{", i);
+    if (open < 0) {
+      out += css.slice(i);
+      break;
+    }
+    const head = css.slice(i, open);
+    let close = css.length;
+    let depth = 0;
+    let quote = "";
+    for (let j = open; j < n; j++) {
+      const c = css[j];
+      if (quote) {
+        if (c === "\\") j++;
+        else if (c === quote) quote = "";
+        continue;
+      }
+      if (c === '"' || c === "'") quote = c;
+      else if (c === "/" && css[j + 1] === "*") {
+        const end = css.indexOf("*/", j + 2);
+        j = end < 0 ? n : end + 1;
+      } else if (c === "{") depth++;
+      else if (c === "}" && --depth === 0) {
+        close = j;
+        break;
+      }
+    }
+    const sel = head.trim();
+    const inner = css.slice(open + 1, close);
+    if (/^@(media|supports|layer|container)\b/i.test(sel)) {
+      out += head + "{" + filterRules(inner, drop) + "}";
+    } else if (!drop(sel)) {
+      out += head + "{" + inner + "}";
+    }
+    i = close + 1;
+  }
+  return out;
+}
+
+/**
+ * app.js is inlined into a classic <script> where XM is already a global.
+ * An ESM import or export is a SyntaxError there, and one bad line takes the
+ * whole file with it — after which every control in the app is dead. Strip
+ * them so a stray import can never blank the app.
+ */
+function sanitizeJs(js: string): string {
+  return js
+    .replace(/^[ \t]*import\s+[^;'"]*?from\s*['"][^'"]+['"][ \t]*;?[ \t]*$/gm, "")
+    .replace(/^[ \t]*import\s+['"][^'"]+['"][ \t]*;?[ \t]*$/gm, "")
+    .replace(/^[ \t]*export\s*\{[^}]*\}[ \t]*;?[ \t]*$/gm, "")
+    .replace(/^[ \t]*export\s+default\s+/gm, "")
+    .replace(/^[ \t]*export\s+(?=(?:async\s+)?(?:function|class|const|let|var)\b)/gm, "");
+}
 function pathFromInfo(info: string): string | null {
   const raw = (info || "").trim();
   if (!raw) return null;
@@ -330,12 +423,14 @@ export function parseBuild(raw: string): ParsedBuild {
     i++; // skip closer (or run off the end when the reply was cut)
     if (!path || seen.has(path)) continue;
     seen.add(path);
-    const content = body
+    let content = body
       .join("\n")
       // The model sometimes repeats the path as the first line of its own
       // block. Left in, it renders as literal text at the top of the app.
       .replace(/^(?:[ \t]*(?:file:[ \t]*\S+|index\.html|styles\.css|app\.js)[ \t]*\n)+/i, "")
       .replace(/\s+$/, "");
+    if (/\.css$/i.test(path)) content = sanitizeCss(content);
+    else if (/\.(js|mjs)$/i.test(path)) content = sanitizeJs(content);
     files.push({ path, content });
   }
 
