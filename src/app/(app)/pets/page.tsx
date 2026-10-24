@@ -416,7 +416,7 @@ export default function PetsPage() {
       {/* Assign-a-job dialog (Scout) */}
       {assignFor && (
         <div
-          className="fixed inset-0 z-[80] flex items-end justify-center bg-black/40 p-4 sm:items-center"
+          className="fixed inset-0 z-[80] top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-black/40 min-h-screen p-4"
           onClick={() => setAssignFor(null)}
         >
           <div className="card w-full max-w-md p-5" onClick={(e) => e.stopPropagation()}>
@@ -487,7 +487,7 @@ export default function PetsPage() {
       {/* Hire dialog: pick which pet wears the badge */}
       {hiring && (
         <div
-          className="fixed inset-0 z-[80] flex items-end justify-center bg-black/40 p-4 sm:items-center"
+          className="fixed inset-0 z-[80] top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-black/40 min-h-screen p-4"
           onClick={() => !busy && setHiring(null)}
         >
           <div className="card w-full max-w-md p-5" onClick={(e) => e.stopPropagation()}>
@@ -495,7 +495,7 @@ export default function PetsPage() {
             <p className="mt-0.5 text-xs text-muted-foreground">
               {t(`petjob.${hiring.role}.name`, hiring.name)} — {t(`petjob.${hiring.role}.tagline`, hiring.tagline)}
             </p>
-            <div className="mt-4 grid grid-cols-3 gap-2">
+            <div className="mt-4 grid grid-cols-2 gap-2">
               {PETS.map((p) => (
                 <button
                   key={p.id}
